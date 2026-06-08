@@ -62,14 +62,18 @@ router.get("/match-probability", (req, res) => {
 
 router.get("/popular-matchups", (_req, res) => {
   const POPULAR_PAIRS: Array<{ aId: string; bId: string; label: string }> = [
-    { aId: "argentina", bId: "france", label: "World Cup Final rematch" },
-    { aId: "brazil", bId: "argentina", label: "El Clasico Sudamericano" },
-    { aId: "england", bId: "germany", label: "Historic rivalry" },
-    { aId: "spain", bId: "brazil", label: "Tiki-taka vs Samba" },
-    { aId: "usa", bId: "mexico", label: "Concacaf El Clasico" },
-    { aId: "france", bId: "brazil", label: "2006 QF rematch" },
-    { aId: "portugal", bId: "spain", label: "Iberian derby" },
-    { aId: "england", bId: "argentina", label: "Hand of God legacy" },
+    { aId: "argentina", bId: "france",      label: "World Cup Final rematch" },
+    { aId: "brazil",    bId: "argentina",   label: "El Clasico Sudamericano" },
+    { aId: "england",   bId: "germany",     label: "Historic rivalry" },
+    { aId: "spain",     bId: "brazil",      label: "Tiki-taka vs Samba" },
+    { aId: "usa",       bId: "mexico",      label: "CONCACAF El Clasico" },
+    { aId: "france",    bId: "brazil",      label: "2006 QF rematch" },
+    { aId: "portugal",  bId: "spain",       label: "Iberian derby" },
+    { aId: "england",   bId: "argentina",   label: "Hand of God legacy" },
+    { aId: "germany",   bId: "netherlands", label: "Der Klassiker" },
+    { aId: "argentina", bId: "england",     label: "Wembley wonders" },
+    { aId: "spain",     bId: "france",      label: "Battle of Europe" },
+    { aId: "norway",    bId: "argentina",   label: "Haaland vs Messi's successors" },
   ];
 
   const stageOrder = ["group_stage", "round_of_32", "round_of_16", "quarterfinal", "semifinal", "final"];
