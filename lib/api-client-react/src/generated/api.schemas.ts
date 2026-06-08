@@ -63,6 +63,43 @@ export interface PopularMatchup {
   label: string;
 }
 
+export interface BracketOpponent {
+  team: Team;
+  /** Probability of facing this team at this stage (given both reach it) */
+  encounterProbability: number;
+  /** Probability of winning if these two meet at this stage */
+  winProbabilityIfFacing: number;
+}
+
+export type BracketStageNodeStage = typeof BracketStageNodeStage[keyof typeof BracketStageNodeStage];
+
+
+export const BracketStageNodeStage = {
+  group_stage: 'group_stage',
+  round_of_32: 'round_of_32',
+  round_of_16: 'round_of_16',
+  quarterfinal: 'quarterfinal',
+  semifinal: 'semifinal',
+  final: 'final',
+} as const;
+
+export interface BracketStageNode {
+  stage: BracketStageNodeStage;
+  description: string;
+  /** Probability that the selected team reaches this stage */
+  reachProbability: number;
+  /** Most likely opponents at this stage, sorted by encounter probability */
+  topOpponents: BracketOpponent[];
+}
+
+export interface BracketExplorerResult {
+  team: Team;
+  path: BracketStageNode[];
+  /** Overall probability that this team wins the tournament */
+  tournamentWinProbability: number;
+  simulationsRun: number;
+}
+
 export type TeamStageBreakdownStagesItem = {
   stage: string;
   probability: number;
@@ -90,6 +127,10 @@ teamB: string;
 /**
  * Number of simulations to run
  */
+simulations?: number;
+};
+
+export type GetBracketExplorerParams = {
 simulations?: number;
 };
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "codegen": "orval --config ./orval.config.ts && pnpm -w run typecheck:libs"
+    "codegen": "orval --config ./orval.config.ts && node -e \"const fs=require('fs'),p=require('path');const f=p.resolve(__dirname,'../../lib/api-zod/src/index.ts');const c=fs.readFileSync(f,'utf8').split('\\n').filter(l=>!l.includes('./generated/types')).join('\\n');fs.writeFileSync(f,c.trim()+'\\n');\" && pnpm -w run typecheck:libs"
   },
   "devDependencies": {
     "orval": "^8.9.1"

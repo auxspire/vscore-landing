@@ -1,12 +1,12 @@
 import { useState } from "react"
-import { useLocation } from "wouter"
+import { useLocation, Link } from "wouter"
 import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getFlagEmoji } from "@/lib/utils"
-import { Swords, Activity } from "lucide-react"
+import { Swords, Activity, ArrowRight } from "lucide-react"
 
 export default function Home() {
   const [, setLocation] = useLocation()
@@ -23,12 +23,18 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col pt-12 pb-24 px-4 md:px-8 max-w-5xl mx-auto relative z-10">
+    <div className="min-h-[100dvh] w-full flex flex-col pt-6 pb-24 px-4 md:px-8 max-w-5xl mx-auto relative z-10">
       
-      <header className="mb-12 text-center md:text-left">
-        <div className="inline-flex items-center gap-2 mb-4 bg-secondary/50 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div className="inline-flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
           <Activity className="w-3 h-3" /> MONTE CARLO ENGINE ONLINE
         </div>
+        <Link href="/bracket" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary hover:underline">
+          Bracket Explorer <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+
+      <header className="mb-12 text-center md:text-left">
         <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-foreground leading-[1.1]">
           TACTICAL <br className="hidden md:block"/> MATCH PREDICTOR
         </h1>

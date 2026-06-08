@@ -124,6 +124,52 @@ export const GetPopularMatchupsResponse = zod.array(GetPopularMatchupsResponseIt
 
 
 /**
+ * @summary Get a team's full path through the bracket with likely opponents at each stage
+ */
+export const GetBracketExplorerParams = zod.object({
+  "teamId": zod.coerce.string()
+})
+
+export const getBracketExplorerQuerySimulationsDefault = 5000;
+
+export const GetBracketExplorerQueryParams = zod.object({
+  "simulations": zod.coerce.number().default(getBracketExplorerQuerySimulationsDefault)
+})
+
+export const GetBracketExplorerResponse = zod.object({
+  "team": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "group": zod.string().describe('Group letter (A-L)'),
+  "fifaRanking": zod.number(),
+  "eloRating": zod.number().describe('Elo rating used for simulation strength'),
+  "confederation": zod.string().describe('FIFA confederation (UEFA, CONMEBOL, etc.)'),
+  "flagCode": zod.string().describe('ISO 3166-1 alpha-2 country code for flag')
+}),
+  "path": zod.array(zod.object({
+  "stage": zod.enum(['group_stage', 'round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'final']),
+  "description": zod.string(),
+  "reachProbability": zod.number().describe('Probability that the selected team reaches this stage'),
+  "topOpponents": zod.array(zod.object({
+  "team": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "group": zod.string().describe('Group letter (A-L)'),
+  "fifaRanking": zod.number(),
+  "eloRating": zod.number().describe('Elo rating used for simulation strength'),
+  "confederation": zod.string().describe('FIFA confederation (UEFA, CONMEBOL, etc.)'),
+  "flagCode": zod.string().describe('ISO 3166-1 alpha-2 country code for flag')
+}),
+  "encounterProbability": zod.number().describe('Probability of facing this team at this stage (given both reach it)'),
+  "winProbabilityIfFacing": zod.number().describe('Probability of winning if these two meet at this stage')
+})).describe('Most likely opponents at this stage, sorted by encounter probability')
+})),
+  "tournamentWinProbability": zod.number().describe('Overall probability that this team wins the tournament'),
+  "simulationsRun": zod.number()
+})
+
+
+/**
  * Returns how likely a given team is to reach each stage of the tournament
  * @summary Get a team's probability of reaching each stage
  */

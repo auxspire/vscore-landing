@@ -5,6 +5,7 @@ import {
   simulateTeamStageReach,
   type StageProbability,
 } from "../services/simulator";
+import { simulateBracketExplorer } from "../services/bracketExplorer";
 
 const router = Router();
 
@@ -96,6 +97,57 @@ router.get("/popular-matchups", (_req, res) => {
   }).filter(Boolean);
 
   res.json(matchups);
+});
+
+router.get("/bracket-explorer/:teamId", (req, res) => {
+  const team = TEAMS_BY_ID[req.params.teamId];
+  if (!team) {
+    res.status(404).json({ error: `Team not found: ${req.params.teamId}` });
+    return;
+  }
+
+  const numSims = Math.min(
+    10000,
+    Math.max(1000, req.query.simulations ? parseInt(req.query.simulations as string, 10) : 5000)
+  );
+
+  try {
+    const data = simulateBracketExplorer(req.params.teamId, numSims);
+
+    const KNOCKOUT_STAGES = ["round_of_32", "round_of_16", "quarterfinal", "semifinal", "final"];
+
+    const path = KNOCKOUT_STAGES.map((stage) => {
+      const sd = data.stageData[stage];
+      const reachProb = sd.reachCount / numSims;
+
+      // Sort opponents by encounter count, take top 3
+      const topOpponents = Object.values(sd.opponents)
+        .sort((a, b) => b.encounterCount - a.encounterCount)
+        .slice(0, 3)
+        .map((o) => ({
+          team: o.team,
+          encounterProbability: sd.reachCount > 0 ? o.encounterCount / sd.reachCount : 0,
+          winProbabilityIfFacing: o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0,
+        }));
+
+      return {
+        stage,
+        description: sd.description,
+        reachProbability: reachProb,
+        topOpponents,
+      };
+    });
+
+    res.json({
+      team,
+      path,
+      tournamentWinProbability: data.winCount / numSims,
+      simulationsRun: numSims,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Simulation failed";
+    res.status(500).json({ error: message });
+  }
 });
 
 router.get("/stage-breakdown/:teamId", (req, res) => {

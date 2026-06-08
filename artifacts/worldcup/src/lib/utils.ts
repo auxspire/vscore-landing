@@ -5,11 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function getFlagEmoji(countryCode: string) {
-  if (!countryCode) return "";
-  const codePoints = countryCode
-    .toUpperCase()
-    .split('')
-    .map(char => 127397 + char.charCodeAt(0));
+const SUBDIVISION_FLAGS: Record<string, string> = {
+  "GB-ENG": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "GB-SCT": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+  "GB-WLS": "🏴󠁧󠁢󠁷󠁬󠁳󠁿",
+};
+
+export function getFlagEmoji(countryCode: string): string {
+  if (!countryCode) return "🏳️";
+  if (SUBDIVISION_FLAGS[countryCode]) return SUBDIVISION_FLAGS[countryCode];
+  const code = countryCode.toUpperCase().slice(0, 2);
+  const codePoints = code.split("").map((char) => 127397 + char.charCodeAt(0));
   return String.fromCodePoint(...codePoints);
 }

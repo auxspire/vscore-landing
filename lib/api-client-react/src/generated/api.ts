@@ -16,7 +16,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BracketExplorerResult,
   ErrorResponse,
+  GetBracketExplorerParams,
   GetMatchProbabilityParams,
   HealthStatus,
   MatchProbabilityResult,
@@ -421,6 +423,95 @@ export function useGetPopularMatchups<TData = Awaited<ReturnType<typeof getPopul
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPopularMatchupsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBracketExplorerUrl = (teamId: string,
+    params?: GetBracketExplorerParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bracket-explorer/${teamId}?${stringifiedParams}` : `/api/bracket-explorer/${teamId}`
+}
+
+/**
+ * @summary Get a team's full path through the bracket with likely opponents at each stage
+ */
+export const getBracketExplorer = async (teamId: string,
+    params?: GetBracketExplorerParams, options?: RequestInit): Promise<BracketExplorerResult> => {
+
+  return customFetch<BracketExplorerResult>(getGetBracketExplorerUrl(teamId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBracketExplorerQueryKey = (teamId: string,
+    params?: GetBracketExplorerParams,) => {
+    return [
+    `/api/bracket-explorer/${teamId}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBracketExplorerQueryOptions = <TData = Awaited<ReturnType<typeof getBracketExplorer>>, TError = ErrorType<ErrorResponse>>(teamId: string,
+    params?: GetBracketExplorerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBracketExplorer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBracketExplorerQueryKey(teamId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBracketExplorer>>> = ({ signal }) => getBracketExplorer(teamId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(teamId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBracketExplorer>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBracketExplorerQueryResult = NonNullable<Awaited<ReturnType<typeof getBracketExplorer>>>
+export type GetBracketExplorerQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a team's full path through the bracket with likely opponents at each stage
+ */
+
+export function useGetBracketExplorer<TData = Awaited<ReturnType<typeof getBracketExplorer>>, TError = ErrorType<ErrorResponse>>(
+ teamId: string,
+    params?: GetBracketExplorerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBracketExplorer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBracketExplorerQueryOptions(teamId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

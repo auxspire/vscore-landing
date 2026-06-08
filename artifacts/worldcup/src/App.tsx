@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Matchup from "@/pages/matchup";
+import Bracket from "@/pages/bracket";
 
 const queryClient = new QueryClient();
 
@@ -13,6 +14,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/matchup" component={Matchup} />
+      <Route path="/bracket" component={Bracket} />
       <Route component={NotFound} />
     </Switch>
   );

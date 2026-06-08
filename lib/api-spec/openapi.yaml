@@ -126,6 +126,37 @@ paths:
                 items:
                   $ref: "#/components/schemas/PopularMatchup"
 
+  /bracket-explorer/{teamId}:
+    get:
+      operationId: getBracketExplorer
+      tags: [probability]
+      summary: Get a team's full path through the bracket with likely opponents at each stage
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: simulations
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 5000
+      responses:
+        "200":
+          description: Bracket path for team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BracketExplorerResult"
+        "404":
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /stage-breakdown/{teamId}:
     get:
       operationId: getTeamStageBreakdown
@@ -262,6 +293,70 @@ components:
         label:
           type: string
           description: e.g. "Classic rivalry", "Likely final"
+
+    BracketOpponent:
+      type: object
+      required:
+        - team
+        - encounterProbability
+        - winProbabilityIfFacing
+      properties:
+        team:
+          $ref: "#/components/schemas/Team"
+        encounterProbability:
+          type: number
+          description: Probability of facing this team at this stage (given both reach it)
+        winProbabilityIfFacing:
+          type: number
+          description: Probability of winning if these two meet at this stage
+
+    BracketStageNode:
+      type: object
+      required:
+        - stage
+        - description
+        - reachProbability
+        - topOpponents
+      properties:
+        stage:
+          type: string
+          enum:
+            - group_stage
+            - round_of_32
+            - round_of_16
+            - quarterfinal
+            - semifinal
+            - final
+        description:
+          type: string
+        reachProbability:
+          type: number
+          description: Probability that the selected team reaches this stage
+        topOpponents:
+          type: array
+          description: Most likely opponents at this stage, sorted by encounter probability
+          items:
+            $ref: "#/components/schemas/BracketOpponent"
+
+    BracketExplorerResult:
+      type: object
+      required:
+        - team
+        - path
+        - tournamentWinProbability
+        - simulationsRun
+      properties:
+        team:
+          $ref: "#/components/schemas/Team"
+        path:
+          type: array
+          items:
+            $ref: "#/components/schemas/BracketStageNode"
+        tournamentWinProbability:
+          type: number
+          description: Overall probability that this team wins the tournament
+        simulationsRun:
+          type: integer
 
     TeamStageBreakdown:
       type: object
