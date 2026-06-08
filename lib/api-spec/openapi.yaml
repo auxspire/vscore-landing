@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: World Cup 2026 Match Probability API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: teams
+    description: Team operations
+  - name: probability
+    description: Match probability operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,130 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /teams:
+    get:
+      operationId: getTeams
+      tags: [teams]
+      summary: Get all World Cup 2026 teams
+      description: Returns all 48 qualified teams with group and strength info
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+
+  /teams/{id}:
+    get:
+      operationId: getTeam
+      tags: [teams]
+      summary: Get a single team by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Team detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "404":
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /match-probability:
+    get:
+      operationId: getMatchProbability
+      tags: [probability]
+      summary: Get probability of two teams meeting at each stage
+      description: Returns the probability (0-1) of Team A vs Team B occurring at each World Cup stage, calculated via Monte Carlo simulation
+      parameters:
+        - name: teamA
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Team A ID
+        - name: teamB
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Team B ID
+        - name: simulations
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10000
+          description: Number of simulations to run
+      responses:
+        "200":
+          description: Match probability by stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchProbabilityResult"
+        "400":
+          description: Invalid team IDs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /popular-matchups:
+    get:
+      operationId: getPopularMatchups
+      tags: [probability]
+      summary: Get top rivalry matchups
+      description: Returns pre-computed probabilities for classic/popular team matchups
+      responses:
+        "200":
+          description: List of popular matchups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PopularMatchup"
+
+  /stage-breakdown/{teamId}:
+    get:
+      operationId: getTeamStageBreakdown
+      tags: [probability]
+      summary: Get a team's probability of reaching each stage
+      description: Returns how likely a given team is to reach each stage of the tournament
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stage breakdown for team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamStageBreakdown"
+        "404":
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +162,135 @@ components:
       required:
         - status
 
+    Team:
+      type: object
+      required:
+        - id
+        - name
+        - group
+        - fifaRanking
+        - eloRating
+        - confederation
+        - flagCode
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        group:
+          type: string
+          description: Group letter (A-L)
+        fifaRanking:
+          type: integer
+        eloRating:
+          type: number
+          description: Elo rating used for simulation strength
+        confederation:
+          type: string
+          description: FIFA confederation (UEFA, CONMEBOL, etc.)
+        flagCode:
+          type: string
+          description: ISO 3166-1 alpha-2 country code for flag
+
+    StageProbability:
+      type: object
+      required:
+        - stage
+        - probability
+        - description
+      properties:
+        stage:
+          type: string
+          enum:
+            - group_stage
+            - round_of_32
+            - round_of_16
+            - quarterfinal
+            - semifinal
+            - final
+        probability:
+          type: number
+          description: Probability 0-1 of the two teams meeting at this stage
+        description:
+          type: string
+          description: Human-readable description of the stage
+
+    MatchProbabilityResult:
+      type: object
+      required:
+        - teamA
+        - teamB
+        - stages
+        - totalProbability
+        - simulationsRun
+        - sameGroup
+      properties:
+        teamA:
+          $ref: "#/components/schemas/Team"
+        teamB:
+          $ref: "#/components/schemas/Team"
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/StageProbability"
+        totalProbability:
+          type: number
+          description: Overall probability of meeting at any point in the tournament
+        simulationsRun:
+          type: integer
+        sameGroup:
+          type: boolean
+          description: Whether the two teams are in the same group
+
+    PopularMatchup:
+      type: object
+      required:
+        - teamA
+        - teamB
+        - totalProbability
+        - mostLikelyStage
+        - label
+      properties:
+        teamA:
+          $ref: "#/components/schemas/Team"
+        teamB:
+          $ref: "#/components/schemas/Team"
+        totalProbability:
+          type: number
+        mostLikelyStage:
+          type: string
+        label:
+          type: string
+          description: e.g. "Classic rivalry", "Likely final"
+
+    TeamStageBreakdown:
+      type: object
+      required:
+        - team
+        - stages
+      properties:
+        team:
+          $ref: "#/components/schemas/Team"
+        stages:
+          type: array
+          items:
+            type: object
+            required:
+              - stage
+              - probability
+              - description
+            properties:
+              stage:
+                type: string
+              probability:
+                type: number
+              description:
+                type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
