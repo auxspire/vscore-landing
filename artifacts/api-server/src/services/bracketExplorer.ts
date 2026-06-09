@@ -1,4 +1,7 @@
 import { TEAMS, GROUPS, TEAMS_BY_ID, type Team } from "../data/teams";
+import { buildBracket, type GroupResult } from "./bracketBuilder";
+
+// ─── Elo match utilities ───────────────────────────────────────────────────
 
 function eloWinProb(teamA: Team, teamB: Team): number {
   return 1 / (1 + Math.pow(10, (teamB.eloRating - teamA.eloRating) / 400));
@@ -18,12 +21,7 @@ function knockoutWinner(a: Team, b: Team): Team {
   return Math.random() < eloWinProb(a, b) ? a : b;
 }
 
-interface GroupResult {
-  team: Team;
-  points: number;
-  gd: number;
-  position: number;
-}
+// ─── Group stage simulation ────────────────────────────────────────────────
 
 function simulateGroup(teams: Team[]): GroupResult[] {
   const stats: Record<string, { points: number; gd: number }> = {};
@@ -31,22 +29,16 @@ function simulateGroup(teams: Team[]): GroupResult[] {
 
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
-      const a = teams[i];
-      const b = teams[j];
+      const a = teams[i], b = teams[j];
       const outcome = matchOutcome(a, b);
       const eloGap = Math.abs(a.eloRating - b.eloRating) / 200;
       const baseGd = Math.round(Math.random() * 2 + Math.abs(eloGap));
       if (outcome === "A") {
-        stats[a.id].points += 3;
-        stats[a.id].gd += baseGd;
-        stats[b.id].gd -= baseGd;
+        stats[a.id].points += 3; stats[a.id].gd += baseGd; stats[b.id].gd -= baseGd;
       } else if (outcome === "B") {
-        stats[b.id].points += 3;
-        stats[b.id].gd += baseGd;
-        stats[a.id].gd -= baseGd;
+        stats[b.id].points += 3; stats[b.id].gd += baseGd; stats[a.id].gd -= baseGd;
       } else {
-        stats[a.id].points += 1;
-        stats[b.id].points += 1;
+        stats[a.id].points += 1; stats[b.id].points += 1;
       }
     }
   }
@@ -54,89 +46,16 @@ function simulateGroup(teams: Team[]): GroupResult[] {
   const sorted = [...teams].sort((a, b) => {
     const sa = stats[a.id], sb = stats[b.id];
     if (sb.points !== sa.points) return sb.points - sa.points;
-    if (sb.gd !== sa.gd) return sb.gd - sa.gd;
+    if (sb.gd    !== sa.gd)      return sb.gd    - sa.gd;
     return b.eloRating - a.eloRating;
   });
 
-  return sorted.map((team, i) => ({ team, points: stats[team.id].points, gd: stats[team.id].gd, position: i + 1 }));
+  return sorted.map((team, i) => ({
+    team, points: stats[team.id].points, gd: stats[team.id].gd, position: i + 1,
+  }));
 }
 
-function get8BestThirds(thirds: Array<{ team: Team; points: number; gd: number }>): Team[] {
-  return [...thirds]
-    .sort((a, b) => b.points !== a.points ? b.points - a.points : b.gd !== a.gd ? b.gd - a.gd : b.team.eloRating - a.team.eloRating)
-    .slice(0, 8)
-    .map(r => r.team);
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function hasSameGroupPair(firsts: Team[], others: Team[]): boolean {
-  for (let i = 0; i < 12; i++) {
-    if (firsts[i].group === others[i].group) return true;
-  }
-  for (let i = 12; i < 20; i += 2) {
-    if (others[i].group === others[i + 1].group) return true;
-  }
-  return false;
-}
-
-function buildBracket(groupResults: Record<string, GroupResult[]>, thirds: Array<{ team: Team; points: number; gd: number }>): Team[] {
-  const groupLetters = "ABCDEFGHIJKL".split("");
-  const firsts: Team[] = [];
-  const seconds: Team[] = [];
-  const thirdsList: { team: Team; points: number; gd: number }[] = [];
-
-  for (const g of groupLetters) {
-    const r = groupResults[g];
-    if (!r) continue;
-    firsts.push(r[0].team);
-    seconds.push(r[1].team);
-    thirdsList.push({ team: r[2].team, points: r[2].points, gd: r[2].gd });
-  }
-
-  const qualifiedThirds = get8BestThirds(thirdsList);
-
-  // Shuffle with constraint: no R32 pair may contain two same-group teams.
-  const others = [...seconds, ...qualifiedThirds];
-  let attempts = 0;
-  do {
-    shuffle(others);
-    attempts++;
-  } while (hasSameGroupPair(firsts, others) && attempts < 300);
-
-  // Fallback force-fix if rejection sampling didn't converge
-  if (hasSameGroupPair(firsts, others)) {
-    for (let i = 0; i < 20; i++) {
-      const pairedGroup = i < 12 ? firsts[i].group : others[i % 2 === 0 ? i : i - 1].group;
-      if (others[i].group === pairedGroup) {
-        for (let j = i + 1; j < 20; j++) {
-          const jPairedGroup = j < 12 ? firsts[j].group : others[j % 2 === 0 ? j : j - 1].group;
-          if (others[j].group !== pairedGroup && others[i].group !== jPairedGroup) {
-            [others[i], others[j]] = [others[j], others[i]];
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  const bracket: Team[] = [];
-  for (let i = 0; i < 12; i++) {
-    bracket.push(firsts[i]);
-    bracket.push(others[i]);
-  }
-  for (let i = 12; i < 20; i += 2) {
-    bracket.push(others[i]);
-    bracket.push(others[i + 1]);
-  }
-  return bracket;
-}
+// ─── Public interfaces ─────────────────────────────────────────────────────
 
 export interface BracketOpponentData {
   team: Team;
@@ -159,27 +78,27 @@ export interface BracketExplorerData {
 }
 
 const STAGE_DESCRIPTIONS: Record<string, string> = {
-  group_stage: "Group Stage",
   round_of_32: "Round of 32",
   round_of_16: "Round of 16",
   quarterfinal: "Quarterfinal",
-  semifinal: "Semifinal",
-  final: "Final",
+  semifinal:    "Semifinal",
+  final:        "Final",
 };
 
 const KNOCKOUT_STAGES = ["round_of_32", "round_of_16", "quarterfinal", "semifinal", "final"];
+const GROUP_LETTERS   = "ABCDEFGHIJKL".split("");
+
+// ─── Main simulation ───────────────────────────────────────────────────────
 
 export function simulateBracketExplorer(
   teamId: string,
-  numSimulations: number = 5000
+  numSimulations = 5000
 ): BracketExplorerData {
   const team = TEAMS_BY_ID[teamId];
   if (!team) throw new Error(`Team not found: ${teamId}`);
 
-  const groupLetters = "ABCDEFGHIJKL".split("");
-
   const stageData: Record<string, BracketStageData> = {};
-  for (const stage of [...KNOCKOUT_STAGES]) {
+  for (const stage of KNOCKOUT_STAGES) {
     stageData[stage] = {
       stage,
       description: STAGE_DESCRIPTIONS[stage] || stage,
@@ -191,23 +110,19 @@ export function simulateBracketExplorer(
   let winCount = 0;
 
   for (let sim = 0; sim < numSimulations; sim++) {
-    // Simulate all groups
     const groupResults: Record<string, GroupResult[]> = {};
-    for (const g of groupLetters) {
+    for (const g of GROUP_LETTERS) {
       groupResults[g] = simulateGroup(GROUPS[g]);
     }
 
-    const thirds = groupLetters.map(g => {
+    const allThirds = GROUP_LETTERS.map(g => {
       const r = groupResults[g][2];
       return { team: r.team, points: r.points, gd: r.gd };
     });
 
-    const bracket = buildBracket(groupResults, thirds);
-
-    // Check if target team is in the bracket
+    const bracket = buildBracket(groupResults, allThirds);
     if (!bracket.some(t => t.id === teamId)) continue;
 
-    // Simulate knockout, tracking target team's path
     let currentRound = [...bracket];
     let teamSurvived = true;
 
@@ -216,12 +131,10 @@ export function simulateBracketExplorer(
       let foundInRound = false;
 
       for (let i = 0; i < currentRound.length; i += 2) {
-        const a = currentRound[i];
-        const b = currentRound[i + 1];
+        const a = currentRound[i], b = currentRound[i + 1];
         const winner = knockoutWinner(a, b);
         nextRound.push(winner);
 
-        // Track the target team's opponent at this stage
         if (a.id === teamId || b.id === teamId) {
           foundInRound = true;
           stageData[stage].reachCount++;
@@ -229,15 +142,11 @@ export function simulateBracketExplorer(
 
           if (!stageData[stage].opponents[opponent.id]) {
             stageData[stage].opponents[opponent.id] = {
-              team: opponent,
-              encounterCount: 0,
-              winsIfFacing: 0,
+              team: opponent, encounterCount: 0, winsIfFacing: 0,
             };
           }
           stageData[stage].opponents[opponent.id].encounterCount++;
-          if (winner.id === teamId) {
-            stageData[stage].opponents[opponent.id].winsIfFacing++;
-          }
+          if (winner.id === teamId) stageData[stage].opponents[opponent.id].winsIfFacing++;
         }
       }
 
