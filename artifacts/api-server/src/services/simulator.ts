@@ -108,8 +108,27 @@ function get8BestThirds(thirdPlaceTeams: Array<{ team: Team; points: number; gd:
 // Slot 1-16: bracket top half, Slot 17-32: bracket bottom half
 // Within each half, teams are paired as 1v2, 3v4, 5v6, 7v8 etc.
 
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function hasSameGroupPair(firsts: Team[], others: Team[]): boolean {
+  // Check the 12 first-vs-other matches
+  for (let i = 0; i < 12; i++) {
+    if (firsts[i].group === others[i].group) return true;
+  }
+  // Check the 4 other-vs-other matches (indices 12..19, paired as 12-13, 14-15, 16-17, 18-19)
+  for (let i = 12; i < 20; i += 2) {
+    if (others[i].group === others[i + 1].group) return true;
+  }
+  return false;
+}
+
 function buildBracket(groupResults: Record<string, GroupResult[]>, best8Thirds: Array<{ team: Team; points: number; gd: number }>): Team[] {
-  // Determine qualifiers by position
   const firstPlace: Team[] = [];
   const secondPlace: Team[] = [];
   const thirdPlace: { team: Team; points: number; gd: number }[] = [];
@@ -125,53 +144,38 @@ function buildBracket(groupResults: Record<string, GroupResult[]>, best8Thirds: 
 
   const qualifiedThirds = get8BestThirds(thirdPlace);
 
-  // Bracket: pair 1sts vs 2nds from non-same-group positions
-  // For simplicity: bracket slots follow group order
-  // R32 matchups: 1A vs 2B, 1B vs 2A, 1C vs 2D, 1D vs 2C, ...
-  // Plus 8 thirds distributed across bracket
-  // We'll use a simplified alternating bracket
+  // others = all 2nd-place teams + 8 qualified 3rd-place teams (20 total)
+  // Shuffle with constraint: no R32 pair may contain two same-group teams.
+  //   - pairs 0..11: firsts[i] vs others[i]
+  //   - pairs 12..15: others[12] vs others[13], others[14] vs others[15], ...
+  const others = [...secondPlace, ...qualifiedThirds];
+
+  let attempts = 0;
+  do {
+    shuffle(others);
+    attempts++;
+  } while (hasSameGroupPair(firstPlace, others) && attempts < 300);
+
+  // Fallback: if rejection sampling somehow didn't converge, force-fix by swapping
+  // any conflicting pair with the nearest non-conflicting candidate.
+  if (hasSameGroupPair(firstPlace, others)) {
+    for (let i = 0; i < 20; i++) {
+      const pairedGroup = i < 12 ? firstPlace[i].group : others[i % 2 === 0 ? i : i - 1].group;
+      if (others[i].group === pairedGroup) {
+        for (let j = i + 1; j < 20; j++) {
+          const jPairedGroup = j < 12 ? firstPlace[j].group : others[j % 2 === 0 ? j : j - 1].group;
+          if (others[j].group !== pairedGroup && others[i].group !== jPairedGroup) {
+            [others[i], others[j]] = [others[j], others[i]];
+            break;
+          }
+        }
+      }
+    }
+  }
 
   const bracket: Team[] = [];
-
-  // 24 group qualifiers + 8 best thirds = 32
-  // Bracket ordering: pair adjacent group winners/runners-up
-  // Match 1: 1A vs 2C, Match 2: 1B vs 2D, Match 3: 1C vs 2A, Match 4: 1D vs 2B
-  // etc., then thirds fill remaining slots
-
-  // Simplified: interleave 1sts and 2nds + thirds
-  const allQualifiers: Team[] = [];
-
-  // Create bracket slots: 16 matches, 32 teams
-  // Pairing: 1st place from group i plays 2nd place from group i+1 (wrapping)
-  // Then 8 thirds are added to complete the 32
-
-  // Standard FIFA-style bracket for 2026 (approximate):
   for (let i = 0; i < 12; i++) {
-    const g = groupLetters[i];
-    allQualifiers.push(groupResults[g][0].team); // 1st
-    allQualifiers.push(groupResults[g][1].team); // 2nd
-  }
-  for (const t of qualifiedThirds) {
-    allQualifiers.push(t);
-  }
-
-  // Shuffle the 2nds and thirds for bracket variety (keep 1sts seeded)
-  // For this simulation, use a fixed bracket: 1A vs 3rd, 2A vs 2B, etc.
-  // Simple approach: pair position 0 with 1, 2 with 3, etc.
-  // For 32 teams: we'll sort 1sts into odd positions and others into even
-  const firsts = firstPlace; // 12 teams
-  const others = [...secondPlace, ...qualifiedThirds]; // 12 + 8 = 20 teams
-
-  // Shuffle others to randomize bracket encounters
-  for (let i = others.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [others[i], others[j]] = [others[j], others[i]];
-  }
-
-  // Build 32-team bracket: 16 matches
-  // 12 firsts play 12 of the "others", remaining 8 others vs each other (for 3rd place slots)
-  for (let i = 0; i < 12; i++) {
-    bracket.push(firsts[i]);
+    bracket.push(firstPlace[i]);
     bracket.push(others[i]);
   }
   for (let i = 12; i < 20; i += 2) {
@@ -179,7 +183,7 @@ function buildBracket(groupResults: Record<string, GroupResult[]>, best8Thirds: 
     bracket.push(others[i + 1]);
   }
 
-  return bracket; // 32 teams in order [A1, B1, A2, B2, ...] → pairs (0,1),(2,3),...
+  return bracket;
 }
 
 function simulateKnockout(

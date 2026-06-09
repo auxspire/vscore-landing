@@ -68,6 +68,24 @@ function get8BestThirds(thirds: Array<{ team: Team; points: number; gd: number }
     .map(r => r.team);
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function hasSameGroupPair(firsts: Team[], others: Team[]): boolean {
+  for (let i = 0; i < 12; i++) {
+    if (firsts[i].group === others[i].group) return true;
+  }
+  for (let i = 12; i < 20; i += 2) {
+    if (others[i].group === others[i + 1].group) return true;
+  }
+  return false;
+}
+
 function buildBracket(groupResults: Record<string, GroupResult[]>, thirds: Array<{ team: Team; points: number; gd: number }>): Team[] {
   const groupLetters = "ABCDEFGHIJKL".split("");
   const firsts: Team[] = [];
@@ -83,12 +101,29 @@ function buildBracket(groupResults: Record<string, GroupResult[]>, thirds: Array
   }
 
   const qualifiedThirds = get8BestThirds(thirdsList);
-  const others = [...seconds, ...qualifiedThirds];
 
-  // Shuffle others for bracket variety
-  for (let i = others.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [others[i], others[j]] = [others[j], others[i]];
+  // Shuffle with constraint: no R32 pair may contain two same-group teams.
+  const others = [...seconds, ...qualifiedThirds];
+  let attempts = 0;
+  do {
+    shuffle(others);
+    attempts++;
+  } while (hasSameGroupPair(firsts, others) && attempts < 300);
+
+  // Fallback force-fix if rejection sampling didn't converge
+  if (hasSameGroupPair(firsts, others)) {
+    for (let i = 0; i < 20; i++) {
+      const pairedGroup = i < 12 ? firsts[i].group : others[i % 2 === 0 ? i : i - 1].group;
+      if (others[i].group === pairedGroup) {
+        for (let j = i + 1; j < 20; j++) {
+          const jPairedGroup = j < 12 ? firsts[j].group : others[j % 2 === 0 ? j : j - 1].group;
+          if (others[j].group !== pairedGroup && others[i].group !== jPairedGroup) {
+            [others[i], others[j]] = [others[j], others[i]];
+            break;
+          }
+        }
+      }
+    }
   }
 
   const bracket: Team[] = [];
