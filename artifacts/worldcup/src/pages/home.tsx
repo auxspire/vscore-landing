@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getFlagEmoji } from "@/lib/utils"
-import { Swords, Activity, ArrowRight, GitBranch } from "lucide-react"
+import { Swords, Activity, ArrowRight, GitBranch, Trophy } from "lucide-react"
 
 export default function Home() {
   const [, setLocation] = useLocation()
@@ -29,9 +29,14 @@ export default function Home() {
         <div className="inline-flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
           <Activity className="w-3 h-3" /> MONTE CARLO ENGINE ONLINE
         </div>
-        <Link href="/bracket" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors">
-          <GitBranch className="w-4 h-4" /> Bracket Path <ArrowRight className="w-4 h-4" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/rankings" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors">
+            <Trophy className="w-4 h-4" /> Rankings
+          </Link>
+          <Link href="/bracket" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-bold uppercase tracking-wider text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/10 transition-colors">
+            <GitBranch className="w-4 h-4" /> Bracket <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       <header className="mb-12 text-center md:text-left">

@@ -177,6 +177,70 @@ export function simulateMatchProbability(
   };
 }
 
+// ─── All-teams batch rankings ─────────────────────────────────────────────
+
+export interface TeamRankingData {
+  teamId:              string;
+  winProbability:      number;
+  finalProbability:    number;
+  semifinalProbability: number;
+  quarterProbability:  number;
+  r16Probability:      number;
+  r32Probability:      number;
+}
+
+export function simulateAllTeamsRankings(numSimulations = 10000): TeamRankingData[] {
+  const groupLetters = "ABCDEFGHIJKL".split("");
+
+  // Counters for each team
+  const counts: Record<string, Record<string, number>> = {};
+  for (const t of TEAMS) {
+    counts[t.id] = { r32: 0, r16: 0, qf: 0, sf: 0, final: 0, win: 0 };
+  }
+
+  for (let sim = 0; sim < numSimulations; sim++) {
+    const groupResults: Record<string, GroupResult[]> = {};
+    for (const g of groupLetters) {
+      groupResults[g] = simulateGroup(GROUPS[g]);
+    }
+
+    const allThirds = groupLetters.map(g => {
+      const r = groupResults[g][2];
+      return { team: r.team, points: r.points, gd: r.gd };
+    });
+
+    const bracket = buildBracket(groupResults, allThirds);
+
+    // All bracket qualifiers reach R32
+    for (const t of bracket) counts[t.id].r32++;
+
+    // Simulate knockout rounds, track every team's progress
+    const stageKeys = ["r16", "qf", "sf", "final", "win"] as const;
+    let currentRound = [...bracket];
+
+    for (let roundIdx = 0; roundIdx < 5 && currentRound.length > 1; roundIdx++) {
+      const nextRound: Team[] = [];
+      for (let i = 0; i < currentRound.length; i += 2) {
+        const winner = knockoutWinner(currentRound[i], currentRound[i + 1]);
+        nextRound.push(winner);
+      }
+      currentRound = nextRound;
+      const key = stageKeys[roundIdx];
+      for (const t of currentRound) counts[t.id][key]++;
+    }
+  }
+
+  return TEAMS.map(t => ({
+    teamId:               t.id,
+    winProbability:       counts[t.id].win   / numSimulations,
+    finalProbability:     counts[t.id].final / numSimulations,
+    semifinalProbability: counts[t.id].sf    / numSimulations,
+    quarterProbability:   counts[t.id].qf    / numSimulations,
+    r16Probability:       counts[t.id].r16   / numSimulations,
+    r32Probability:       counts[t.id].r32   / numSimulations,
+  })).sort((a, b) => b.winProbability - a.winProbability);
+}
+
 export function simulateTeamStageReach(
   teamId: string,
   numSimulations = 5000

@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Matchup from "@/pages/matchup";
 import Bracket from "@/pages/bracket";
+import Rankings from "@/pages/rankings";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/matchup" component={Matchup} />
       <Route path="/bracket" component={Bracket} />
+      <Route path="/rankings" component={Rankings} />
       <Route component={NotFound} />
     </Switch>
   );

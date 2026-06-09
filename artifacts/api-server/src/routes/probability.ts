@@ -3,6 +3,7 @@ import { TEAMS, TEAMS_BY_ID } from "../data/teams";
 import {
   simulateMatchProbability,
   simulateTeamStageReach,
+  simulateAllTeamsRankings,
   type StageProbability,
 } from "../services/simulator";
 import { simulateBracketExplorer } from "../services/bracketExplorer";
@@ -148,6 +149,33 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
       tournamentWinProbability: data.winCount / numSims,
       simulationsRun: numSims,
     });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Simulation failed";
+    res.status(500).json({ error: message });
+  }
+});
+
+router.get("/rankings", (req, res) => {
+  const numSims = Math.min(
+    20000,
+    Math.max(1000, req.query.simulations ? parseInt(req.query.simulations as string, 10) : 10000)
+  );
+
+  try {
+    const raw = simulateAllTeamsRankings(numSims);
+
+    const rankings = raw.map((r, i) => ({
+      rank: i + 1,
+      team: TEAMS_BY_ID[r.teamId],
+      winProbability:       r.winProbability,
+      finalProbability:     r.finalProbability,
+      semifinalProbability: r.semifinalProbability,
+      quarterProbability:   r.quarterProbability,
+      r16Probability:       r.r16Probability,
+      r32Probability:       r.r32Probability,
+    }));
+
+    res.json({ rankings, simulationsRun: numSims });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Simulation failed";
     res.status(500).json({ error: message });

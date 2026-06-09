@@ -20,11 +20,13 @@ import type {
   ErrorResponse,
   GetBracketExplorerParams,
   GetMatchProbabilityParams,
+  GetTournamentRankingsParams,
   HealthStatus,
   MatchProbabilityResult,
   PopularMatchup,
   Team,
-  TeamStageBreakdown
+  TeamStageBreakdown,
+  TournamentRankingsResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -512,6 +514,91 @@ export function useGetBracketExplorer<TData = Awaited<ReturnType<typeof getBrack
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetBracketExplorerQueryOptions(teamId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetTournamentRankingsUrl = (params?: GetTournamentRankingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/rankings?${stringifiedParams}` : `/api/rankings`
+}
+
+/**
+ * Runs a batch Monte Carlo simulation across all teams simultaneously and returns them ranked by win probability, with stage-reach breakdowns.
+ * @summary Get all 48 teams ranked by tournament win probability
+ */
+export const getTournamentRankings = async (params?: GetTournamentRankingsParams, options?: RequestInit): Promise<TournamentRankingsResult> => {
+
+  return customFetch<TournamentRankingsResult>(getGetTournamentRankingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTournamentRankingsQueryKey = (params?: GetTournamentRankingsParams,) => {
+    return [
+    `/api/rankings`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTournamentRankingsQueryOptions = <TData = Awaited<ReturnType<typeof getTournamentRankings>>, TError = ErrorType<unknown>>(params?: GetTournamentRankingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTournamentRankings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTournamentRankingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTournamentRankings>>> = ({ signal }) => getTournamentRankings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTournamentRankings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTournamentRankingsQueryResult = NonNullable<Awaited<ReturnType<typeof getTournamentRankings>>>
+export type GetTournamentRankingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get all 48 teams ranked by tournament win probability
+ */
+
+export function useGetTournamentRankings<TData = Awaited<ReturnType<typeof getTournamentRankings>>, TError = ErrorType<unknown>>(
+ params?: GetTournamentRankingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTournamentRankings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTournamentRankingsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

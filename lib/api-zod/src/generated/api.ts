@@ -170,6 +170,39 @@ export const GetBracketExplorerResponse = zod.object({
 
 
 /**
+ * Runs a batch Monte Carlo simulation across all teams simultaneously and returns them ranked by win probability, with stage-reach breakdowns.
+ * @summary Get all 48 teams ranked by tournament win probability
+ */
+export const getTournamentRankingsQuerySimulationsDefault = 10000;
+
+export const GetTournamentRankingsQueryParams = zod.object({
+  "simulations": zod.coerce.number().default(getTournamentRankingsQuerySimulationsDefault)
+})
+
+export const GetTournamentRankingsResponse = zod.object({
+  "rankings": zod.array(zod.object({
+  "rank": zod.number(),
+  "team": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "group": zod.string().describe('Group letter (A-L)'),
+  "fifaRanking": zod.number(),
+  "eloRating": zod.number().describe('Elo rating used for simulation strength'),
+  "confederation": zod.string().describe('FIFA confederation (UEFA, CONMEBOL, etc.)'),
+  "flagCode": zod.string().describe('ISO 3166-1 alpha-2 country code for flag')
+}),
+  "winProbability": zod.number(),
+  "finalProbability": zod.number(),
+  "semifinalProbability": zod.number(),
+  "quarterProbability": zod.number(),
+  "r16Probability": zod.number(),
+  "r32Probability": zod.number()
+})),
+  "simulationsRun": zod.number()
+})
+
+
+/**
  * Returns how likely a given team is to reach each stage of the tournament
  * @summary Get a team's probability of reaching each stage
  */

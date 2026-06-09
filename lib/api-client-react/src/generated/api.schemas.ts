@@ -111,6 +111,22 @@ export interface TeamStageBreakdown {
   stages: TeamStageBreakdownStagesItem[];
 }
 
+export interface TeamRanking {
+  rank: number;
+  team: Team;
+  winProbability: number;
+  finalProbability: number;
+  semifinalProbability: number;
+  quarterProbability: number;
+  r16Probability: number;
+  r32Probability: number;
+}
+
+export interface TournamentRankingsResult {
+  rankings: TeamRanking[];
+  simulationsRun: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -131,6 +147,10 @@ simulations?: number;
 };
 
 export type GetBracketExplorerParams = {
+simulations?: number;
+};
+
+export type GetTournamentRankingsParams = {
 simulations?: number;
 };
 

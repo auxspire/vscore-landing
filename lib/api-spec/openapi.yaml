@@ -157,6 +157,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /rankings:
+    get:
+      operationId: getTournamentRankings
+      tags: [probability]
+      summary: Get all 48 teams ranked by tournament win probability
+      description: Runs a batch Monte Carlo simulation across all teams simultaneously and returns them ranked by win probability, with stage-reach breakdowns.
+      parameters:
+        - name: simulations
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10000
+      responses:
+        "200":
+          description: All teams ranked by win probability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TournamentRankingsResult"
+
   /stage-breakdown/{teamId}:
     get:
       operationId: getTeamStageBreakdown
@@ -381,6 +402,48 @@ components:
                 type: number
               description:
                 type: string
+
+    TeamRanking:
+      type: object
+      required:
+        - rank
+        - team
+        - winProbability
+        - finalProbability
+        - semifinalProbability
+        - quarterProbability
+        - r16Probability
+        - r32Probability
+      properties:
+        rank:
+          type: integer
+        team:
+          $ref: "#/components/schemas/Team"
+        winProbability:
+          type: number
+        finalProbability:
+          type: number
+        semifinalProbability:
+          type: number
+        quarterProbability:
+          type: number
+        r16Probability:
+          type: number
+        r32Probability:
+          type: number
+
+    TournamentRankingsResult:
+      type: object
+      required:
+        - rankings
+        - simulationsRun
+      properties:
+        rankings:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamRanking"
+        simulationsRun:
+          type: integer
 
     ErrorResponse:
       type: object

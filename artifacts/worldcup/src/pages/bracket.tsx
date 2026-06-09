@@ -290,9 +290,12 @@ export default function Bracket() {
     <div className="min-h-[100dvh] w-full flex flex-col pt-6 pb-24 px-4 md:px-8 max-w-4xl mx-auto relative z-10">
 
       {/* Nav */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center justify-between mb-8">
         <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Home
+        </Link>
+        <Link href="/rankings" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/10 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors">
+          <Trophy className="w-3 h-3" /> Power Rankings
         </Link>
       </div>
 
