@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getFlagEmoji } from "@/lib/utils"
-import { Swords, Activity, ArrowRight } from "lucide-react"
+import { Swords, Activity, ArrowRight, GitBranch } from "lucide-react"
 
 export default function Home() {
   const [, setLocation] = useLocation()
@@ -29,8 +29,8 @@ export default function Home() {
         <div className="inline-flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
           <Activity className="w-3 h-3" /> MONTE CARLO ENGINE ONLINE
         </div>
-        <Link href="/bracket" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary hover:underline">
-          Bracket Explorer <ArrowRight className="w-4 h-4" />
+        <Link href="/bracket" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors">
+          <GitBranch className="w-4 h-4" /> Bracket Path <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
 

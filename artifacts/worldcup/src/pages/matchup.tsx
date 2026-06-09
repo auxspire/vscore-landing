@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { getFlagEmoji, cn } from "@/lib/utils"
-import { ArrowLeft, AlertTriangle, RefreshCcw, Activity } from "lucide-react"
+import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
+import { Link } from "wouter"
 
 export default function Matchup() {
   const [location, setLocation] = useLocation()
@@ -145,20 +146,28 @@ export default function Matchup() {
                         {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-4 w-full bg-secondary" />)}
                       </div>
                     ) : breakdown.data ? (
-                      breakdown.data.stages.map(stage => (
-                        <div key={stage.stage} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground capitalize">{stage.stage.replace(/_/g, ' ')}</span>
-                            <span className="font-mono">{(stage.probability * 100).toFixed(1)}%</span>
+                      <>
+                        {breakdown.data.stages.map(stage => (
+                          <div key={stage.stage} className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground capitalize">{stage.stage.replace(/_/g, ' ')}</span>
+                              <span className="font-mono">{(stage.probability * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                              <div 
+                                className={cn("h-full rounded-full transition-all duration-1000", idx === 0 ? "bg-white" : "bg-muted-foreground")}
+                                style={{ width: `${Math.max(0.5, stage.probability * 100)}%` }}
+                              />
+                            </div>
                           </div>
-                          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                            <div 
-                              className={cn("h-full rounded-full transition-all duration-1000", idx === 0 ? "bg-white" : "bg-muted-foreground")}
-                              style={{ width: `${Math.max(0.5, stage.probability * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))
+                        ))}
+                        <Link
+                          href={`/bracket?team=${breakdown.team.id}`}
+                          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          <GitBranch className="w-3 h-3" /> View Bracket Path
+                        </Link>
+                      </>
                     ) : null}
                   </CardContent>
                 </Card>
