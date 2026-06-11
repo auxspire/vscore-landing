@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
-import { ArrowLeft, Trophy, Medal, Activity, GitBranch, ChevronRight } from "lucide-react"
+import { Trophy, Medal, Activity, ChevronRight } from "lucide-react"
 
 const STAGES = [
   { key: "r32Probability",       label: "R32",   short: "R32" },

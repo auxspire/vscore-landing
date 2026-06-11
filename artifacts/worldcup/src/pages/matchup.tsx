@@ -1,27 +1,32 @@
 import { useEffect, useState } from "react"
-import { useLocation } from "wouter"
+import { useLocation, useSearch, Link } from "wouter"
 import { useGetMatchProbability, getGetMatchProbabilityQueryKey, useGetTeamStageBreakdown, getGetTeamStageBreakdownQueryKey } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
-import { Link } from "wouter"
 
 export default function Matchup() {
-  const [location, setLocation] = useLocation()
-  
-  // Parse query params
-  const searchParams = new URLSearchParams(window.location.search)
+  const [, setLocation] = useLocation()
+  const search = useSearch()
+
+  // Parse query params from wouter (SPA-safe)
+  const searchParams = new URLSearchParams(search)
   const teamA = searchParams.get("teamA")
   const teamB = searchParams.get("teamB")
 
-  if (!teamA || !teamB) {
-    setLocation("/")
-    return null
-  }
+  // Redirect to home if no teams provided — must be in useEffect to avoid render-time side effects
+  useEffect(() => {
+    if (!teamA || !teamB) {
+      setLocation("/")
+    }
+  }, [teamA, teamB, setLocation])
+
+  if (!teamA || !teamB) return null
 
   const { data: matchResult, isLoading: isLoadingMatch } = useGetMatchProbability(
     { teamA, teamB }, 
