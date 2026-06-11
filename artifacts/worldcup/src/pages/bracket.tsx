@@ -12,6 +12,8 @@ import { ArrowLeft, Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap,
 interface ConditionalStageNode {
   stage: string
   reachProbability: number
+  /** How many simulations this conditional estimate is based on */
+  sampleCount?: number
   topOpponents: Array<{
     team: RichTeam
     encounterProbability: number
@@ -47,6 +49,8 @@ interface RichStageNode {
   opponentsByFinish?: Record<string, RichOpponent[]>
   /** Set to true when data is from a conditional (locked-opponent) path */
   isConditional?: boolean
+  /** Number of simulations this conditional stage estimate is based on — low = unreliable */
+  sampleCount?: number
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -246,6 +250,14 @@ function StageCard({
               {isConditional && (
                 <span className="text-[10px] font-mono font-bold text-primary/60 uppercase tracking-widest">
                   · IF SELECTED PATH
+                </span>
+              )}
+              {isConditional && stage.sampleCount !== undefined && stage.sampleCount < 50 && (
+                <span
+                  title={`Only ${stage.sampleCount} simulations match this scenario — treat probabilities as rough estimates`}
+                  className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-400/90 uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5"
+                >
+                  ⚠ LOW CONFIDENCE · {stage.sampleCount} sims
                 </span>
               )}
               {diff && (
@@ -581,6 +593,7 @@ export default function Bracket() {
             topOpponents: cpEntry.topOpponents as RichOpponent[],
             teamGroupFinish: stage.teamGroupFinish,
             isConditional: true,
+            sampleCount: cpEntry.sampleCount,
           }
         }
 

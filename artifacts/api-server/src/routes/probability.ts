@@ -161,6 +161,7 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
               return {
                 stage: nextStage,
                 reachProbability: o.winsIfFacing > 0 ? cp.reachCount / o.winsIfFacing : 0,
+                sampleCount: cp.reachCount,
                 topOpponents: cpOpponents,
               };
             })
