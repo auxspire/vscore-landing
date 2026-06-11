@@ -431,12 +431,16 @@ function StageCard({
                                       : "bg-secondary/30 border-border/40 hover:bg-secondary/60 hover:border-primary/30"
                                 )}
                               >
-                                <Link
-                                  href={`/bracket?team=${opp.team.id}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-base hover:scale-125 transition-transform inline-block"
-                                  title={`View ${opp.team.name}'s bracket path`}
-                                >{getFlagEmoji(opp.team.flagCode)}</Link>
+                                {isSelected ? (
+                                  <Link
+                                    href={`/bracket?team=${opp.team.id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-base hover:scale-125 transition-transform inline-block"
+                                    title={`View ${opp.team.name}'s bracket path`}
+                                  >{getFlagEmoji(opp.team.flagCode)}</Link>
+                                ) : (
+                                  <span className="text-base inline-block">{getFlagEmoji(opp.team.flagCode)}</span>
+                                )}
                                 <div>
                                   <div className={cn(
                                     "text-xs font-bold leading-none flex items-center gap-1",
@@ -499,12 +503,16 @@ function StageCard({
                                 : "bg-secondary/30 border-border/40 hover:bg-secondary/60 hover:border-primary/30"
                             )}
                           >
-                            <Link
-                              href={`/bracket?team=${opp.team.id}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-lg hover:scale-125 transition-transform inline-block"
-                              title={`View ${opp.team.name}'s bracket path`}
-                            >{getFlagEmoji(opp.team.flagCode)}</Link>
+                            {isSelected ? (
+                              <Link
+                                href={`/bracket?team=${opp.team.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-lg hover:scale-125 transition-transform inline-block"
+                                title={`View ${opp.team.name}'s bracket path`}
+                              >{getFlagEmoji(opp.team.flagCode)}</Link>
+                            ) : (
+                              <span className="text-lg inline-block">{getFlagEmoji(opp.team.flagCode)}</span>
+                            )}
                             <div>
                               <div className="text-xs font-bold leading-none flex items-center gap-1">
                                 {opp.team.name}
