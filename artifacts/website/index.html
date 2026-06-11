@@ -13,6 +13,9 @@
   <meta name="twitter:title" content="VScor | Score. Track. Discover." />
   <meta name="twitter:description" content="Turn every grassroots game into verified stats, match reports, and a player history that helps athletes grow and get discovered." />
 
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9081265350208847"
+    crossorigin="anonymous"></script>
+
   <style>
     :root{
       --primary:#8C37DB;
@@ -37,13 +40,15 @@
     a{color:inherit;text-decoration:none}
 
     /* NAV */
+    .site-header{
+      position:sticky;top:0;z-index:50;
+      background:rgba(255,255,255,0.92);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--border);
+    }
     nav{
       display:flex;align-items:center;justify-content:space-between;
       padding:1.2rem 5%;
-      background:rgba(255,255,255,0.92);
-      position:sticky;top:0;z-index:50;
-      backdrop-filter:blur(10px);
-      border-bottom:1px solid var(--border);
     }
     .logo{
       display:flex;align-items:center;gap:.55rem;
@@ -76,15 +81,20 @@
     }
     .btn-primary{background:var(--primary);color:var(--white)}
     .btn-primary:hover{background:var(--primary-dark);transform:translateY(-2px);box-shadow:0 8px 22px rgba(140,55,219,.25)}
-    .nav-actions{display:flex;gap:.5rem;align-items:center;flex-shrink:0}
+    .nav-actions{display:none;gap:.5rem;align-items:center;flex-shrink:0}
+    @media(min-width:860px){.nav-actions{display:flex}}
     .desktop-links{display:none}
     @media(min-width:860px){.desktop-links{display:flex}}
-    .mobile-app-link{
-      display:inline-flex;
-      padding:.45rem .75rem;
-      font-size:.82rem;
+    .mobile-nav-cta{
+      display:flex;flex-direction:column;gap:.65rem;
+      padding:0 5% 1rem;
     }
-    @media(min-width:860px){.mobile-app-link{display:none}}
+    @media(min-width:860px){.mobile-nav-cta{display:none}}
+    .mobile-nav-cta a{
+      width:100%;justify-content:center;text-align:center;
+    }
+    .mobile-nav-cta .nav-app-link{padding:.65rem 1rem;font-size:.92rem}
+    .mobile-nav-cta .btn{padding:.75rem 1.2rem}
 
     /* HERO */
     .hero{
@@ -271,30 +281,38 @@
 <body>
 
   <!-- NAV -->
-  <nav>
-    <div class="logo">
-      <span style="font-size:1.55rem">⚽</span>
-      <span>VScor</span>
-    </div>
+  <header class="site-header">
+    <nav>
+      <div class="logo">
+        <span style="font-size:1.55rem">⚽</span>
+        <span>VScor</span>
+      </div>
 
-    <div class="nav-links desktop-links">
-      <a href="#why">Why VScor</a>
-      <a href="#features">Features</a>
-      <a href="#audience">VScor is for</a>
+      <div class="nav-links desktop-links">
+        <a href="#why">Why VScor</a>
+        <a href="#features">Features</a>
+        <a href="#audience">VScor is for</a>
+        <a href="/worldcup/" class="nav-app-link" data-allow="true">
+          <span>🏆</span> WC26 Predictor
+        </a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="https://forms.gle/3FZdBG9hDowwVDoz9" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-allow="true">
+          Get Early Access
+        </a>
+      </div>
+    </nav>
+
+    <div class="mobile-nav-cta">
       <a href="/worldcup/" class="nav-app-link" data-allow="true">
-        <span>🏆</span> WC26 Predictor
-      </a>
-    </div>
-
-    <div class="nav-actions">
-      <a href="/worldcup/" class="nav-app-link mobile-app-link" data-allow="true">
         <span>🏆</span> WC26 Predictor
       </a>
       <a href="https://forms.gle/3FZdBG9hDowwVDoz9" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-allow="true">
         Get Early Access
       </a>
     </div>
-  </nav>
+  </header>
 
   <!-- HERO -->
   <header class="hero" id="top">
