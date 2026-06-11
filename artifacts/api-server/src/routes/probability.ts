@@ -175,12 +175,46 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
           };
         });
 
+      // For R32 only: split opponents by which team group-finish scenario leads to them
+      let opponentsByFinish: Record<string, typeof allOpponents> | undefined;
+      if (stage === "round_of_32") {
+        opponentsByFinish = {};
+        const teamFinishRaw = sd.teamGroupFinish;
+        const POS_ORDER = ["1st", "2nd", "3rd"];
+        for (const pos of POS_ORDER) {
+          const finishCount = teamFinishRaw[pos] ?? 0;
+          if (finishCount === 0) continue;
+          const posOpps = Object.values(sd.opponents)
+            .filter(o => (o.encountersByTeamFinish[pos] ?? 0) > 0)
+            .sort((a, b) =>
+              (b.encountersByTeamFinish[pos] ?? 0) - (a.encountersByTeamFinish[pos] ?? 0)
+            )
+            .map(o => {
+              const enc = o.encountersByTeamFinish[pos] ?? 0;
+              // Reuse the full opponent data (with conditionalPath) from allOpponents
+              const full = allOpponents.find(ao => ao.team.id === o.team.id);
+              return {
+                ...(full ?? {
+                  team: o.team,
+                  groupFinish: normaliseCounts(o.opponentGroupFinish),
+                  conditionalPath: [],
+                }),
+                encounterProbability: enc / finishCount,
+                winProbabilityIfFacing:
+                  o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0,
+              };
+            });
+          if (posOpps.length > 0) opponentsByFinish[pos] = posOpps;
+        }
+      }
+
       return {
         stage,
         description: sd.description,
         reachProbability: reachProb,
         teamGroupFinish: normaliseCounts(sd.teamGroupFinish),
         topOpponents: allOpponents,
+        ...(opponentsByFinish ? { opponentsByFinish } : {}),
       };
     });
 

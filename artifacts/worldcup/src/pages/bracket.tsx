@@ -43,6 +43,8 @@ interface RichStageNode {
   reachProbability: number
   teamGroupFinish: Record<string, number>
   topOpponents: RichOpponent[]
+  /** R32 only: opponents split by which team group-finish scenario leads to them */
+  opponentsByFinish?: Record<string, RichOpponent[]>
   /** Set to true when data is from a conditional (locked-opponent) path */
   isConditional?: boolean
 }
@@ -180,17 +182,40 @@ function StageCard({
   lockedOpponentId: string | null
   onLockOpponent: (id: string | null) => void
 }) {
-  const isFinal      = stage.stage === "final"
+  const isFinal       = stage.stage === "final"
   const isConditional = stage.isConditional === true
+  const isR32         = stage.stage === "round_of_32"
 
-  // Primary = locked one (if any), otherwise top encounter
+  // For R32 with finish groups, primary comes from the most-likely finish section
+  const r32DefaultPrimary = isR32 && stage.opponentsByFinish
+    ? (() => {
+        const top = topKey(stage.teamGroupFinish)
+        return (top && stage.opponentsByFinish[top]?.[0]) ?? stage.topOpponents[0]
+      })()
+    : null
+
+  // All opponents across all finish groups (for lock lookup)
+  const allFlatOpponents: RichOpponent[] = isR32 && stage.opponentsByFinish
+    ? Object.values(stage.opponentsByFinish).flat()
+    : stage.topOpponents
+
+  // Primary = locked one (searched across all finish groups), otherwise default
   const primary = lockedOpponentId
-    ? (stage.topOpponents.find(o => o.team.id === lockedOpponentId) ?? stage.topOpponents[0])
-    : stage.topOpponents[0]
+    ? (allFlatOpponents.find(o => o.team.id === lockedOpponentId) ?? stage.topOpponents[0])
+    : (r32DefaultPrimary ?? stage.topOpponents[0])
+
+  // Non-R32 secondary (flat list for R16/QF/SF/Final)
   const secondary = stage.topOpponents.filter(o => o !== primary)
   const diff = primary ? difficultyLabel(primary.winProbabilityIfFacing) : null
 
   const teamTopFinish = topKey(stage.teamGroupFinish)
+
+  const POS_ORDER = ["1st", "2nd", "3rd"]
+  function finishLabel(pos: string): string {
+    if (pos === "1st") return `As Group ${team.group} Winner`
+    if (pos === "2nd") return `As Group ${team.group} Runner-up`
+    return `If ${team.name} qualifies as 3rd`
+  }
 
   return (
     <div className="relative">
@@ -311,62 +336,148 @@ function StageCard({
                 </div>
               </div>
 
-              {/* Alternate opponents */}
-              {secondary.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-wider mb-2">
-                    {lockedOpponentId
-                      ? "Switch opponent — tap to change"
-                      : "Select a different opponent to see updated path"}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {/* If we have a lock, show a "clear" chip first */}
-                    {lockedOpponentId && (
-                      <button
-                        onClick={() => onLockOpponent(null)}
-                        className="flex items-center gap-1.5 bg-primary/10 border border-primary/30 rounded-lg px-2.5 py-1.5 hover:bg-primary/20 transition-colors text-primary"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        <span className="text-xs font-bold">Reset</span>
-                      </button>
-                    )}
-                    {secondary.map(opp => {
-                      const isSelected = opp.team.id === lockedOpponentId
-                      const oppTopFinish = opp.groupFinish ? topKey(opp.groupFinish) : null
-                      return (
-                        <button
-                          key={opp.team.id}
-                          onClick={() => onLockOpponent(isSelected ? null : opp.team.id)}
-                          className={cn(
-                            "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors border text-left",
-                            isSelected
-                              ? "bg-amber-500/15 border-amber-500/40 ring-1 ring-amber-500/30"
-                              : "bg-secondary/30 border-border/40 hover:bg-secondary/60 hover:border-primary/30"
-                          )}
-                        >
-                          <span className="text-lg">{getFlagEmoji(opp.team.flagCode)}</span>
-                          <div>
-                            <div className="text-xs font-bold leading-none flex items-center gap-1">
-                              {opp.team.name}
-                              {isSelected && <Lock className="w-2.5 h-2.5 text-amber-400" />}
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {oppTopFinish && (
-                                <span className="text-[10px] font-mono text-muted-foreground">
-                                  Grp {opp.team.group} {oppTopFinish}
-                                </span>
-                              )}
-                              <span className="text-[10px] font-mono text-muted-foreground">{(opp.encounterProbability * 100).toFixed(1)}% enc</span>
-                              <span className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}>
-                                {(opp.winProbabilityIfFacing * 100).toFixed(1)}% win
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
+              {/* R32: finish-grouped opponent sections */}
+              {isR32 && stage.opponentsByFinish ? (
+                <div className="space-y-3">
+                  {lockedOpponentId && (
+                    <button
+                      onClick={() => onLockOpponent(null)}
+                      className="flex items-center gap-1.5 bg-primary/10 border border-primary/30 rounded-lg px-2.5 py-1.5 hover:bg-primary/20 transition-colors text-primary text-xs font-bold"
+                    >
+                      <X className="w-3.5 h-3.5" /> Reset selection
+                    </button>
+                  )}
+                  {POS_ORDER.filter(pos => stage.opponentsByFinish![pos]?.length).map(pos => {
+                    const opps = stage.opponentsByFinish![pos]
+                    const finishProb = stage.teamGroupFinish[pos] ?? 0
+                    const is3rd = pos === "3rd"
+                    const topFinish = topKey(stage.teamGroupFinish)
+                    const isMostLikely = pos === topFinish
+                    return (
+                      <div key={pos} className={cn(
+                        "rounded-lg border p-3 space-y-2",
+                        is3rd
+                          ? "border-border/30 bg-secondary/10"
+                          : isMostLikely
+                            ? "border-primary/20 bg-primary/5"
+                            : "border-border/50 bg-secondary/20"
+                      )}>
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "text-[10px] font-mono font-bold uppercase tracking-wider",
+                            is3rd ? "text-muted-foreground/60" : isMostLikely ? "text-primary" : "text-muted-foreground"
+                          )}>
+                            {finishLabel(pos)}
+                          </span>
+                          <span className={cn(
+                            "text-[10px] font-mono px-1.5 py-0.5 rounded-full",
+                            is3rd
+                              ? "bg-secondary/60 text-muted-foreground/60"
+                              : "bg-primary/10 text-primary/80"
+                          )}>
+                            {(finishProb * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {opps.map(opp => {
+                            const isSelected = opp.team.id === lockedOpponentId
+                            const oppTopFinish = opp.groupFinish ? topKey(opp.groupFinish) : null
+                            return (
+                              <button
+                                key={opp.team.id}
+                                onClick={() => onLockOpponent(isSelected ? null : opp.team.id)}
+                                className={cn(
+                                  "flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors border text-left",
+                                  isSelected
+                                    ? "bg-amber-500/15 border-amber-500/40 ring-1 ring-amber-500/30"
+                                    : is3rd
+                                      ? "bg-secondary/20 border-border/30 hover:bg-secondary/40 hover:border-border/60"
+                                      : "bg-secondary/30 border-border/40 hover:bg-secondary/60 hover:border-primary/30"
+                                )}
+                              >
+                                <span className="text-base">{getFlagEmoji(opp.team.flagCode)}</span>
+                                <div>
+                                  <div className={cn(
+                                    "text-xs font-bold leading-none flex items-center gap-1",
+                                    is3rd ? "text-muted-foreground" : "text-foreground"
+                                  )}>
+                                    {opp.team.name}
+                                    {isSelected && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {oppTopFinish && (
+                                      <span className="text-[10px] font-mono text-muted-foreground/70">
+                                        Grp {opp.team.group} {oppTopFinish}
+                                      </span>
+                                    )}
+                                    <span className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}>
+                                      {(opp.winProbabilityIfFacing * 100).toFixed(0)}% win
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
+              ) : (
+                /* Non-R32: flat alternate opponent list */
+                secondary.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-wider mb-2">
+                      {lockedOpponentId ? "Switch opponent — tap to change" : "Select a different opponent to see updated path"}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {lockedOpponentId && (
+                        <button
+                          onClick={() => onLockOpponent(null)}
+                          className="flex items-center gap-1.5 bg-primary/10 border border-primary/30 rounded-lg px-2.5 py-1.5 hover:bg-primary/20 transition-colors text-primary"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span className="text-xs font-bold">Reset</span>
+                        </button>
+                      )}
+                      {secondary.map(opp => {
+                        const isSelected = opp.team.id === lockedOpponentId
+                        const oppTopFinish = opp.groupFinish ? topKey(opp.groupFinish) : null
+                        return (
+                          <button
+                            key={opp.team.id}
+                            onClick={() => onLockOpponent(isSelected ? null : opp.team.id)}
+                            className={cn(
+                              "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors border text-left",
+                              isSelected
+                                ? "bg-amber-500/15 border-amber-500/40 ring-1 ring-amber-500/30"
+                                : "bg-secondary/30 border-border/40 hover:bg-secondary/60 hover:border-primary/30"
+                            )}
+                          >
+                            <span className="text-lg">{getFlagEmoji(opp.team.flagCode)}</span>
+                            <div>
+                              <div className="text-xs font-bold leading-none flex items-center gap-1">
+                                {opp.team.name}
+                                {isSelected && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {oppTopFinish && (
+                                  <span className="text-[10px] font-mono text-muted-foreground">
+                                    Grp {opp.team.group} {oppTopFinish}
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-mono text-muted-foreground">{(opp.encounterProbability * 100).toFixed(1)}% enc</span>
+                                <span className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}>
+                                  {(opp.winProbabilityIfFacing * 100).toFixed(1)}% win
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
               )}
             </div>
           ) : (

@@ -69,6 +69,8 @@ export interface BracketOpponentData {
   winsIfFacing: number;
   /** How the opponent typically finished in the group stage (raw counts) */
   opponentGroupFinish: Record<string, number>;
+  /** How many times this opponent was faced when our team finished 1st/2nd/3rd (raw counts) */
+  encountersByTeamFinish: Record<string, number>;
   /** Given our team beat this opponent, what happened at subsequent stages */
   conditionalPath: Record<string, ConditionalStageRaw>;
 }
@@ -181,6 +183,7 @@ export function simulateBracketExplorer(
               encounterCount: 0,
               winsIfFacing: 0,
               opponentGroupFinish: {},
+              encountersByTeamFinish: {},
               conditionalPath: {},
             };
           }
@@ -192,6 +195,12 @@ export function simulateBracketExplorer(
           const oppPos = groupPos[opponent.id];
           if (oppPos) {
             oppData.opponentGroupFinish[oppPos] = (oppData.opponentGroupFinish[oppPos] || 0) + 1;
+          }
+
+          // Track how many times this opponent was faced per our team's finish position
+          if (teamGroupPos) {
+            oppData.encountersByTeamFinish[teamGroupPos] =
+              (oppData.encountersByTeamFinish[teamGroupPos] || 0) + 1;
           }
 
           simPath.push({ stage, opponentId: opponent.id, teamWon });
