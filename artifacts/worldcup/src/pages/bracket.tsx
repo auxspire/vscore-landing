@@ -209,9 +209,16 @@ function StageCard({
     ? Object.values(stage.opponentsByFinish).flat()
     : stage.topOpponents
 
-  // Primary = locked one (searched across all finish groups), otherwise default
+  // Primary = locked one. For R32, prefer the entry from the exact section that was clicked
+  // (same team can appear in multiple finish sections with different groupFinish data)
   const primary = lockedOpponentId
-    ? (allFlatOpponents.find(o => o.team.id === lockedOpponentId) ?? stage.topOpponents[0])
+    ? (() => {
+        if (isR32 && lockedFinishPos && stage.opponentsByFinish?.[lockedFinishPos]) {
+          const fromSection = stage.opponentsByFinish[lockedFinishPos].find(o => o.team.id === lockedOpponentId)
+          if (fromSection) return fromSection
+        }
+        return allFlatOpponents.find(o => o.team.id === lockedOpponentId) ?? stage.topOpponents[0]
+      })()
     : (r32DefaultPrimary ?? stage.topOpponents[0])
 
   // Non-R32 secondary (flat list for R16/QF/SF/Final)
