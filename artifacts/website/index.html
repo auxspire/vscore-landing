@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VScor | Score. Track. Discover.</title>
+  <meta name="description" content="VScor transforms local football matches into real-time, shareable performance data — goals, assists, cards, and more. Built for grassroots." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:title" content="VScor | Score. Track. Discover." />
+  <meta property="og:description" content="Turn every grassroots game into verified stats, match reports, and a player history that helps athletes grow and get discovered." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="VScor | Score. Track. Discover." />
+  <meta name="twitter:description" content="Turn every grassroots game into verified stats, match reports, and a player history that helps athletes grow and get discovered." />
+
+  <style>
+    :root{
+      --primary:#8C37DB;
+      --primary-dark:#6a1b9a;
+      --secondary:#F4511E;
+      --green:#00C853;
+      --blue:#2979FF;
+      --dark:#141414;
+      --muted:#666;
+      --light:#f4f6f8;
+      --white:#ffffff;
+      --soft:#f6f0fb;
+      --border:rgba(0,0,0,0.08);
+      --shadow:0 14px 40px rgba(0,0,0,0.08);
+      --shadow2:0 10px 30px rgba(0,0,0,0.06);
+      --radius:22px;
+    }
+
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+    html{scroll-behavior:smooth;}
+    body{color:var(--dark);background:var(--white);line-height:1.6}
+    a{color:inherit;text-decoration:none}
+
+    /* NAV */
+    nav{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:1.2rem 5%;
+      background:rgba(255,255,255,0.92);
+      position:sticky;top:0;z-index:50;
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+    .logo{
+      display:flex;align-items:center;gap:.55rem;
+      font-weight:900;letter-spacing:-.8px;font-size:1.55rem;color:var(--primary);
+    }
+    .nav-links{display:flex;gap:1.4rem;align-items:center}
+    .nav-links a{font-weight:600;color:var(--dark);opacity:.85}
+    .nav-links a:hover{color:var(--primary);opacity:1}
+    .nav-app-link{
+      padding:.55rem 1rem;
+      border-radius:999px;
+      background:var(--dark);
+      color:#ADFF2F !important;
+      font-weight:700;
+      opacity:1 !important;
+      border:1px solid rgba(173,255,47,.4);
+      transition:background .2s,box-shadow .2s,border-color .2s;
+      display:inline-flex;align-items:center;gap:.45rem;
+    }
+    .nav-links a.nav-app-link:hover{
+      background:#000;
+      border-color:rgba(173,255,47,.7);
+      box-shadow:0 6px 18px rgba(173,255,47,.28);
+    }
+    .btn{
+      padding:.85rem 1.2rem;border-radius:999px;
+      font-weight:700;display:inline-flex;gap:.55rem;align-items:center;
+      transition:transform .15s,box-shadow .15s,background .2s;
+      border:1px solid transparent;white-space:nowrap;cursor:pointer;
+    }
+    .btn-primary{background:var(--primary);color:var(--white)}
+    .btn-primary:hover{background:var(--primary-dark);transform:translateY(-2px);box-shadow:0 8px 22px rgba(140,55,219,.25)}
+    .desktop-links{display:none}
+    @media(min-width:860px){.desktop-links{display:flex}}
+
+    /* HERO */
+    .hero{
+      padding:3.5rem 5% 2.5rem;
+      background:linear-gradient(135deg,#fff 0%,var(--soft) 55%,#fff 100%);
+      position:relative;overflow:hidden;
+    }
+    .hero-inner{
+      display:grid;gap:2.25rem;align-items:center;
+      grid-template-columns:1fr;max-width:1100px;margin:0 auto;
+    }
+    @media(min-width:980px){.hero-inner{grid-template-columns:1.1fr .9fr}}
+    .kicker{
+      display:inline-flex;gap:.5rem;align-items:center;
+      background:rgba(140,55,219,0.10);border:1px solid rgba(140,55,219,0.18);
+      color:var(--primary);padding:.45rem .8rem;border-radius:999px;
+      font-weight:800;font-size:.9rem;width:max-content;
+    }
+    .hero h1{font-size:3.1rem;line-height:1.05;letter-spacing:-1.2px;margin:.9rem 0 1rem;}
+    .hero h1 .accent{color:var(--primary)}
+    .hero p{font-size:1.15rem;color:var(--muted);max-width:42rem}
+    .hero-points{display:grid;gap:.7rem;margin-top:1.4rem;}
+    .hero-point{
+      display:flex;gap:.7rem;align-items:flex-start;
+      background:rgba(255,255,255,.7);border:1px solid var(--border);
+      padding:.9rem 1rem;border-radius:16px;
+    }
+    .badge{
+      width:34px;height:34px;border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      font-weight:900;color:#fff;flex:0 0 auto;
+    }
+
+    /* Phone mock */
+    .phone-wrap{display:flex;justify-content:center}
+    .phone-frame{
+      width:310px;height:620px;background:#111;border-radius:44px;
+      padding:12px;box-shadow:0 25px 70px rgba(0,0,0,0.22);position:relative;
+    }
+    .phone-notch{
+      width:130px;height:28px;background:#111;
+      position:absolute;top:12px;left:50%;transform:translateX(-50%);
+      border-bottom-left-radius:16px;border-bottom-right-radius:16px;z-index:2;
+    }
+    .phone-screen{
+      width:100%;height:100%;background:#fff;border-radius:32px;overflow:hidden;
+      border:1px solid rgba(255,255,255,0.08);
+    }
+    .phone-screen img{width:100%;height:100%;object-fit:cover;display:block}
+
+    /* SECTIONS */
+    section{scroll-margin-top:90px}
+    .section{padding:4.8rem 5%;max-width:1100px;margin:0 auto;}
+    .section-header{text-align:center;margin-bottom:2.8rem}
+    .section-header h2{font-size:2.2rem;letter-spacing:-.8px}
+    .section-header p{color:var(--muted);max-width:50rem;margin:.65rem auto 0}
+
+    /* Problem */
+    .problem-grid{
+      display:grid;gap:1.2rem;grid-template-columns:1fr;margin-top:2.2rem;
+    }
+    @media(min-width:860px){.problem-grid{grid-template-columns:1fr 1fr}}
+    .problem-card{
+      background:var(--dark);color:#fff;border-radius:var(--radius);
+      padding:2rem;box-shadow:var(--shadow);
+    }
+    .problem-card h3{font-size:1.6rem;letter-spacing:-.6px;margin-bottom:.8rem}
+    .problem-card p{opacity:.88}
+    .problem-card .big{font-size:2.5rem;font-weight:950;letter-spacing:-1px;margin:.25rem 0 .9rem;}
+
+    /* Features */
+    .grid{display:grid;gap:1.5rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+    .card{
+      background:var(--light);border-radius:var(--radius);
+      padding:1.8rem;border:1px solid var(--border);
+      transition:transform .2s,background .2s,box-shadow .2s,border-color .2s;
+    }
+    .card:hover{transform:translateY(-4px);background:#fff;box-shadow:var(--shadow2);border-color:rgba(140,55,219,0.22)}
+    .icon-box{
+      width:56px;height:56px;border-radius:16px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.4rem;color:#fff;margin-bottom:1rem;
+    }
+    .card h3{font-size:1.25rem;letter-spacing:-.3px;margin-bottom:.45rem}
+    .card p{color:var(--muted)}
+
+    /* WC26 Promo Band */
+    .wc26-band{
+      background:linear-gradient(135deg,#0d0d0d 0%,#1a0a2e 50%,#0d0d0d 100%);
+      padding:4.8rem 5%;
+      border-top:1px solid rgba(173,255,47,.15);
+      border-bottom:1px solid rgba(173,255,47,.15);
+    }
+    .wc26-inner{
+      max-width:1100px;margin:0 auto;
+      display:grid;gap:2.5rem;align-items:center;grid-template-columns:1fr;
+    }
+    @media(min-width:860px){.wc26-inner{grid-template-columns:1fr auto}}
+    .wc26-badge{
+      display:inline-flex;align-items:center;gap:.5rem;
+      background:rgba(173,255,47,.12);border:1px solid rgba(173,255,47,.3);
+      color:#ADFF2F;padding:.35rem .8rem;border-radius:999px;
+      font-weight:800;font-size:.8rem;letter-spacing:.06em;margin-bottom:1rem;
+    }
+    .wc26-inner h2{font-size:2.2rem;letter-spacing:-.8px;color:#fff;margin-bottom:.7rem;}
+    .wc26-inner p{color:rgba(255,255,255,.65);max-width:46rem}
+    .wc26-pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.1rem;}
+    .wc26-pill{
+      display:inline-flex;align-items:center;gap:.4rem;
+      padding:.35rem .75rem;border-radius:999px;
+      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+      color:rgba(255,255,255,.7);font-size:.8rem;font-weight:600;
+    }
+    .btn-wc26{
+      display:inline-flex;align-items:center;gap:.65rem;
+      padding:.9rem 1.6rem;border-radius:999px;
+      background:#ADFF2F;color:#0d0d0d;
+      font-weight:800;font-size:1rem;border:none;cursor:pointer;
+      white-space:nowrap;flex-shrink:0;
+      transition:transform .15s,box-shadow .15s;
+    }
+    .btn-wc26:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(173,255,47,.4);}
+
+    /* Audience */
+    .audience-band{background:var(--primary);color:#fff;padding:4.8rem 5%;}
+    .audience-inner{max-width:1100px;margin:0 auto}
+    .audience-inner h2{text-align:center;font-size:2.2rem;letter-spacing:-.7px;margin-bottom:2.4rem}
+    .audience-grid{display:grid;gap:1.2rem;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
+    .audience-item{
+      background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);
+      padding:1.6rem;border-radius:var(--radius);
+    }
+    .audience-item .emoji{font-size:2.2rem;margin-bottom:.7rem}
+    .audience-item h3{margin-bottom:.35rem}
+    .audience-item p{opacity:.9}
+
+    /* Connects */
+    .connects{display:grid;gap:1.5rem;grid-template-columns:1fr;}
+    @media(min-width:900px){.connects{grid-template-columns:1fr 1fr}}
+    .connects-media{
+      border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);
+      min-height:280px;background:#000;box-shadow:var(--shadow2);
+    }
+    .connects-media img{width:100%;height:100%;object-fit:cover;display:block}
+    .connects-copy{
+      border-radius:var(--radius);background:var(--soft);
+      border:1px solid rgba(140,55,219,.18);padding:2.2rem;
+      display:flex;flex-direction:column;justify-content:center;
+    }
+    .connects-copy h2{font-size:2.4rem;line-height:1.05;letter-spacing:-1px}
+    .connects-copy h2 span{color:var(--primary)}
+    .connects-copy p{color:var(--muted);margin-top:.9rem}
+
+    footer{
+      background:var(--light);padding:2.5rem 5%;text-align:center;
+      color:var(--muted);border-top:1px solid var(--border);font-size:.92rem;
+    }
+    footer a{color:var(--primary);font-weight:700}
+
+    /* Modal */
+    .cs-overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.55);
+      display:none;align-items:center;justify-content:center;z-index:9999;padding:1.2rem;
+    }
+    .cs-modal{
+      width:min(520px,100%);background:#fff;border-radius:24px;
+      box-shadow:0 30px 90px rgba(0,0,0,.25);border:1px solid rgba(0,0,0,.08);overflow:hidden;
+    }
+    .cs-top{
+      padding:1.2rem 1.3rem;
+      background:linear-gradient(135deg,rgba(140,55,219,.12),rgba(244,81,30,.10));
+      display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    }
+    .cs-title{display:flex;align-items:center;gap:.6rem;font-weight:900;letter-spacing:-.6px;color:var(--dark);font-size:1.05rem;}
+    .cs-close{border:none;background:transparent;font-size:1.4rem;line-height:1;cursor:pointer;opacity:.7;}
+    .cs-close:hover{opacity:1}
+    .cs-body{padding:1.35rem 1.3rem 1.4rem}
+    .cs-body h3{font-size:1.7rem;letter-spacing:-.8px;margin-bottom:.4rem}
+    .cs-body p{color:var(--muted)}
+    .cs-actions{margin-top:1.2rem;display:flex;gap:.8rem;flex-wrap:wrap;}
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">
+      <span style="font-size:1.55rem">⚽</span>
+      <span>VScor</span>
+    </div>
+
+    <div class="nav-links desktop-links">
+      <a href="#why">Why VScor</a>
+      <a href="#features">Features</a>
+      <a href="#audience">VScor is for</a>
+      <a href="/worldcup/" class="nav-app-link" data-allow="true">
+        <span>🏆</span> WC26 Predictor
+      </a>
+    </div>
+
+    <a href="https://forms.gle/3FZdBG9hDowwVDoz9" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-allow="true">
+      Get Early Access
+    </a>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero" id="top">
+    <div class="hero-inner">
+      <div>
+        <div class="kicker">SCORE · TRACK · DISCOVER</div>
+        <h1><span class="accent">VScor</span> transforms local football matches into real-time, shareable performance data.</h1>
+        <p>Turn every grassroots game into verified stats, match reports, and a player history that helps athletes grow and get discovered.</p>
+        <div class="hero-points">
+          <div class="hero-point">
+            <div class="badge" style="background:var(--primary)">✓</div>
+            <div>
+              <strong>Time-stamped, verified player events</strong><br/>
+              <span style="color:var(--muted)">Goals, assists, cards, substitutions — captured fast, stored forever.</span>
+            </div>
+          </div>
+          <div class="hero-point">
+            <div class="badge" style="background:var(--green)">⟲</div>
+            <div>
+              <strong>Works offline + syncs later</strong><br/>
+              <span style="color:var(--muted)">Built for grassroots — poor network shouldn't stop the match.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-wrap">
+        <div class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <img src="assets/screenshots/app-1.png" alt="VScor app interface" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- WHY -->
+  <section class="section" id="why">
+    <div class="section-header">
+      <h2>Why VScor</h2>
+      <p>Most amateur football is invisible. We're fixing that with simple scoring + verified, shareable data.</p>
+    </div>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="big">90%</div>
+        <h3>of amateur matches go unrecorded</h3>
+        <p>No goals, assists, or stats stored anywhere. Players lose history and momentum.</p>
+      </div>
+      <div class="problem-card" style="background:linear-gradient(135deg,#1a1a1a 0%,#2a0d3f 100%)">
+        <h3>Most tournaments still run on</h3>
+        <div class="big">WhatsApp + Excel</div>
+        <p>Organizers need an easy dashboard, clean fixtures, and instant match reports.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <div class="section-header">
+      <h2>Real-time scoring. Verified stats. Organizer-friendly.</h2>
+      <p>Everything you need to run matches smoothly — and give players a profile worth sharing.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="icon-box" style="background:var(--primary)">⚡</div>
+        <h3>Real-time scoring</h3>
+        <p>Tap to record match events instantly and keep the scoreline live for everyone.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box" style="background:var(--secondary)">🧾</div>
+        <h3>Auto-generated match reports</h3>
+        <p>Shareable summaries with timelines, scorers, assists, and key moments.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box" style="background:var(--green)">📌</div>
+        <h3>Time-stamped player events</h3>
+        <p>Verified event logs help players build credibility and track improvement.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box" style="background:var(--blue)">📡</div>
+        <h3>Offline-first, sync later</h3>
+        <p>Record without signal. Sync when you're back online — no match left behind.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WC26 PREDICTOR PROMO -->
+  <div class="wc26-band" id="wc26">
+    <div class="wc26-inner">
+      <div>
+        <div class="wc26-badge">🏆 FREE TOOL</div>
+        <h2>World Cup 2026 Match Predictor</h2>
+        <p>Run 10,000 Monte Carlo simulations to calculate the exact probability of any two teams meeting at each stage of the 2026 World Cup. Explore bracket paths, power rankings, and stage-by-stage breakdowns for all 48 nations.</p>
+        <div class="wc26-pills">
+          <span class="wc26-pill">⚽ 48 Teams</span>
+          <span class="wc26-pill">🎯 10,000 Simulations</span>
+          <span class="wc26-pill">📊 Power Rankings</span>
+          <span class="wc26-pill">🗺️ Bracket Explorer</span>
+        </div>
+      </div>
+      <a href="/worldcup/" class="btn-wc26" data-allow="true">Launch Predictor →</a>
+    </div>
+  </div>
+
+  <!-- AUDIENCE -->
+  <section class="audience-band" id="audience">
+    <div class="audience-inner">
+      <h2>VScor is for</h2>
+      <div class="audience-grid">
+        <div class="audience-item">
+          <div class="emoji">📋</div>
+          <h3>Organizers</h3>
+          <p>Manage matches easily with clean scoring, reports, and tournament workflows.</p>
+        </div>
+        <div class="audience-item">
+          <div class="emoji">🏃</div>
+          <h3>Players</h3>
+          <p>Track every goal and assist — build a stats history that actually stays.</p>
+        </div>
+        <div class="audience-item">
+          <div class="emoji">👨‍👩‍👧‍👦</div>
+          <h3>Seniors / Parents</h3>
+          <p>Follow your player live and access verified data after the match.</p>
+        </div>
+        <div class="audience-item">
+          <div class="emoji">📣</div>
+          <h3>Socials</h3>
+          <p>Share match moments, reports, and achievements — instantly.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONNECTS -->
+  <section class="section" id="connects">
+    <div class="connects">
+      <div class="connects-media">
+        <img src="assets/screenshots/app-2.png" alt="VScor preview" />
+      </div>
+      <div class="connects-copy">
+        <h2><span>VScor</span> connects everyone who lives the game.</h2>
+        <p>From organizers to players to supporters — everyone gets a simple way to follow, trust, and celebrate match data.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; <span id="year"></span> VScor. All rights reserved.</p>
+    <p style="margin-top:.5rem">
+      <a href="#top">Privacy</a> · <a href="#top">Terms</a> · <a href="#top">Contact</a>
+    </p>
+  </footer>
+
+  <!-- Coming Soon Modal -->
+  <div class="cs-overlay" id="csOverlay" role="dialog" aria-modal="true" aria-labelledby="csHeading">
+    <div class="cs-modal">
+      <div class="cs-top">
+        <div class="cs-title"><span style="font-size:1.25rem">🚀</span><span>VScor</span></div>
+        <button class="cs-close" id="csClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="cs-body">
+        <h3 id="csHeading">Coming Soon</h3>
+        <p>We're polishing the product. Check back soon!</p>
+        <div class="cs-actions">
+          <button class="btn btn-primary" id="csOk">Got it</button>
+          <button class="btn" id="csTop" style="border:1px solid var(--border);background:transparent">Back to top</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    (function(){
+      const overlay = document.getElementById("csOverlay");
+      const closeBtn = document.getElementById("csClose");
+      const okBtn = document.getElementById("csOk");
+      const topBtn = document.getElementById("csTop");
+
+      function openModal(){overlay.style.display="flex";document.body.style.overflow="hidden";}
+      function closeModal(){overlay.style.display="none";document.body.style.overflow="";}
+
+      function isAllowed(el){return el&&el.getAttribute&&el.getAttribute("data-allow")==="true";}
+      function isExternal(el){
+        if(!el||el.tagName!=="A")return false;
+        const h=(el.getAttribute("href")||"").trim();
+        return h.startsWith("http")||h.startsWith("mailto:")||h.startsWith("tel:");
+      }
+      function isHashLink(el){
+        if(!el||el.tagName!=="A")return false;
+        const h=(el.getAttribute("href")||"").trim();
+        if(!h.startsWith("#"))return false;
+        return !!document.getElementById(h.slice(1));
+      }
+      function isAppLink(el){
+        if(!el||el.tagName!=="A")return false;
+        const h=(el.getAttribute("href")||"").trim();
+        return h==="/worldcup"||h.startsWith("/worldcup/");
+      }
+
+      document.addEventListener("click",function(e){
+        const el=e.target.closest("a,button");
+        if(!el)return;
+        if(isAllowed(el))return;
+        if(isExternal(el))return;
+        if(isAppLink(el))return;
+        if(isHashLink(el)){
+          e.preventDefault();
+          const id=(el.getAttribute("href")||"").trim().slice(1);
+          history.pushState(null,"","#"+id);
+          document.getElementById(id).scrollIntoView({behavior:"smooth",block:"start"});
+          return;
+        }
+        e.preventDefault();e.stopPropagation();openModal();
+      },true);
+
+      closeBtn.addEventListener("click",closeModal);
+      okBtn.addEventListener("click",closeModal);
+      topBtn.addEventListener("click",function(e){
+        e.preventDefault();e.stopPropagation();closeModal();
+        history.pushState(null,"","#top");
+        window.scrollTo({top:0,behavior:"smooth"});
+      });
+      overlay.addEventListener("click",function(e){if(e.target===overlay)closeModal();});
+      document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal();});
+    })();
+  </script>
+</body>
+</html>

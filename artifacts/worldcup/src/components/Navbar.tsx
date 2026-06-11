@@ -19,16 +19,25 @@ export function Navbar() {
       <div className="max-w-6xl mx-auto px-4 md:px-8">
         <div className="flex items-center justify-between h-14">
 
-          {/* Brand */}
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
-          >
-            <Trophy className="w-5 h-5 text-primary" />
-            <span className="font-bold text-sm uppercase tracking-widest font-mono hidden sm:block">
-              WC 2026
-            </span>
-          </Link>
+          {/* Left: VScor back-link + Brand */}
+          <div className="flex items-center gap-3">
+            <a
+              href="/"
+              className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors hidden sm:inline-flex items-center gap-1"
+            >
+              ← VScor
+            </a>
+            <span className="hidden sm:block text-border/60 text-sm select-none">|</span>
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
+            >
+              <Trophy className="w-5 h-5 text-primary" />
+              <span className="font-bold text-sm uppercase tracking-widest font-mono hidden sm:block">
+                WC 2026
+              </span>
+            </Link>
+          </div>
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">

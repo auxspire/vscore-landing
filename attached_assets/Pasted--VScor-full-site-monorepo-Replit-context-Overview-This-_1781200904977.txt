@@ -1,0 +1,72 @@
+# VScor full-site monorepo — Replit context
+## Overview
+This Replit project is connected to: https://github.com/auxspire/vscore-landing
+Production: https://vscor.in
+- Landing / marketing site: https://vscor.in/
+- WC26 Sim React app:       https://vscor.in/wc26sim/
+Deploy: Vercel auto-deploys on every push to `main`.
+## Replit workspace = REPO ROOT (not app/ only)
+You can edit BOTH the landing website AND the React app from this Repl.
+vscore-landing/ ← Replit root ├── index.html ← MARKETING LANDING PAGE (vscor.in) ├── assets/ ← Landing images (screenshots, etc.) ├── vercel.json ← Vercel build + routing ├── package.json ← Root build scripts ├── REPLIT_CONTEXT.md ← Full reference doc in repo └── app/ ← React app source ├── index.html ← Vite shell ONLY (not the landing page) ├── vite.config.ts ├── .env.production ← Supabase for Vercel builds ├── .replit ← Replit env vars └── src/ ← React components & logic
+
+`wc26sim/` at repo root = built React app (generated on deploy, do not commit).
+---
+## Two different index.html files — DO NOT CONFUSE
+| File | Purpose |
+|---|---|
+| `/index.html` | Marketing landing page at vscor.in |
+| `/app/index.html` | Vite entry shell for the React app only |
+Never replace root `index.html` with the Vite shell.
+---
+## What to edit from Replit
+| Goal | Edit these |
+|---|---|
+| Landing copy, sections, nav, styles | `index.html` (repo root) |
+| Landing images | `assets/` |
+| App features, UI, logic | `app/src/**` |
+| App dependencies | `app/package.json` |
+| Deploy / routing | `vercel.json`, root `package.json` |
+Landing changes need NO build step — push and Vercel serves them directly.
+App changes require Vercel to run `npm run vercel-build` (automatic on push).
+---
+## Rules
+1. Keep ALL React source inside `app/` — never move `src/` to repo root.
+2. Root `index.html` = marketing site. `app/index.html` = Vite only.
+3. Keep `app/vite.config.ts`:
+   - `base: '/wc26sim/'`
+   - `build.outDir: '../wc26sim'`
+4. Do NOT add `app/vercel.json` — routing is in root `vercel.json` only.
+5. Always `git pull origin main` before `git push` (Cursor may edit landing too).
+6. Old repo `auxspire/Vscor-Staging` is deprecated — use `vscore-landing` only.
+---
+## Supabase (shared data — not stored in Replit)
+Matches, players, tournaments, auth → **Supabase cloud**.
+Replit dev and production use the SAME Supabase project.
+| Variable | Replit | Vercel build |
+|---|---|---|
+| VITE_SUPABASE_URL | app/.replit [userenv.shared] | app/.env.production |
+| VITE_SUPABASE_ANON_KEY | app/.replit [userenv.shared] | app/.env.production |
+If you change keys, update BOTH files.
+---
+## Commands
+```bash
+# Landing preview: open index.html or use a static server at repo root
+# React app dev
+cd app && npm run dev          # port 5000
+# React app build (local test)
+cd app && npm run build        # → ../wc26sim/
+# Full production build (what Vercel runs)
+npm run vercel-build           # from repo root
+Landing ↔ app integration (already done)
+Nav tab "WC26 Sim" links to /wc26sim/
+Styled: black pill, purple text, lime green (
+#ADFF2F) on hover
+Coming Soon modal allows /wc26sim navigation
+Team section removed from landing
+Git workflow
+1. git pull origin main
+2. Edit landing (index.html / assets/) and/or app (app/src/)
+3. git add → commit → push
+4. Vercel deploys:
+   - vscor.in          (landing)
+   - vscor.in/wc26sim  (React a
