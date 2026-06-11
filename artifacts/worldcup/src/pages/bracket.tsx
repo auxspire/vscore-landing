@@ -280,7 +280,7 @@ function StageCard({
                     </div>
                     <span className="text-4xl flex-shrink-0">{getFlagEmoji(primary.team.flagCode)}</span>
                   </div>
-                  {Object.keys(primary.groupFinish).length > 0 && (
+                  {primary.groupFinish && Object.keys(primary.groupFinish).length > 0 && (
                     <GroupFinishBadge finishMap={primary.groupFinish} group={primary.team.group} side="opponent" />
                   )}
                 </div>
@@ -332,7 +332,7 @@ function StageCard({
                     )}
                     {secondary.map(opp => {
                       const isSelected = opp.team.id === lockedOpponentId
-                      const oppTopFinish = topKey(opp.groupFinish)
+                      const oppTopFinish = opp.groupFinish ? topKey(opp.groupFinish) : null
                       return (
                         <button
                           key={opp.team.id}
