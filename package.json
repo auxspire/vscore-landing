@@ -1,6 +1,7 @@
 {
   "name": "vscore-landing",
   "version": "0.0.0",
+  "packageManager": "pnpm@10.12.4",
   "license": "MIT",
   "scripts": {
     "preinstall": "node scripts/ensure-pnpm.mjs",
