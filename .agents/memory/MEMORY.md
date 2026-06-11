@@ -1,0 +1,1 @@
+- [Git push via agent](git-push-agent.md) — replit-git-askpass hangs when called from agent bash; use Version Control UI or PAT instead.
