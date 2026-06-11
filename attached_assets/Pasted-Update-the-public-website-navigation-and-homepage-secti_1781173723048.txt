@@ -1,0 +1,62 @@
+Update the public website navigation and homepage sections.
+
+Current issues:
+
+* The website does not currently mention the application.
+* The application name for now is **World Cup Simulator**.
+* The website is light themed while the application is dark themed.
+* The Founders/Team section should be removed from the website.
+
+Required changes:
+
+1. Add "World Cup Simulator" to the website navigation.
+
+   * Add a prominent navigation item labeled **World Cup Simulator**.
+   * Link it to the application route.
+   * Style it differently from normal navigation links.
+   * Use a dark-themed button appearance matching the application:
+
+     * dark background or gradient
+     * light text
+     * subtle border/glow
+     * hover and active states
+     * rounded corners
+   * It should visually signal that users are entering the application.
+
+2. Add a dedicated World Cup Simulator section on the homepage.
+
+   * Create a feature section highlighting the application.
+   * Include:
+
+     * Title: "World Cup Simulator"
+     * Short description explaining that users can explore tournament outcomes, bracket paths, simulations, probabilities, and alternative scenarios.
+     * Strong CTA button: "Launch Simulator"
+   * Use a dark card, dark panel, or dark gradient design that visually connects with the app experience.
+
+3. Improve the website-to-app transition.
+
+   * Make the simulator section feel like a product showcase rather than a simple link.
+   * Use consistent typography, spacing, and visual hierarchy.
+   * Create a smooth visual transition between the light marketing site and the dark application experience.
+
+4. Remove Founders/Team section.
+
+   * Remove the entire Founders/Team section from the homepage.
+   * Remove any navigation links pointing to it.
+   * Remove unused components/imports if no longer needed.
+   * Ensure no layout gaps remain after removal.
+
+5. Mobile and responsive support.
+
+   * Add the World Cup Simulator navigation item to mobile navigation menus.
+   * Ensure CTA buttons remain visible and prominent on smaller screens.
+   * Verify layout consistency across desktop, tablet, and mobile.
+
+6. UX improvements.
+
+   * If the user is currently inside the application, highlight the World Cup Simulator navigation item as active.
+   * Ensure clicking the navigation item or CTA opens the application immediately.
+   * Preserve all existing routing and functionality.
+
+Expected outcome:
+Visitors should immediately understand that the site's primary product is the World Cup Simulator. The application should have a strong presence in the navigation and homepage, the dark-themed application entry points should feel premium and connected to the app experience, and the Founders/Team section should be completely removed.

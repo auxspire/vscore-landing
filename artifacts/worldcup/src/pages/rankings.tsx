@@ -3,6 +3,7 @@ import { Link } from "wouter"
 import { useGetTournamentRankings } from "@workspace/api-client-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { ArrowLeft, Trophy, Medal, Activity, GitBranch, ChevronRight } from "lucide-react"
 
@@ -59,24 +60,9 @@ export default function Rankings() {
     : []
 
   return (
-    <div className="min-h-[100dvh] w-full pt-8 pb-24 px-4 md:px-8 max-w-5xl mx-auto">
-
-      {/* Header nav */}
-      <div className="flex items-center justify-between mb-8">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-          Home
-        </Link>
-        <Link
-          href="/bracket"
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/10 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
-        >
-          <GitBranch className="w-3 h-3" /> Bracket Path
-        </Link>
-      </div>
+    <div className="min-h-[100dvh] w-full flex flex-col">
+      <Navbar />
+      <div className="flex-1 pt-8 pb-24 px-4 md:px-8 max-w-5xl mx-auto w-full">
 
       {/* Page title */}
       <div className="mb-8">
@@ -219,6 +205,7 @@ export default function Rankings() {
           {data.simulationsRun.toLocaleString()} simulations · probabilities vary slightly on each load
         </p>
       )}
+      </div>
     </div>
   )
 }

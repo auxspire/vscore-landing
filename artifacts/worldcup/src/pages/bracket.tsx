@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useLocation, useSearch, Link } from "wouter"
 import { useGetTeams, useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
+import { Navbar } from "@/components/Navbar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getFlagEmoji, cn } from "@/lib/utils"
@@ -661,14 +662,9 @@ export default function Bracket() {
   })()
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col pt-6 pb-24 px-4 md:px-8 max-w-4xl mx-auto relative z-10">
-
-      {/* Nav */}
-      <div className="flex items-center justify-between mb-8">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Home
-        </Link>
-      </div>
+    <div className="min-h-[100dvh] w-full flex flex-col">
+      <Navbar />
+      <div className="flex-1 pt-6 pb-24 px-4 md:px-8 max-w-4xl mx-auto w-full relative z-10">
 
       {/* Header */}
       <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -804,6 +800,7 @@ export default function Bracket() {
         </div>
       ) : null}
 
+      </div>
     </div>
   )
 }

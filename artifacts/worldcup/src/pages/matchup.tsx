@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
+import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
 import { Link } from "wouter"
@@ -45,7 +46,9 @@ export default function Matchup() {
   }, [matchResult])
 
   return (
-    <div className="min-h-[100dvh] w-full pt-8 pb-24 px-4 md:px-8 max-w-6xl mx-auto">
+    <div className="min-h-[100dvh] w-full flex flex-col">
+      <Navbar />
+      <div className="flex-1 pt-8 pb-24 px-4 md:px-8 max-w-6xl mx-auto w-full">
       <Button 
         variant="ghost" 
         className="mb-8 pl-0 hover:bg-transparent text-muted-foreground hover:text-foreground group"
@@ -193,6 +196,7 @@ export default function Matchup() {
 
         </div>
       ) : null}
+      </div>
     </div>
   )
 }
