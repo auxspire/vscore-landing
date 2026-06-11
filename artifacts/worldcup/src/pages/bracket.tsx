@@ -252,7 +252,7 @@ function StageCard({
                   · IF SELECTED PATH
                 </span>
               )}
-              {isConditional && stage.sampleCount !== undefined && stage.sampleCount < 50 && (
+              {isConditional && stage.sampleCount !== undefined && stage.sampleCount < 100 && (
                 <span
                   title={`Only ${stage.sampleCount} simulations match this scenario — treat probabilities as rough estimates`}
                   className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-400/90 uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5"
@@ -755,11 +755,7 @@ export default function Bracket() {
                   team={bracketData.team as RichTeam}
                   isLast={i === displayStages.length - 1}
                   lockedOpponentId={isLockedStage ? lockedOpponentId : null}
-                  onLockOpponent={
-                    isAfterLock
-                      ? () => {}  // no lock control on conditional stages
-                      : (id) => handleLockOpponent(stage.stage, id)
-                  }
+                  onLockOpponent={(id) => handleLockOpponent(stage.stage, id)}
                 />
               )
             })}

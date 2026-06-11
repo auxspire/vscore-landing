@@ -112,8 +112,8 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
   }
 
   const numSims = Math.min(
-    10000,
-    Math.max(1000, req.query.simulations ? parseInt(req.query.simulations as string, 10) : 5000)
+    20000,
+    Math.max(1000, req.query.simulations ? parseInt(req.query.simulations as string, 10) : 10000)
   );
 
   try {
