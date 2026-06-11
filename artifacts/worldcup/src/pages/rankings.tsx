@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "wouter"
-import { useGetTournamentRankings } from "@workspace/api-client-react"
+import { useGetTournamentRankings, getGetTournamentRankingsQueryKey } from "@workspace/api-client-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { Navbar } from "@/components/Navbar"
@@ -46,15 +46,15 @@ export default function Rankings() {
 
   const { data, isLoading } = useGetTournamentRankings(
     { simulations: 10000 },
-    { query: { staleTime: 5 * 60 * 1000 } }
+    { query: { staleTime: 5 * 60 * 1000, queryKey: getGetTournamentRankingsQueryKey({ simulations: 10000 }) } }
   )
 
   const sorted = data?.rankings
     ? sortBy === "rank"
       ? [...data.rankings]
       : [...data.rankings].sort((a, b) => {
-          const aVal = sortBy === "rank" ? a.rank : (a[sortBy as StageKey] ?? 0)
-          const bVal = sortBy === "rank" ? b.rank : (b[sortBy as StageKey] ?? 0)
+          const aVal = a[sortBy as StageKey] ?? 0
+          const bVal = b[sortBy as StageKey] ?? 0
           return (bVal as number) - (aVal as number)
         })
     : []

@@ -606,7 +606,7 @@ export default function Bracket() {
   }) | undefined
 
   // Build display stages: inject conditional data for stages after the locked one
-  const displayStages: RichStageNode[] = bracketData?.path
+  const displayStages: RichStageNode[] = (bracketData?.path
     ? bracketData.path.map(stage => {
         const stageIdx  = KNOCKOUT_STAGES.indexOf(stage.stage)
         const lockIdx   = lockedStage ? KNOCKOUT_STAGES.indexOf(lockedStage) : -1
@@ -627,7 +627,7 @@ export default function Bracket() {
         }
 
         // Stages after the lock: use conditional path data from the locked opponent
-        const lockStageNode = bracketData.path.find(s => s.stage === lockedStage)
+        const lockStageNode = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
         const lockOpp = lockStageNode?.topOpponents.find(o => o.team.id === lockedOpponentId)
         const cpEntry = lockOpp?.conditionalPath?.find(cp => cp.stage === stage.stage)
 
@@ -636,15 +636,15 @@ export default function Bracket() {
             ...stage,
             reachProbability: cpEntry.reachProbability,
             topOpponents: cpEntry.topOpponents as RichOpponent[],
-            teamGroupFinish: stage.teamGroupFinish,
+            teamGroupFinish: (stage as RichStageNode).teamGroupFinish,
             isConditional: true,
             sampleCount: cpEntry.sampleCount,
           }
         }
 
         return { ...stage, isConditional: true }
-      })
-    : []
+      }) as RichStageNode[]
+    : []) as RichStageNode[]
 
   // Compute conditional win probability when lock is active
   const displayWinProb = (() => {
@@ -652,10 +652,10 @@ export default function Bracket() {
       return bracketData?.tournamentWinProbability ?? 0
     }
     // Find locked opponent — search topOpponents first, then opponentsByFinish for R32
-    const lockStageNode = bracketData.path.find(s => s.stage === lockedStage)
+    const lockStageNode = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
     const lockOpp = lockStageNode?.topOpponents.find(o => o.team.id === lockedOpponentId)
       ?? (lockStageNode?.opponentsByFinish
-        ? Object.values(lockStageNode.opponentsByFinish).flat().find(o => o.team.id === lockedOpponentId)
+        ? Object.values(lockStageNode.opponentsByFinish).flat().find((o): o is RichOpponent => (o as RichOpponent).team?.id === lockedOpponentId)
         : undefined)
     const finalCp = lockOpp?.conditionalPath?.find(cp => cp.stage === "final")
     if (finalCp) {
@@ -740,11 +740,11 @@ export default function Bracket() {
 
           {/* Lock banner */}
           {lockedStage && lockedOpponentId && (() => {
-            const lockStageData = bracketData.path.find(s => s.stage === lockedStage)
+            const lockStageData = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
             // For R32, the locked opponent may only exist in opponentsByFinish, not topOpponents
             const lockOpp = lockStageData?.topOpponents.find(o => o.team.id === lockedOpponentId)
               ?? (lockStageData?.opponentsByFinish
-                ? Object.values(lockStageData.opponentsByFinish).flat().find(o => o.team.id === lockedOpponentId)
+                ? Object.values(lockStageData.opponentsByFinish).flat().find((o): o is RichOpponent => (o as RichOpponent).team?.id === lockedOpponentId)
                 : undefined)
             if (!lockOpp) return null
             return (

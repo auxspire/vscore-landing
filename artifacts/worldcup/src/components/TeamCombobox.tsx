@@ -16,7 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Team } from "@workspace/api-client-react/src/generated/api.schemas"
+import type { Team } from "@workspace/api-client-react"
 
 interface TeamComboboxProps {
   teams: Team[]
