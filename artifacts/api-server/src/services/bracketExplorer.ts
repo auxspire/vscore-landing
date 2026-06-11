@@ -72,6 +72,11 @@ export interface BracketOpponentData {
   /** How many times this opponent was faced when our team finished 1st/2nd/3rd (raw counts) */
   encountersByTeamFinish: Record<string, number>;
   /**
+   * How many times our team WON against this opponent, broken down by our team's
+   * finish position. Enables per-scenario win rate: winsIfFacingByTeamFinish[pos] / encountersByTeamFinish[pos].
+   */
+  winsIfFacingByTeamFinish: Record<string, number>;
+  /**
    * Opponent's group finish broken down by our team's finish position.
    * e.g. opponentGroupFinishByTeamFinish["2nd"]["1st"] = 430
    * means: in 430 sims where our team finished 2nd, this opponent finished 1st.
@@ -190,6 +195,7 @@ export function simulateBracketExplorer(
               winsIfFacing: 0,
               opponentGroupFinish: {},
               encountersByTeamFinish: {},
+              winsIfFacingByTeamFinish: {},
               opponentGroupFinishByTeamFinish: {},
               conditionalPath: {},
             };
@@ -204,10 +210,16 @@ export function simulateBracketExplorer(
             oppData.opponentGroupFinish[oppPos] = (oppData.opponentGroupFinish[oppPos] || 0) + 1;
           }
 
-          // Track how many times this opponent was faced per our team's finish position
+          // Track per-finish-position encounter and win counts
           if (teamGroupPos) {
             oppData.encountersByTeamFinish[teamGroupPos] =
               (oppData.encountersByTeamFinish[teamGroupPos] || 0) + 1;
+
+            // Per-scenario wins: how many times we beat this opponent when we finished `teamGroupPos`
+            if (teamWon) {
+              oppData.winsIfFacingByTeamFinish[teamGroupPos] =
+                (oppData.winsIfFacingByTeamFinish[teamGroupPos] || 0) + 1;
+            }
 
             // Also track opponent's group finish broken down by our team's finish
             if (oppPos) {

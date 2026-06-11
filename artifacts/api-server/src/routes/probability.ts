@@ -160,7 +160,8 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
                 }));
               return {
                 stage: nextStage,
-                reachProbability: o.winsIfFacing > 0 ? cp.reachCount / o.winsIfFacing : 0,
+                // Cap at 1.0 — with small samples cp.reachCount can equal winsIfFacing
+                reachProbability: o.winsIfFacing > 0 ? Math.min(1, cp.reachCount / o.winsIfFacing) : 0,
                 sampleCount: cp.reachCount,
                 topOpponents: cpOpponents,
               };
@@ -172,6 +173,8 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
             encounterProbability: encounterProb,
             winProbabilityIfFacing: winProb,
             groupFinish: normaliseCounts(o.opponentGroupFinish),
+            // Overall sample count — used for low-confidence display
+            sampleCount: o.encounterCount,
             conditionalPath,
           };
         });
@@ -191,7 +194,13 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
               (b.encountersByTeamFinish[pos] ?? 0) - (a.encountersByTeamFinish[pos] ?? 0)
             )
             .map(o => {
-              const enc = o.encountersByTeamFinish[pos] ?? 0;
+              const enc  = o.encountersByTeamFinish[pos] ?? 0;
+              const wins = o.winsIfFacingByTeamFinish[pos] ?? 0;
+              // Per-scenario win rate: how often we beat this opponent specifically
+              // when our team finished in `pos`. Falls back to overall if no data.
+              const winProbScenario = enc > 0
+                ? wins / enc
+                : (o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0);
               // Reuse the full opponent data (with conditionalPath) from allOpponents
               const full = allOpponents.find(ao => ao.team.id === o.team.id);
               // Use per-scenario opponent group finish (how this opponent finished
@@ -205,11 +214,12 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
                   groupFinish: scenarioGroupFinish,
                   conditionalPath: [],
                 }),
-                // Override groupFinish with per-scenario value
+                // Override with per-scenario values
                 groupFinish: scenarioGroupFinish,
                 encounterProbability: enc / finishCount,
-                winProbabilityIfFacing:
-                  o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0,
+                winProbabilityIfFacing: winProbScenario,
+                // Expose per-scenario sample count for low-confidence display
+                sampleCount: enc,
               };
             });
           if (posOpps.length > 0) opponentsByFinish[pos] = posOpps;

@@ -36,6 +36,8 @@ interface RichOpponent {
   encounterProbability: number
   winProbabilityIfFacing: number
   groupFinish: Record<string, number>
+  /** Number of simulations this opponent entry is based on — low = treat as rough estimate */
+  sampleCount?: number
   conditionalPath: ConditionalStageNode[]
 }
 
@@ -409,6 +411,7 @@ function StageCard({
                           {opps.map(opp => {
                             const isSelected = opp.team.id === lockedOpponentId
                             const oppTopFinish = opp.groupFinish ? topKey(opp.groupFinish) : null
+                            const lowConf = (opp.sampleCount ?? Infinity) < 50
                             return (
                               <button
                                 key={opp.team.id}
@@ -442,8 +445,11 @@ function StageCard({
                                         Grp {opp.team.group} {oppTopFinish}
                                       </span>
                                     )}
-                                    <span className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}>
-                                      {(opp.winProbabilityIfFacing * 100).toFixed(0)}% win
+                                    <span
+                                      className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}
+                                      title={lowConf ? `Based on only ${opp.sampleCount} simulations — rough estimate` : undefined}
+                                    >
+                                      {lowConf ? "~" : ""}{(opp.winProbabilityIfFacing * 100).toFixed(0)}% win
                                     </span>
                                   </div>
                                 </div>
@@ -475,6 +481,7 @@ function StageCard({
                       {secondary.map(opp => {
                         const isSelected = opp.team.id === lockedOpponentId
                         const oppTopFinish = opp.groupFinish ? topKey(opp.groupFinish) : null
+                        const lowConf = (opp.sampleCount ?? Infinity) < 50
                         return (
                           <button
                             key={opp.team.id}
@@ -504,8 +511,11 @@ function StageCard({
                                   </span>
                                 )}
                                 <span className="text-[10px] font-mono text-muted-foreground">{(opp.encounterProbability * 100).toFixed(1)}% enc</span>
-                                <span className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}>
-                                  {(opp.winProbabilityIfFacing * 100).toFixed(1)}% win
+                                <span
+                                  className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}
+                                  title={lowConf ? `Based on only ${opp.sampleCount} simulations — rough estimate` : undefined}
+                                >
+                                  {lowConf ? "~" : ""}{(opp.winProbabilityIfFacing * 100).toFixed(1)}% win
                                 </span>
                               </div>
                             </div>
@@ -631,19 +641,21 @@ export default function Bracket() {
     if (!bracketData || !lockedStage || !lockedOpponentId) {
       return bracketData?.tournamentWinProbability ?? 0
     }
-    // Win prob given we beat the locked opponent and continue
+    // Find locked opponent — search topOpponents first, then opponentsByFinish for R32
     const lockStageNode = bracketData.path.find(s => s.stage === lockedStage)
     const lockOpp = lockStageNode?.topOpponents.find(o => o.team.id === lockedOpponentId)
+      ?? (lockStageNode?.opponentsByFinish
+        ? Object.values(lockStageNode.opponentsByFinish).flat().find(o => o.team.id === lockedOpponentId)
+        : undefined)
     const finalCp = lockOpp?.conditionalPath?.find(cp => cp.stage === "final")
     if (finalCp) {
       // Conditional win = reachFinalGivenLock * winIfInFinal
-      // reachFinalGivenLock ≈ finalCp.reachProbability
-      // average win rate in final if there
       const avgWin = finalCp.topOpponents.length > 0
         ? finalCp.topOpponents.reduce((s, o) => s + o.winProbabilityIfFacing * o.encounterProbability, 0) /
           finalCp.topOpponents.reduce((s, o) => s + o.encounterProbability, 0)
         : 0.5
-      return finalCp.reachProbability * avgWin
+      // Cap at 1.0 — low sample sizes can produce reachProbability = 1
+      return Math.min(1, finalCp.reachProbability * avgWin)
     }
     return bracketData.tournamentWinProbability
   })()
@@ -723,9 +735,12 @@ export default function Bracket() {
 
           {/* Lock banner */}
           {lockedStage && lockedOpponentId && (() => {
-            const lockOpp = bracketData.path
-              .find(s => s.stage === lockedStage)
-              ?.topOpponents.find(o => o.team.id === lockedOpponentId)
+            const lockStageData = bracketData.path.find(s => s.stage === lockedStage)
+            // For R32, the locked opponent may only exist in opponentsByFinish, not topOpponents
+            const lockOpp = lockStageData?.topOpponents.find(o => o.team.id === lockedOpponentId)
+              ?? (lockStageData?.opponentsByFinish
+                ? Object.values(lockStageData.opponentsByFinish).flat().find(o => o.team.id === lockedOpponentId)
+                : undefined)
             if (!lockOpp) return null
             return (
               <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5">
