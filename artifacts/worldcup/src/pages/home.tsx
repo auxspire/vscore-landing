@@ -30,9 +30,6 @@ export default function Home() {
           <Activity className="w-3 h-3" /> MONTE CARLO ENGINE ONLINE
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/rankings" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors">
-            <Trophy className="w-4 h-4" /> Rankings
-          </Link>
           <Link href="/bracket" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-bold uppercase tracking-wider text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/10 transition-colors">
             <GitBranch className="w-4 h-4" /> Bracket <ArrowRight className="w-4 h-4" />
           </Link>

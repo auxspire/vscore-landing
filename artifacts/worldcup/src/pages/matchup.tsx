@@ -73,7 +73,9 @@ export default function Matchup() {
             <div className="absolute inset-0 bg-primary/5 blur-[100px] -z-10 rounded-full" />
             <div className="flex justify-center items-center gap-4 md:gap-12 mb-6">
               <div className="flex flex-col items-center">
-                <span className="text-6xl md:text-8xl drop-shadow-lg">{getFlagEmoji(matchResult.teamA.flagCode)}</span>
+                <Link href={`/bracket?team=${matchResult.teamA.id}`} title="View bracket path">
+                  <span className="text-6xl md:text-8xl drop-shadow-lg cursor-pointer hover:scale-110 transition-transform inline-block">{getFlagEmoji(matchResult.teamA.flagCode)}</span>
+                </Link>
                 <h2 className="text-xl md:text-3xl font-bold mt-4 tracking-tight">{matchResult.teamA.name}</h2>
                 <span className="text-sm font-mono text-muted-foreground mt-1 tracking-wider">Group {matchResult.teamA.group}</span>
               </div>
@@ -81,7 +83,9 @@ export default function Matchup() {
                 VS
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-6xl md:text-8xl drop-shadow-lg">{getFlagEmoji(matchResult.teamB.flagCode)}</span>
+                <Link href={`/bracket?team=${matchResult.teamB.id}`} title="View bracket path">
+                  <span className="text-6xl md:text-8xl drop-shadow-lg cursor-pointer hover:scale-110 transition-transform inline-block">{getFlagEmoji(matchResult.teamB.flagCode)}</span>
+                </Link>
                 <h2 className="text-xl md:text-3xl font-bold mt-4 tracking-tight">{matchResult.teamB.name}</h2>
                 <span className="text-sm font-mono text-muted-foreground mt-1 tracking-wider">Group {matchResult.teamB.group}</span>
               </div>
