@@ -212,7 +212,17 @@ function StageCard({
   const secondary = stage.topOpponents.filter(o => o !== primary)
   const diff = primary ? difficultyLabel(primary.winProbabilityIfFacing) : null
 
-  const teamTopFinish = topKey(stage.teamGroupFinish)
+  // For R32: if opponent was chosen from a specific finish section, pin the badge to that position
+  const lockedFinishPos: string | null = isR32 && stage.opponentsByFinish && lockedOpponentId
+    ? (POS_ORDER.find(pos => stage.opponentsByFinish![pos]?.some(o => o.team.id === lockedOpponentId)) ?? null)
+    : null
+
+  // Team group finish map to display — pinned when a scenario is locked, otherwise aggregate
+  const displayTeamGroupFinish: Record<string, number> = lockedFinishPos
+    ? { [lockedFinishPos]: 1 }
+    : stage.teamGroupFinish
+
+  const teamTopFinish = topKey(displayTeamGroupFinish)
 
   const POS_ORDER = ["1st", "2nd", "3rd"]
   function finishLabel(pos: string): string {
@@ -296,7 +306,7 @@ function StageCard({
                     </div>
                   </div>
                   {teamTopFinish && isR32 && (
-                    <GroupFinishBadge finishMap={stage.teamGroupFinish} group={team.group} side="team" />
+                    <GroupFinishBadge finishMap={displayTeamGroupFinish} group={team.group} side="team" />
                   )}
                 </div>
 

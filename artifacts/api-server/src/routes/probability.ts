@@ -194,12 +194,19 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
               const enc = o.encountersByTeamFinish[pos] ?? 0;
               // Reuse the full opponent data (with conditionalPath) from allOpponents
               const full = allOpponents.find(ao => ao.team.id === o.team.id);
+              // Use per-scenario opponent group finish (how this opponent finished
+              // specifically in simulations where our team finished `pos`)
+              const scenarioGroupFinish = normaliseCounts(
+                o.opponentGroupFinishByTeamFinish[pos] ?? o.opponentGroupFinish
+              );
               return {
                 ...(full ?? {
                   team: o.team,
-                  groupFinish: normaliseCounts(o.opponentGroupFinish),
+                  groupFinish: scenarioGroupFinish,
                   conditionalPath: [],
                 }),
+                // Override groupFinish with per-scenario value
+                groupFinish: scenarioGroupFinish,
                 encounterProbability: enc / finishCount,
                 winProbabilityIfFacing:
                   o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0,

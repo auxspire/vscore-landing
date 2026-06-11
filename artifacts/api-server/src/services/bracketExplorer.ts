@@ -71,6 +71,12 @@ export interface BracketOpponentData {
   opponentGroupFinish: Record<string, number>;
   /** How many times this opponent was faced when our team finished 1st/2nd/3rd (raw counts) */
   encountersByTeamFinish: Record<string, number>;
+  /**
+   * Opponent's group finish broken down by our team's finish position.
+   * e.g. opponentGroupFinishByTeamFinish["2nd"]["1st"] = 430
+   * means: in 430 sims where our team finished 2nd, this opponent finished 1st.
+   */
+  opponentGroupFinishByTeamFinish: Record<string, Record<string, number>>;
   /** Given our team beat this opponent, what happened at subsequent stages */
   conditionalPath: Record<string, ConditionalStageRaw>;
 }
@@ -184,6 +190,7 @@ export function simulateBracketExplorer(
               winsIfFacing: 0,
               opponentGroupFinish: {},
               encountersByTeamFinish: {},
+              opponentGroupFinishByTeamFinish: {},
               conditionalPath: {},
             };
           }
@@ -191,7 +198,7 @@ export function simulateBracketExplorer(
           oppData.encounterCount++;
           if (teamWon) oppData.winsIfFacing++;
 
-          // Opponent's group finish
+          // Opponent's group finish (overall)
           const oppPos = groupPos[opponent.id];
           if (oppPos) {
             oppData.opponentGroupFinish[oppPos] = (oppData.opponentGroupFinish[oppPos] || 0) + 1;
@@ -201,6 +208,15 @@ export function simulateBracketExplorer(
           if (teamGroupPos) {
             oppData.encountersByTeamFinish[teamGroupPos] =
               (oppData.encountersByTeamFinish[teamGroupPos] || 0) + 1;
+
+            // Also track opponent's group finish broken down by our team's finish
+            if (oppPos) {
+              if (!oppData.opponentGroupFinishByTeamFinish[teamGroupPos]) {
+                oppData.opponentGroupFinishByTeamFinish[teamGroupPos] = {};
+              }
+              const byPos = oppData.opponentGroupFinishByTeamFinish[teamGroupPos];
+              byPos[oppPos] = (byPos[oppPos] || 0) + 1;
+            }
           }
 
           simPath.push({ stage, opponentId: opponent.id, teamWon });
