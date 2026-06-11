@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Pasted/attached text assets (agent session files)
+attached_assets/*.txt
