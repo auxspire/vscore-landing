@@ -212,6 +212,8 @@ function StageCard({
   const secondary = stage.topOpponents.filter(o => o !== primary)
   const diff = primary ? difficultyLabel(primary.winProbabilityIfFacing) : null
 
+  const POS_ORDER = ["1st", "2nd", "3rd"]
+
   // For R32: if opponent was chosen from a specific finish section, pin the badge to that position
   const lockedFinishPos: string | null = isR32 && stage.opponentsByFinish && lockedOpponentId
     ? (POS_ORDER.find(pos => stage.opponentsByFinish![pos]?.some(o => o.team.id === lockedOpponentId)) ?? null)
@@ -224,7 +226,6 @@ function StageCard({
 
   const teamTopFinish = topKey(displayTeamGroupFinish)
 
-  const POS_ORDER = ["1st", "2nd", "3rd"]
   function finishLabel(pos: string): string {
     if (pos === "1st") return `As Group ${team.group} Winner`
     if (pos === "2nd") return `As Group ${team.group} Runner-up`
