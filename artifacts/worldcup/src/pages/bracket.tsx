@@ -308,15 +308,19 @@ function StageCard({
 
                 {/* Opponent side */}
                 <div className="flex-1 flex flex-col items-end gap-1.5 min-w-0">
-                  <div className="flex items-center gap-3 justify-end">
+                  <Link
+                    href={`/bracket?team=${primary.team.id}`}
+                    className="flex items-center gap-3 justify-end group/opplink"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="min-w-0 text-right">
-                      <div className="font-bold text-sm truncate text-foreground">{primary.team.name}</div>
+                      <div className="font-bold text-sm truncate text-foreground group-hover/opplink:text-primary transition-colors">{primary.team.name}</div>
                       <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
                         #{primary.team.fifaRanking}
                       </div>
                     </div>
-                    <span className="text-4xl flex-shrink-0">{getFlagEmoji(primary.team.flagCode)}</span>
-                  </div>
+                    <span className="text-4xl flex-shrink-0 group-hover/opplink:scale-110 transition-transform">{getFlagEmoji(primary.team.flagCode)}</span>
+                  </Link>
                   {primary.groupFinish && Object.keys(primary.groupFinish).length > 0 && (
                     <GroupFinishBadge finishMap={primary.groupFinish} group={primary.team.group} side="opponent" />
                   )}
@@ -407,7 +411,12 @@ function StageCard({
                                       : "bg-secondary/30 border-border/40 hover:bg-secondary/60 hover:border-primary/30"
                                 )}
                               >
-                                <span className="text-base">{getFlagEmoji(opp.team.flagCode)}</span>
+                                <Link
+                                  href={`/bracket?team=${opp.team.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-base hover:scale-125 transition-transform inline-block"
+                                  title={`View ${opp.team.name}'s bracket path`}
+                                >{getFlagEmoji(opp.team.flagCode)}</Link>
                                 <div>
                                   <div className={cn(
                                     "text-xs font-bold leading-none flex items-center gap-1",
@@ -466,7 +475,12 @@ function StageCard({
                                 : "bg-secondary/30 border-border/40 hover:bg-secondary/60 hover:border-primary/30"
                             )}
                           >
-                            <span className="text-lg">{getFlagEmoji(opp.team.flagCode)}</span>
+                            <Link
+                              href={`/bracket?team=${opp.team.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-lg hover:scale-125 transition-transform inline-block"
+                              title={`View ${opp.team.name}'s bracket path`}
+                            >{getFlagEmoji(opp.team.flagCode)}</Link>
                             <div>
                               <div className="text-xs font-bold leading-none flex items-center gap-1">
                                 {opp.team.name}
