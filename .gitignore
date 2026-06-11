@@ -44,9 +44,17 @@ Thumbs.db
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
-# Replit
+# Replit (legacy)
 .cache/
 .local/
+.replit
+
+# Vercel deploy output
+/dist
+
+# Legacy local folders
+/app
+/wc26sim
 
 # Pasted/attached text assets (agent session files)
 attached_assets/*.txt

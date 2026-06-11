@@ -1,0 +1,24 @@
+{
+  "buildCommand": "pnpm run vercel-build",
+  "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/worldcup",
+      "destination": "/worldcup/",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/worldcup/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "accept",
+          "value": ".*text/html.*"
+        }
+      ],
+      "destination": "/worldcup/index.html"
+    }
+  ]
+}
