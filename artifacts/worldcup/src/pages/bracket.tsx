@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useLocation, Link } from "wouter"
+import { useLocation, useSearch, Link } from "wouter"
 import { useGetTeams, useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { Card, CardContent } from "@/components/ui/card"
@@ -295,7 +295,7 @@ function StageCard({
                       <div className="text-[10px] font-mono text-primary uppercase tracking-wider">YOUR TEAM</div>
                     </div>
                   </div>
-                  {teamTopFinish && (
+                  {teamTopFinish && isR32 && (
                     <GroupFinishBadge finishMap={stage.teamGroupFinish} group={team.group} side="team" />
                   )}
                 </div>
@@ -321,7 +321,7 @@ function StageCard({
                     </div>
                     <span className="text-4xl flex-shrink-0 group-hover/opplink:scale-110 transition-transform">{getFlagEmoji(primary.team.flagCode)}</span>
                   </Link>
-                  {primary.groupFinish && Object.keys(primary.groupFinish).length > 0 && (
+                  {isR32 && primary.groupFinish && Object.keys(primary.groupFinish).length > 0 && (
                     <GroupFinishBadge finishMap={primary.groupFinish} group={primary.team.group} side="opponent" />
                   )}
                 </div>
@@ -535,20 +535,20 @@ function LoadingSkeleton() {
 
 export default function Bracket() {
   const [, setLocation] = useLocation()
-  const [teamId, setTeamId]         = useState("")
+  const search = useSearch()
+  const teamId = new URLSearchParams(search).get("team") ?? ""
+
   const [lockedStage, setLockedStage]           = useState<string | null>(null)
   const [lockedOpponentId, setLockedOpponentId] = useState<string | null>(null)
 
+  // Clear locks whenever the team in the URL changes
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get("team")
-    if (t) setTeamId(t)
-  }, [window.location.search])
-
-  // Clear locks when team changes
-  const handleTeamChange = (id: string) => {
-    setTeamId(id)
     setLockedStage(null)
     setLockedOpponentId(null)
+  }, [teamId])
+
+  // Navigate to a different team
+  const handleTeamChange = (id: string) => {
     setLocation(`/bracket?team=${id}`)
   }
 
