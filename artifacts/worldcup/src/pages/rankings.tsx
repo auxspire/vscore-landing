@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Link } from "wouter"
 import { useGetTournamentRankings } from "@workspace/api-client-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { ArrowLeft, Trophy, Medal, Activity, GitBranch, ChevronRight } from "lucide-react"
@@ -108,21 +108,7 @@ export default function Rankings() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-0 divide-y divide-border/30">
-              {Array.from({ length: 16 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-[2rem,1fr,6rem,repeat(5,3.5rem)] gap-2 items-center px-4 py-3">
-                  <Skeleton className="h-4 w-4 bg-secondary" />
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-6 w-6 rounded bg-secondary" />
-                    <Skeleton className="h-4 w-24 bg-secondary" />
-                  </div>
-                  <Skeleton className="h-5 w-full bg-secondary" />
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <Skeleton key={j} className="h-3 w-full bg-secondary" />
-                  ))}
-                </div>
-              ))}
-            </div>
+            <LoadingAnimation message="Loading rankings" />
           ) : (
             <div className="divide-y divide-border/20">
               {sorted.map((entry, idx) => {

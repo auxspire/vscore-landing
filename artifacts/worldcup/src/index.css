@@ -69,3 +69,38 @@
       radial-gradient(circle at 85% 30%, hsla(68, 100%, 50%, 0.03), transparent 25%);
   }
 }
+
+@keyframes ball-rise {
+  0%   { transform: translateY(0px);   animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0); }
+  45%  { transform: translateY(-72px); animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes ball-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes ball-squish {
+  0%, 40%, 100% { transform: scaleX(1)   scaleY(1);   }
+  48%           { transform: scaleX(1.35) scaleY(0.65); }
+  56%           { transform: scaleX(0.9)  scaleY(1.1);  }
+}
+
+@keyframes ball-shadow {
+  0%   { transform: scaleX(1);   opacity: 0.25; animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0); }
+  45%  { transform: scaleX(0.4); opacity: 0.07; animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+  100% { transform: scaleX(1);   opacity: 0.25; }
+}
+
+@keyframes trophy-float {
+  0%, 100% { transform: translateY(0px)  scale(1);    filter: drop-shadow(0 0 0px hsl(var(--primary) / 0)); }
+  50%       { transform: translateY(-6px) scale(1.06); filter: drop-shadow(0 0 14px hsl(var(--primary) / 0.7)); }
+}
+
+@keyframes loading-dots {
+  0%        { content: '';   }
+  33%       { content: '.';  }
+  66%       { content: '..'; }
+  100%      { content: '...'; }
+}

@@ -4,7 +4,7 @@ import { useGetTeams, useGetBracketExplorer, getGetBracketExplorerQueryKey } fro
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { Navbar } from "@/components/Navbar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { ArrowLeft, Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap, Lock, X } from "lucide-react"
 
@@ -555,15 +555,7 @@ function StageCard({
 // ─── loading skeleton ─────────────────────────────────────────────────────────
 
 function LoadingSkeleton() {
-  return (
-    <div className="space-y-4 animate-pulse">
-      <Skeleton className="h-16 w-full rounded-2xl bg-secondary/50" />
-      <Skeleton className="h-14 w-full rounded-xl bg-secondary/40" />
-      {[0, 1, 2, 3, 4].map(i => (
-        <Skeleton key={i} className="w-full rounded-xl bg-secondary/50" style={{ height: `${180 - i * 6}px` }} />
-      ))}
-    </div>
-  )
+  return <LoadingAnimation message="Loading bracket" />
 }
 
 // ─── main page ────────────────────────────────────────────────────────────────

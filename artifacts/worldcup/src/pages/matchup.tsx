@@ -3,7 +3,7 @@ import { useLocation } from "wouter"
 import { useGetMatchProbability, getGetMatchProbabilityQueryKey, useGetTeamStageBreakdown, getGetTeamStageBreakdownQueryKey } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
@@ -59,15 +59,7 @@ export default function Matchup() {
       </Button>
 
       {isLoadingMatch ? (
-        <div className="space-y-12">
-          <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-            <Activity className="w-12 h-12 text-primary animate-pulse" />
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight mb-2">Running Monte Carlo Simulations</h2>
-              <p className="text-muted-foreground font-mono text-sm">Processing 10,000 tournament brackets...</p>
-            </div>
-          </div>
-        </div>
+        <LoadingAnimation message="Running simulations" />
       ) : matchResult ? (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
           
