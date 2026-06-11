@@ -76,8 +76,15 @@
     }
     .btn-primary{background:var(--primary);color:var(--white)}
     .btn-primary:hover{background:var(--primary-dark);transform:translateY(-2px);box-shadow:0 8px 22px rgba(140,55,219,.25)}
+    .nav-actions{display:flex;gap:.5rem;align-items:center;flex-shrink:0}
     .desktop-links{display:none}
     @media(min-width:860px){.desktop-links{display:flex}}
+    .mobile-app-link{
+      display:inline-flex;
+      padding:.45rem .75rem;
+      font-size:.82rem;
+    }
+    @media(min-width:860px){.mobile-app-link{display:none}}
 
     /* HERO */
     .hero{
@@ -279,9 +286,14 @@
       </a>
     </div>
 
-    <a href="https://forms.gle/3FZdBG9hDowwVDoz9" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-allow="true">
-      Get Early Access
-    </a>
+    <div class="nav-actions">
+      <a href="/worldcup/" class="nav-app-link mobile-app-link" data-allow="true">
+        <span>🏆</span> WC26 Predictor
+      </a>
+      <a href="https://forms.gle/3FZdBG9hDowwVDoz9" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-allow="true">
+        Get Early Access
+      </a>
+    </div>
   </nav>
 
   <!-- HERO -->
