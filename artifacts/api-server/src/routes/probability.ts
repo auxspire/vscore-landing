@@ -121,25 +121,66 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
 
     const KNOCKOUT_STAGES = ["round_of_32", "round_of_16", "quarterfinal", "semifinal", "final"];
 
+    /** Normalise a raw count map into probability map, returning the keys sorted desc */
+    function normaliseCounts(counts: Record<string, number>): Record<string, number> {
+      const total = Object.values(counts).reduce((s, n) => s + n, 0);
+      if (total === 0) return {};
+      return Object.fromEntries(
+        Object.entries(counts)
+          .map(([k, v]) => [k, v / total])
+          .sort((a, b) => (b[1] as number) - (a[1] as number))
+      );
+    }
+
     const path = KNOCKOUT_STAGES.map((stage) => {
       const sd = data.stageData[stage];
       const reachProb = sd.reachCount / numSims;
 
-      // Sort opponents by encounter count, take top 3
-      const topOpponents = Object.values(sd.opponents)
+      // All opponents sorted by encounter count (up to 10)
+      const allOpponents = Object.values(sd.opponents)
         .sort((a, b) => b.encounterCount - a.encounterCount)
-        .slice(0, 3)
-        .map((o) => ({
-          team: o.team,
-          encounterProbability: sd.reachCount > 0 ? o.encounterCount / sd.reachCount : 0,
-          winProbabilityIfFacing: o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0,
-        }));
+        .slice(0, 10)
+        .map((o) => {
+          const encounterProb = sd.reachCount > 0 ? o.encounterCount / sd.reachCount : 0;
+          const winProb       = o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0;
+
+          // Conditional path: stages after this one, given we beat opponent o
+          const conditionalPath = KNOCKOUT_STAGES
+            .filter(s => KNOCKOUT_STAGES.indexOf(s) > KNOCKOUT_STAGES.indexOf(stage))
+            .map(nextStage => {
+              const cp = o.conditionalPath[nextStage];
+              if (!cp || cp.reachCount === 0) return null;
+              const cpOpponents = Object.values(cp.opponents)
+                .sort((a, b) => b.encounterCount - a.encounterCount)
+                .slice(0, 5)
+                .map(co => ({
+                  team: co.team,
+                  encounterProbability: cp.reachCount > 0 ? co.encounterCount / cp.reachCount : 0,
+                  winProbabilityIfFacing: co.encounterCount > 0 ? co.winsIfFacing / co.encounterCount : 0,
+                }));
+              return {
+                stage: nextStage,
+                reachProbability: o.winsIfFacing > 0 ? cp.reachCount / o.winsIfFacing : 0,
+                topOpponents: cpOpponents,
+              };
+            })
+            .filter(Boolean);
+
+          return {
+            team: o.team,
+            encounterProbability: encounterProb,
+            winProbabilityIfFacing: winProb,
+            groupFinish: normaliseCounts(o.opponentGroupFinish),
+            conditionalPath,
+          };
+        });
 
       return {
         stage,
         description: sd.description,
         reachProbability: reachProb,
-        topOpponents,
+        teamGroupFinish: normaliseCounts(sd.teamGroupFinish),
+        topOpponents: allOpponents,
       };
     });
 

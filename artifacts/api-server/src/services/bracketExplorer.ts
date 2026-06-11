@@ -57,10 +57,20 @@ function simulateGroup(teams: Team[]): GroupResult[] {
 
 // ─── Public interfaces ─────────────────────────────────────────────────────
 
+// Compact per-opponent conditional tracker (raw counts, normalised in route)
+interface ConditionalStageRaw {
+  reachCount: number;
+  opponents: Record<string, { team: Team; encounterCount: number; winsIfFacing: number }>;
+}
+
 export interface BracketOpponentData {
   team: Team;
   encounterCount: number;
   winsIfFacing: number;
+  /** How the opponent typically finished in the group stage (raw counts) */
+  opponentGroupFinish: Record<string, number>;
+  /** Given our team beat this opponent, what happened at subsequent stages */
+  conditionalPath: Record<string, ConditionalStageRaw>;
 }
 
 export interface BracketStageData {
@@ -68,6 +78,8 @@ export interface BracketStageData {
   description: string;
   reachCount: number;
   opponents: Record<string, BracketOpponentData>;
+  /** How our selected team typically finished in the group stage (raw counts) */
+  teamGroupFinish: Record<string, number>;
 }
 
 export interface BracketExplorerData {
@@ -104,16 +116,28 @@ export function simulateBracketExplorer(
       description: STAGE_DESCRIPTIONS[stage] || stage,
       reachCount: 0,
       opponents: {},
+      teamGroupFinish: {},
     };
   }
 
   let winCount = 0;
 
   for (let sim = 0; sim < numSimulations; sim++) {
+    // ── Group stage ────────────────────────────────────────────────────────
     const groupResults: Record<string, GroupResult[]> = {};
     for (const g of GROUP_LETTERS) {
       groupResults[g] = simulateGroup(GROUPS[g]);
     }
+
+    // Build position lookup for every team: "1st" / "2nd" / "3rd"
+    const groupPos: Record<string, string> = {};
+    for (const g of GROUP_LETTERS) {
+      groupResults[g].forEach((r, i) => {
+        groupPos[r.team.id] = i === 0 ? "1st" : i === 1 ? "2nd" : "3rd";
+      });
+    }
+
+    const teamGroupPos = groupPos[teamId];
 
     const allThirds = GROUP_LETTERS.map(g => {
       const r = groupResults[g][2];
@@ -123,8 +147,11 @@ export function simulateBracketExplorer(
     const bracket = buildBracket(groupResults, allThirds);
     if (!bracket.some(t => t.id === teamId)) continue;
 
+    // ── Knockout stages ────────────────────────────────────────────────────
     let currentRound = [...bracket];
-    let teamSurvived = true;
+
+    // Record which opponent was faced (and whether we won) at each stage
+    const simPath: Array<{ stage: string; opponentId: string; teamWon: boolean }> = [];
 
     for (const stage of KNOCKOUT_STAGES) {
       const nextRound: Team[] = [];
@@ -137,29 +164,70 @@ export function simulateBracketExplorer(
 
         if (a.id === teamId || b.id === teamId) {
           foundInRound = true;
-          stageData[stage].reachCount++;
-          const opponent = a.id === teamId ? b : a;
+          const sd = stageData[stage];
+          sd.reachCount++;
 
-          if (!stageData[stage].opponents[opponent.id]) {
-            stageData[stage].opponents[opponent.id] = {
-              team: opponent, encounterCount: 0, winsIfFacing: 0,
+          // Selected team's group finish
+          if (teamGroupPos) {
+            sd.teamGroupFinish[teamGroupPos] = (sd.teamGroupFinish[teamGroupPos] || 0) + 1;
+          }
+
+          const opponent = a.id === teamId ? b : a;
+          const teamWon  = winner.id === teamId;
+
+          if (!sd.opponents[opponent.id]) {
+            sd.opponents[opponent.id] = {
+              team: opponent,
+              encounterCount: 0,
+              winsIfFacing: 0,
+              opponentGroupFinish: {},
+              conditionalPath: {},
             };
           }
-          stageData[stage].opponents[opponent.id].encounterCount++;
-          if (winner.id === teamId) stageData[stage].opponents[opponent.id].winsIfFacing++;
+          const oppData = sd.opponents[opponent.id];
+          oppData.encounterCount++;
+          if (teamWon) oppData.winsIfFacing++;
+
+          // Opponent's group finish
+          const oppPos = groupPos[opponent.id];
+          if (oppPos) {
+            oppData.opponentGroupFinish[oppPos] = (oppData.opponentGroupFinish[oppPos] || 0) + 1;
+          }
+
+          simPath.push({ stage, opponentId: opponent.id, teamWon });
         }
       }
 
-      if (!foundInRound || !nextRound.some(t => t.id === teamId)) {
-        teamSurvived = false;
-        break;
-      }
-
+      if (!foundInRound || !nextRound.some(t => t.id === teamId)) break;
       currentRound = nextRound;
     }
 
-    if (teamSurvived && currentRound.length === 1 && currentRound[0].id === teamId) {
-      winCount++;
+    const lastEntry = simPath[simPath.length - 1];
+    if (lastEntry?.stage === "final" && lastEntry.teamWon) winCount++;
+
+    // ── Conditional path tracking ──────────────────────────────────────────
+    // For each stage i where our team WON, record what happened at stages i+1 …
+    for (let i = 0; i < simPath.length - 1; i++) {
+      const { stage: rootStage, opponentId: rootOppId, teamWon: wonRoot } = simPath[i];
+      if (!wonRoot) continue;
+
+      const rootOppData = stageData[rootStage].opponents[rootOppId];
+
+      for (let j = i + 1; j < simPath.length; j++) {
+        const { stage: nextStage, opponentId: nextOppId, teamWon: wonNext } = simPath[j];
+
+        if (!rootOppData.conditionalPath[nextStage]) {
+          rootOppData.conditionalPath[nextStage] = { reachCount: 0, opponents: {} };
+        }
+        const cp = rootOppData.conditionalPath[nextStage];
+        cp.reachCount++;
+
+        if (!cp.opponents[nextOppId]) {
+          cp.opponents[nextOppId] = { team: TEAMS_BY_ID[nextOppId], encounterCount: 0, winsIfFacing: 0 };
+        }
+        cp.opponents[nextOppId].encounterCount++;
+        if (wonNext) cp.opponents[nextOppId].winsIfFacing++;
+      }
     }
   }
 
