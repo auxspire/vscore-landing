@@ -181,13 +181,16 @@ function StageCard({
   team,
   isLast,
   lockedOpponentId,
+  lockedFinishPos,
   onLockOpponent,
 }: {
   stage: RichStageNode
   team: RichTeam
   isLast: boolean
   lockedOpponentId: string | null
-  onLockOpponent: (id: string | null) => void
+  /** Which finish-position section the locked opponent was clicked from (R32 only) */
+  lockedFinishPos: string | null
+  onLockOpponent: (id: string | null, finishPos?: string | null) => void
 }) {
   const isFinal       = stage.stage === "final"
   const isConditional = stage.isConditional === true
@@ -216,11 +219,6 @@ function StageCard({
   const diff = primary ? difficultyLabel(primary.winProbabilityIfFacing) : null
 
   const POS_ORDER = ["1st", "2nd", "3rd"]
-
-  // For R32: if opponent was chosen from a specific finish section, pin the badge to that position
-  const lockedFinishPos: string | null = isR32 && stage.opponentsByFinish && lockedOpponentId
-    ? (POS_ORDER.find(pos => stage.opponentsByFinish![pos]?.some(o => o.team.id === lockedOpponentId)) ?? null)
-    : null
 
   // Team group finish map to display — pinned when a scenario is locked, otherwise aggregate
   const displayTeamGroupFinish: Record<string, number> = lockedFinishPos
@@ -416,7 +414,7 @@ function StageCard({
                             return (
                               <button
                                 key={opp.team.id}
-                                onClick={() => onLockOpponent(isSelected ? null : opp.team.id)}
+                                onClick={() => onLockOpponent(isSelected ? null : opp.team.id, isSelected ? null : pos)}
                                 className={cn(
                                   "flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors border text-left",
                                   isSelected
@@ -562,11 +560,13 @@ export default function Bracket() {
 
   const [lockedStage, setLockedStage]           = useState<string | null>(null)
   const [lockedOpponentId, setLockedOpponentId] = useState<string | null>(null)
+  const [lockedFinishPos, setLockedFinishPos]   = useState<string | null>(null)
 
   // Clear locks whenever the team in the URL changes
   useEffect(() => {
     setLockedStage(null)
     setLockedOpponentId(null)
+    setLockedFinishPos(null)
   }, [teamId])
 
   // Navigate to a different team
@@ -574,13 +574,15 @@ export default function Bracket() {
     setLocation(`/bracket?team=${id}`)
   }
 
-  const handleLockOpponent = (stage: string, opponentId: string | null) => {
+  const handleLockOpponent = (stage: string, opponentId: string | null, finishPos?: string | null) => {
     if (opponentId === null) {
       setLockedStage(null)
       setLockedOpponentId(null)
+      setLockedFinishPos(null)
     } else {
       setLockedStage(stage)
       setLockedOpponentId(opponentId)
+      setLockedFinishPos(finishPos ?? null)
     }
   }
 
@@ -791,7 +793,8 @@ export default function Bracket() {
                   team={bracketData.team as RichTeam}
                   isLast={i === displayStages.length - 1}
                   lockedOpponentId={isLockedStage ? lockedOpponentId : null}
-                  onLockOpponent={(id) => handleLockOpponent(stage.stage, id)}
+                  lockedFinishPos={isLockedStage ? lockedFinishPos : null}
+                  onLockOpponent={(id, finishPos) => handleLockOpponent(stage.stage, id, finishPos)}
                 />
               )
             })}
