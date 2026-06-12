@@ -69,6 +69,7 @@ router.get("/popular-matchups", (_req, res) => {
     { aId: "spain",     bId: "brazil",      label: "Tiki-taka vs Samba" },
     { aId: "usa",       bId: "mexico",      label: "CONCACAF El Clasico" },
     { aId: "france",    bId: "brazil",      label: "2006 QF rematch" },
+    { aId: "argentina", bId: "portugal",    label: "Messi vs Ronaldo legacy" },
     { aId: "portugal",  bId: "spain",       label: "Iberian derby" },
     { aId: "england",   bId: "argentina",   label: "Hand of God legacy" },
     { aId: "germany",   bId: "netherlands", label: "Der Klassiker" },
