@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useLocation, Link } from "wouter"
 import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
-import { Navbar } from "@/components/Navbar"
+import { Navbar, HeroActionButtons } from "@/components/Navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,6 +11,8 @@ import {
   Swords, Activity, ArrowRight, GitBranch, Trophy,
   BarChart3, Zap, Target, ChevronRight,
 } from "lucide-react"
+
+const assetBase = import.meta.env.BASE_URL
 
 export default function Home() {
   const [, setLocation] = useLocation()
@@ -26,85 +28,101 @@ export default function Home() {
     }
   }
 
+  const scrollToPredictor = () => {
+    document.getElementById("predictor")?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   return (
     <div className="min-h-[100dvh] w-full flex flex-col">
       <Navbar />
 
-      <div className="flex-1 pt-8 pb-24 px-4 md:px-8 max-w-5xl mx-auto w-full relative z-10">
+      <div className="flex-1 pt-6 pb-24 px-4 md:px-8 max-w-5xl mx-auto w-full relative z-10">
 
-        {/* Status badge */}
-        <div className="flex justify-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
-            <Activity className="w-3 h-3" /> MONTE CARLO ENGINE ONLINE · 10,000 SIMULATIONS
+        <header className="mb-10 text-center md:text-left">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-8">
+            <div className="flex-1">
+              <img
+                src={`${assetBase}wc26-logo-light.png`}
+                alt="WC26 Predictor"
+                className="h-16 w-16 mx-auto md:mx-0 mb-4 rounded-xl"
+              />
+              <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-3 text-foreground leading-[1.1]">
+                World Cup 2026<br className="hidden md:block" /> Match Predictor
+              </h1>
+              <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto md:mx-0">
+                Run 10,000 Monte Carlo simulations to calculate the exact probability of any
+                two teams meeting at each stage of the 2026 World Cup — or trace a nation&apos;s
+                path to the final.
+              </p>
+            </div>
+            <HeroActionButtons onMatchupClick={scrollToPredictor} className="mx-auto md:mx-0 shrink-0" />
           </div>
-        </div>
 
-        {/* Hero */}
-        <header className="mb-12 text-center">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-foreground leading-[1.1]">
-            TACTICAL MATCH<br className="hidden md:block" /> PREDICTOR
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Run 10,000 simulations to calculate the exact probability of any two teams meeting
-            at each stage of the 2026 World Cup.
-          </p>
-        </header>
-
-        {/* Team picker */}
-        <div className="grid md:grid-cols-[1fr,auto,1fr] gap-6 items-center mb-10 relative">
-          <div className="absolute inset-0 bg-primary/5 blur-[100px] -z-10 rounded-full" />
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-mono text-muted-foreground font-bold tracking-wider uppercase ml-1">Team 1</label>
-            <TeamCombobox
-              teams={teams}
-              value={teamA}
-              onChange={setTeamA}
-              placeholder="Select first team..."
-              disabled={isLoadingTeams}
-            />
-          </div>
-          <div className="flex justify-center -my-2 md:my-0">
-            <div className="bg-secondary text-muted-foreground rounded-full p-4 border border-border shadow-xl">
-              <Swords className="w-6 h-6" />
+          <div className="flex justify-center md:justify-start">
+            <div className="inline-flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
+              <Activity className="w-3 h-3" /> MONTE CARLO ENGINE · 10,000 SIMULATIONS
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-mono text-muted-foreground font-bold tracking-wider uppercase ml-1">Team 2</label>
-            <TeamCombobox
-              teams={teams}
-              value={teamB}
-              onChange={(val) => { if (val !== teamA) setTeamB(val) }}
-              placeholder="Select opponent..."
-              disabled={isLoadingTeams}
-            />
+        </header>
+
+        <section id="predictor" className="scroll-mt-20 mb-12">
+          <h2 className="text-xl font-bold mb-2 tracking-tight">Matchup Predictor</h2>
+          <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
+            Pick two teams to see where they are most likely to meet — group stage through the final.
+          </p>
+
+          <div className="grid md:grid-cols-[1fr,auto,1fr] gap-6 items-center mb-10 relative">
+            <div className="absolute inset-0 bg-primary/5 blur-[100px] -z-10 rounded-full" />
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono text-muted-foreground font-bold tracking-wider uppercase ml-1">Team 1</label>
+              <TeamCombobox
+                teams={teams}
+                value={teamA}
+                onChange={setTeamA}
+                placeholder="Select first team..."
+                disabled={isLoadingTeams}
+              />
+            </div>
+            <div className="flex justify-center -my-2 md:my-0">
+              <div className="bg-secondary text-muted-foreground rounded-full p-4 border border-border shadow-xl">
+                <Swords className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono text-muted-foreground font-bold tracking-wider uppercase ml-1">Team 2</label>
+              <TeamCombobox
+                teams={teams}
+                value={teamB}
+                onChange={(val) => { if (val !== teamA) setTeamB(val) }}
+                placeholder="Select opponent..."
+                disabled={isLoadingTeams}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="flex justify-center mb-20">
-          <Button
-            size="lg"
-            className="h-16 px-12 text-lg font-bold tracking-wide uppercase shadow-[0_0_40px_-10px_hsl(var(--primary))]"
-            disabled={!teamA || !teamB || teamA === teamB}
-            onClick={handlePredict}
-          >
-            Run Simulation
-          </Button>
-        </div>
+          <div className="flex justify-center mb-4">
+            <Button
+              size="lg"
+              className="h-14 px-10 text-base font-bold tracking-wide uppercase shadow-[0_0_40px_-10px_hsl(var(--primary))]"
+              disabled={!teamA || !teamB || teamA === teamB}
+              onClick={handlePredict}
+            >
+              Run Simulation
+            </Button>
+          </div>
+        </section>
 
-        {/* ── World Cup Simulator feature section ──────────────────────────── */}
         <section className="mb-20">
           <div className="relative rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-background via-secondary/40 to-background shadow-[0_0_60px_-20px_hsl(var(--primary)/0.25)]">
-            {/* Glow orb */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[120px] -z-0 rounded-full pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[80px] -z-0 rounded-full pointer-events-none" />
 
             <div className="relative z-10 p-8 md:p-12">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
 
-                {/* Left: copy */}
                 <div className="flex-1 max-w-xl">
                   <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary bg-primary/10 border border-primary/20">
-                    <GitBranch className="w-3 h-3" /> WORLD CUP SIMULATOR
+                    <GitBranch className="w-3 h-3" /> PATH TO FINAL
                   </div>
                   <h2 className="text-3xl md:text-4xl font-bold tracking-tighter mb-4 text-foreground">
                     Explore Every Possible Path to Glory
@@ -115,7 +133,6 @@ export default function Home() {
                     specific matchups, and discover how group finish changes everything.
                   </p>
 
-                  {/* Feature pills */}
                   <div className="flex flex-wrap gap-2 mb-8">
                     {[
                       { icon: <GitBranch className="w-3 h-3" />, label: "Bracket Path Explorer" },
@@ -135,21 +152,20 @@ export default function Home() {
 
                   <Link href="/bracket">
                     <button className={cn(
-                      "inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest",
+                      "inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full font-bold text-sm uppercase tracking-widest",
                       "bg-primary text-primary-foreground",
                       "shadow-[0_0_24px_-6px_hsl(var(--primary)/0.8)]",
-                      "hover:shadow-[0_0_36px_-6px_hsl(var(--primary)/0.9)] hover:scale-[1.03]",
+                      "hover:shadow-[0_0_36px_-6px_hsl(var(--primary)/0.9)] hover:scale-[1.02]",
                       "active:scale-100 transition-all duration-200",
                       "border border-primary/60"
                     )}>
                       <GitBranch className="w-4 h-4" />
-                      Launch Simulator
+                      Path to Final
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </Link>
                 </div>
 
-                {/* Right: quick links */}
                 <div className="flex flex-col gap-3 md:w-56 flex-shrink-0">
                   {[
                     {
@@ -188,7 +204,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Popular Matchups */}
         <section>
           <h2 className="text-xl font-bold mb-6 tracking-tight flex items-center gap-2">
             Popular Matchups

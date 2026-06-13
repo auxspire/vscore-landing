@@ -9,12 +9,16 @@
   <meta property="og:title" content="VScor | Score. Track. Discover." />
   <meta property="og:description" content="Turn every grassroots game into verified stats, match reports, and a player history that helps athletes grow and get discovered." />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://vscor.in/" />
+  <meta property="og:image" content="https://vscor.in/vscor-logo.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="VScor | Score. Track. Discover." />
   <meta name="twitter:description" content="Turn every grassroots game into verified stats, match reports, and a player history that helps athletes grow and get discovered." />
 
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9081265350208847"
     crossorigin="anonymous"></script>
+
+  <link rel="icon" type="image/png" href="vscor-logo.png" />
 
   <style>
     :root{
@@ -54,25 +58,47 @@
       display:flex;align-items:center;gap:.55rem;
       font-weight:900;letter-spacing:-.8px;font-size:1.55rem;color:var(--primary);
     }
+    .logo img{height:36px;width:auto;display:block}
     .nav-links{display:flex;gap:1.4rem;align-items:center}
     .nav-links a{font-weight:600;color:var(--dark);opacity:.85}
     .nav-links a:hover{color:var(--primary);opacity:1}
-    .nav-app-link{
-      padding:.55rem 1rem;
+    .predictor-pill{
+      display:flex;align-items:center;gap:.75rem;
+      padding:.5rem .85rem .5rem .65rem;
       border-radius:999px;
-      background:var(--dark);
-      color:#ADFF2F !important;
-      font-weight:700;
-      opacity:1 !important;
-      border:1px solid rgba(173,255,47,.4);
-      transition:background .2s,box-shadow .2s,border-color .2s;
-      display:inline-flex;align-items:center;gap:.45rem;
-    }
-    .nav-links a.nav-app-link:hover{
       background:#000;
-      border-color:rgba(173,255,47,.7);
-      box-shadow:0 6px 18px rgba(173,255,47,.28);
+      border:1px solid rgba(173,255,47,.35);
+      color:inherit !important;
+      opacity:1 !important;
+      font-weight:700;
+      transition:border-color .2s,box-shadow .2s;
+      max-width:100%;
     }
+    .predictor-pill:hover{
+      border-color:rgba(173,255,47,.65);
+      box-shadow:0 6px 18px rgba(173,255,47,.22);
+    }
+    .predictor-pill img{width:40px;height:40px;flex-shrink:0;border-radius:8px}
+    .predictor-pill .pill-divider{width:1px;height:32px;background:rgba(173,255,47,.25);flex-shrink:0}
+    .predictor-pill .pill-text{min-width:0}
+    .predictor-pill .pill-title{color:#ADFF2F;font-size:.95rem;line-height:1.2}
+    .predictor-pill .pill-sub{font-size:.72rem;color:rgba(255,255,255,.75);font-weight:500;margin-top:.15rem;line-height:1.3}
+    .predictor-pill .pill-arrow{color:#ADFF2F;flex-shrink:0;font-size:1.1rem;margin-left:.25rem}
+    .early-access-pill{
+      display:flex;align-items:center;justify-content:center;gap:.65rem;
+      padding:.85rem 1.25rem;border-radius:999px;
+      background:var(--primary);color:var(--white);
+      font-weight:700;font-size:.95rem;
+      transition:transform .15s,box-shadow .15s,background .2s;
+      border:1px solid transparent;cursor:pointer;
+      width:100%;
+    }
+    .early-access-pill:hover{
+      background:var(--primary-dark);
+      transform:translateY(-1px);
+      box-shadow:0 8px 22px rgba(140,55,219,.28);
+    }
+    .early-access-pill .pill-arrow{font-size:1.1rem}
     .btn{
       padding:.85rem 1.2rem;border-radius:999px;
       font-weight:700;display:inline-flex;gap:.55rem;align-items:center;
@@ -90,11 +116,6 @@
       padding:0 5% 1rem;
     }
     @media(min-width:860px){.mobile-nav-cta{display:none}}
-    .mobile-nav-cta a{
-      width:100%;justify-content:center;text-align:center;
-    }
-    .mobile-nav-cta .nav-app-link{padding:.65rem 1rem;font-size:.92rem}
-    .mobile-nav-cta .btn{padding:.75rem 1.2rem}
 
     /* HERO */
     .hero{
@@ -284,16 +305,21 @@
   <header class="site-header">
     <nav>
       <div class="logo">
-        <span style="font-size:1.55rem">⚽</span>
-        <span>VScor</span>
+        <img src="vscor-logo.png" alt="VScor" />
       </div>
 
       <div class="nav-links desktop-links">
         <a href="#why">Why VScor</a>
         <a href="#features">Features</a>
         <a href="#audience">VScor is for</a>
-        <a href="/worldcup/" class="nav-app-link" data-allow="true">
-          <span>🏆</span> WC26 Predictor
+        <a href="/worldcup/" class="predictor-pill" data-allow="true">
+          <img src="wc26-logo-light.png" alt="" width="40" height="40" />
+          <span class="pill-divider"></span>
+          <span class="pill-text">
+            <span class="pill-title">WC26 Predictor</span>
+            <span class="pill-sub">Predict World Cup matchups &amp; probabilities</span>
+          </span>
+          <span class="pill-arrow">→</span>
         </a>
       </div>
 
@@ -305,11 +331,18 @@
     </nav>
 
     <div class="mobile-nav-cta">
-      <a href="/worldcup/" class="nav-app-link" data-allow="true">
-        <span>🏆</span> WC26 Predictor
+      <a href="/worldcup/" class="predictor-pill" data-allow="true">
+        <img src="wc26-logo-light.png" alt="" width="40" height="40" />
+        <span class="pill-divider"></span>
+        <span class="pill-text">
+          <span class="pill-title">WC26 Predictor</span>
+          <span class="pill-sub">Predict World Cup matchups &amp; probabilities</span>
+        </span>
+        <span class="pill-arrow">→</span>
       </a>
-      <a href="https://forms.gle/3FZdBG9hDowwVDoz9" class="btn btn-primary" target="_blank" rel="noopener noreferrer" data-allow="true">
+      <a href="https://forms.gle/3FZdBG9hDowwVDoz9" class="early-access-pill" target="_blank" rel="noopener noreferrer" data-allow="true">
         Get Early Access
+        <span class="pill-arrow">→</span>
       </a>
     </div>
   </header>
