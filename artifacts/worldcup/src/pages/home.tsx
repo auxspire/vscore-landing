@@ -3,6 +3,7 @@ import { useLocation, Link } from "wouter"
 import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { Navbar, HeroActionButtons } from "@/components/Navbar"
+import { publicAsset } from "@/lib/assets"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,8 +12,6 @@ import {
   Swords, Activity, ArrowRight, GitBranch, Trophy,
   BarChart3, Zap, Target, ChevronRight,
 } from "lucide-react"
-
-const assetBase = import.meta.env.BASE_URL
 
 export default function Home() {
   const [, setLocation] = useLocation()
@@ -42,9 +41,11 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-8">
             <div className="flex-1">
               <img
-                src={`${assetBase}wc26-logo-light.png`}
+                src={publicAsset("wc26-sticker-matchup.png")}
                 alt="WC26 Predictor"
-                className="h-16 w-16 mx-auto md:mx-0 mb-4 rounded-xl"
+                className="h-16 w-16 mx-auto md:mx-0 mb-4 rounded-xl object-contain"
+                width={64}
+                height={64}
               />
               <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-3 text-foreground leading-[1.1]">
                 World Cup 2026<br className="hidden md:block" /> Match Predictor
@@ -159,7 +160,13 @@ export default function Home() {
                       "active:scale-100 transition-all duration-200",
                       "border border-primary/60"
                     )}>
-                      <GitBranch className="w-4 h-4" />
+                      <img
+                        src={publicAsset("wc26-sticker-path.png")}
+                        alt=""
+                        className="h-6 w-6 object-contain"
+                        width={24}
+                        height={24}
+                      />
                       Path to Final
                       <ChevronRight className="w-4 h-4" />
                     </button>

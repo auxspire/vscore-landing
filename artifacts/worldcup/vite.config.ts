@@ -12,9 +12,10 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH ?? "/worldcup";
+const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
 
 export default defineConfig({
-  base: basePath,
+  base: normalizedBase,
   plugins: [
     react(),
     tailwindcss(),
