@@ -34,19 +34,19 @@ export default function Home() {
       <div className="flex-1 pt-8 pb-24 px-4 md:px-8 max-w-5xl mx-auto w-full relative z-10">
 
         <header className="mb-12 text-center md:text-left">
-          <div className="flex flex-col items-center md:items-start gap-4 mb-6">
+          <div className="flex items-center justify-center md:justify-start gap-3.5 mb-6">
             <img
               src={publicAsset("wc26-sticker-matchup.png")}
               alt=""
-              className="h-20 w-20 shrink-0 object-contain"
-              width={80}
-              height={80}
+              className="h-14 w-14 shrink-0 object-contain"
+              width={56}
+              height={56}
             />
-            <div className="space-y-1">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+            <div className="space-y-0.5 text-left">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground leading-tight">
                 WC26 Predictor
               </h1>
-              <p className="text-lg md:text-xl text-muted-foreground font-medium leading-snug">
+              <p className="text-base md:text-lg text-muted-foreground font-medium leading-snug">
                 World Cup 2026 Match Predictor
               </p>
             </div>

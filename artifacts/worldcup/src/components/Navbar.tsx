@@ -36,10 +36,10 @@ export function Navbar() {
             title="Back to VScor home"
           >
             <img
-              src={publicAsset("vscor-logo.svg")}
+              src={publicAsset("vscor-logo-wc.png")}
               alt="VScor"
-              className="h-9 md:h-10 w-auto max-w-[148px] object-contain"
-              width={148}
+              className="h-9 md:h-10 w-auto max-w-[160px] object-contain"
+              width={160}
               height={40}
             />
           </a>
