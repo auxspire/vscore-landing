@@ -5,7 +5,7 @@ Monorepo for [vscor.in](https://vscor.in):
 | URL | Package |
 |---|---|
 | `/` | `artifacts/website` — marketing landing page |
-| `/worldcup/` | `artifacts/worldcup` — WC26 match predictor |
+| `/worldcup/` | `artifacts/worldcup` — Matchup Predictor app |
 | `/api/*` | `artifacts/api-server` — predictor API (in-memory) |
 
 Deploys to **Vercel** on push to `main`.
@@ -62,7 +62,7 @@ Output lands in `dist/`:
 ```
 artifacts/
   website/       Landing page source (edit index.html + assets)
-  worldcup/      WC26 predictor React app
+  worldcup/      Matchup Predictor React app
   api-server/    Express API for predictor data
   mockup-sandbox/ Design preview tool (optional)
 lib/             Shared API client, Zod schemas, DB (future)

@@ -44,7 +44,7 @@ export default function Home() {
             />
             <div className="space-y-0.5 text-left">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground leading-tight">
-                WC26 Predictor
+                Matchup Predictor
               </h1>
               <p className="text-base md:text-lg text-muted-foreground font-medium leading-snug">
                 World Cup 2026 Match Predictor
