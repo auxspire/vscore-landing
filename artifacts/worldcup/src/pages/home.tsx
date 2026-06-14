@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useLocation, Link } from "wouter"
 import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
-import { Navbar, HeroActionButtons } from "@/components/Navbar"
+import { Navbar } from "@/components/Navbar"
 import { publicAsset } from "@/lib/assets"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -27,46 +27,44 @@ export default function Home() {
     }
   }
 
-  const scrollToPredictor = () => {
-    document.getElementById("predictor")?.scrollIntoView({ behavior: "smooth", block: "start" })
-  }
-
   return (
     <div className="min-h-[100dvh] w-full flex flex-col">
       <Navbar />
 
-      <div className="flex-1 pt-6 pb-24 px-4 md:px-8 max-w-5xl mx-auto w-full relative z-10">
+      <div className="flex-1 pt-8 pb-24 px-4 md:px-8 max-w-5xl mx-auto w-full relative z-10">
 
-        <header className="mb-10 text-center md:text-left">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-8">
-            <div className="flex-1">
-              <img
-                src={publicAsset("wc26-sticker-matchup.png")}
-                alt="WC26 Predictor"
-                className="h-16 w-16 mx-auto md:mx-0 mb-4 rounded-xl object-contain"
-                width={64}
-                height={64}
-              />
-              <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-3 text-foreground leading-[1.1]">
-                World Cup 2026<br className="hidden md:block" /> Match Predictor
+        <header className="mb-12 text-center md:text-left">
+          <div className="flex flex-col items-center md:items-start gap-4 mb-6">
+            <img
+              src={publicAsset("wc26-sticker-matchup.png")}
+              alt=""
+              className="h-20 w-20 shrink-0 object-contain"
+              width={80}
+              height={80}
+            />
+            <div className="space-y-1">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+                WC26 Predictor
               </h1>
-              <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto md:mx-0">
-                Run 10,000 Monte Carlo simulations to calculate the exact probability of any
-                two teams meeting at each stage of the 2026 World Cup — or trace a nation&apos;s
-                path to the final.
+              <p className="text-lg md:text-xl text-muted-foreground font-medium leading-snug">
+                World Cup 2026 Match Predictor
               </p>
             </div>
-            <HeroActionButtons onMatchupClick={scrollToPredictor} className="mx-auto md:mx-0 shrink-0" />
           </div>
 
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto md:mx-0 leading-relaxed mb-6">
+            Run 10,000 Monte Carlo simulations to calculate match probabilities for all 48
+            nations — from the group stage through the final.
+          </p>
+
           <div className="flex justify-center md:justify-start">
-            <div className="inline-flex items-center gap-2 bg-secondary/50 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
+            <div className="inline-flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full text-xs font-mono font-medium tracking-wider text-primary border border-border">
               <Activity className="w-3 h-3" /> MONTE CARLO ENGINE · 10,000 SIMULATIONS
             </div>
           </div>
         </header>
 
-        <section id="predictor" className="scroll-mt-20 mb-12">
+        <section id="predictor" className="scroll-mt-24 mb-12">
           <h2 className="text-xl font-bold mb-2 tracking-tight">Matchup Predictor</h2>
           <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
             Pick two teams to see where they are most likely to meet — group stage through the final.
@@ -113,7 +111,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mb-20">
+        <section id="path-to-final" className="mb-20 scroll-mt-24">
           <div className="relative rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-background via-secondary/40 to-background shadow-[0_0_60px_-20px_hsl(var(--primary)/0.25)]">
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[120px] -z-0 rounded-full pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[80px] -z-0 rounded-full pointer-events-none" />
