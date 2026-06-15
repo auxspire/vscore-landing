@@ -8,6 +8,7 @@ import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
+import { usePageSeo, matchupSeo, PAGE_SEO } from "@/lib/seo"
 import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
 
 export default function Matchup() {
@@ -26,21 +27,32 @@ export default function Matchup() {
     }
   }, [teamA, teamB, setLocation])
 
-  if (!teamA || !teamB) return null
-
   const { data: matchResult, isLoading: isLoadingMatch } = useGetMatchProbability(
-    { teamA, teamB }, 
-    { query: { enabled: !!teamA && !!teamB, queryKey: getGetMatchProbabilityQueryKey({ teamA, teamB }) } }
+    { teamA: teamA ?? "", teamB: teamB ?? "" },
+    {
+      query: {
+        enabled: !!teamA && !!teamB,
+        queryKey: getGetMatchProbabilityQueryKey({ teamA: teamA ?? "", teamB: teamB ?? "" }),
+      },
+    },
+  )
+
+  usePageSeo(
+    teamA && teamB
+      ? matchResult
+        ? matchupSeo(matchResult.teamA.name, matchResult.teamB.name, matchResult.totalProbability)
+        : matchupSeo(teamA, teamB)
+      : PAGE_SEO.home,
   )
 
   const { data: teamABreakdown, isLoading: isLoadingBreakdownA } = useGetTeamStageBreakdown(
-    teamA,
-    { query: { enabled: !!teamA, queryKey: getGetTeamStageBreakdownQueryKey(teamA) } }
+    teamA ?? "",
+    { query: { enabled: !!teamA, queryKey: getGetTeamStageBreakdownQueryKey(teamA ?? "") } },
   )
 
   const { data: teamBBreakdown, isLoading: isLoadingBreakdownB } = useGetTeamStageBreakdown(
-    teamB,
-    { query: { enabled: !!teamB, queryKey: getGetTeamStageBreakdownQueryKey(teamB) } }
+    teamB ?? "",
+    { query: { enabled: !!teamB, queryKey: getGetTeamStageBreakdownQueryKey(teamB ?? "") } },
   )
 
   const [animated, setAnimated] = useState(false)
@@ -49,6 +61,8 @@ export default function Matchup() {
       setTimeout(() => setAnimated(true), 100)
     }
   }, [matchResult])
+
+  if (!teamA || !teamB) return null
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col">

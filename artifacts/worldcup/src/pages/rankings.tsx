@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
+import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { Trophy, Medal, Activity, ChevronRight } from "lucide-react"
 
 const STAGES = [
@@ -44,6 +45,8 @@ type SortKey = StageKey | "rank"
 export default function Rankings() {
   const [sortBy, setSortBy] = useState<SortKey>("rank")
 
+  usePageSeo(PAGE_SEO.rankings)
+
   const { data, isLoading } = useGetTournamentRankings(
     { simulations: 10000 },
     { query: { staleTime: 5 * 60 * 1000, queryKey: getGetTournamentRankingsQueryKey({ simulations: 10000 }) } }
@@ -68,10 +71,11 @@ export default function Rankings() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <Trophy className="w-6 h-6 text-primary" />
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Tournament Power Rankings</h1>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">VScor World Cup 2026 Power Rankings</h1>
         </div>
         <p className="text-muted-foreground text-sm">
-          All 48 teams ranked by win probability via a single batch of{" "}
+          World cup probability predictor rankings — all 48 teams sorted by championship win
+          probability from{" "}
           {data ? data.simulationsRun.toLocaleString() : "10,000"} Monte Carlo simulations
         </p>
       </div>

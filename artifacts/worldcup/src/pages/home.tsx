@@ -4,6 +4,7 @@ import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { Navbar } from "@/components/Navbar"
 import { publicAsset } from "@/lib/assets"
+import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,6 +18,8 @@ export default function Home() {
   const [, setLocation] = useLocation()
   const [teamA, setTeamA] = useState<string>("")
   const [teamB, setTeamB] = useState<string>("")
+
+  usePageSeo(PAGE_SEO.home)
 
   const { data: teams = [], isLoading: isLoadingTeams } = useGetTeams()
   const { data: popularMatchups = [], isLoading: isLoadingMatchups } = useGetPopularMatchups()
@@ -37,24 +40,24 @@ export default function Home() {
           <div className="flex items-center justify-center md:justify-start gap-3.5 mb-6">
             <img
               src={publicAsset("wc26-sticker-matchup.png")}
-              alt=""
+              alt="VScor World Cup 2026 match probability predictor"
               className="h-14 w-14 shrink-0 object-contain"
               width={56}
               height={56}
             />
             <div className="space-y-0.5 text-left">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground leading-tight">
-                Matchup Predictor
+                VScor World Cup 2026 Match Predictor
               </h1>
               <p className="text-base md:text-lg text-muted-foreground font-medium leading-snug">
-                World Cup 2026 Match Predictor
+                Free probability predictor for every World Cup matchup
               </p>
             </div>
           </div>
 
           <p className="text-base text-muted-foreground max-w-2xl mx-auto md:mx-0 leading-relaxed mb-6">
-            Run 10,000 Monte Carlo simulations to calculate match probabilities for all 48
-            nations — from the group stage through the final.
+            VScor&apos;s world cup probability tool runs 10,000 Monte Carlo simulations to calculate
+            match probabilities for all 48 nations — from the group stage through the final.
           </p>
 
           <div className="flex justify-center md:justify-start">

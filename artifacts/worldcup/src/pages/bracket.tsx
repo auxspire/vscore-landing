@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { getFlagEmoji, cn } from "@/lib/utils"
+import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { ArrowLeft, Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap, Lock, X } from "lucide-react"
 
 // ─── Extended types for enriched API response ─────────────────────────────────
@@ -605,6 +606,16 @@ export default function Bracket() {
     path: RichStageNode[]
   }) | undefined
 
+  usePageSeo(
+    bracketData?.team
+      ? {
+          title: `${bracketData.team.name} World Cup 2026 Bracket Path & Win Probability | VScor`,
+          description: `VScor bracket predictor shows ${bracketData.team.name}'s simulated path to the World Cup 2026 final — stage probabilities, likely opponents, and championship odds.`,
+          path: `/bracket?team=${encodeURIComponent(bracketData.team.id)}`,
+        }
+      : PAGE_SEO.bracket,
+  )
+
   // Build display stages: inject conditional data for stages after the locked one
   const displayStages: RichStageNode[] = (bracketData?.path
     ? bracketData.path.map(stage => {
@@ -681,7 +692,10 @@ export default function Bracket() {
           <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary bg-primary/10 border border-primary/20">
             <GitBranch className="w-3 h-3" /> PATH VISUALIZER
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">BRACKET PATH</h1>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">World Cup 2026 Bracket Predictor</h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md">
+            VScor path-to-final tool — visualize each nation&apos;s bracket route and matchup probabilities.
+          </p>
         </div>
         <div className="w-full md:w-80">
           <label className="text-xs font-mono text-muted-foreground font-bold tracking-wider uppercase ml-1 block mb-2">Select Team</label>
