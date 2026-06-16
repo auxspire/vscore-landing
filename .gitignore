@@ -62,3 +62,4 @@ Thumbs.db
 
 # Pasted/attached text assets (agent session files)
 attached_assets/*.txt
+.vercel
