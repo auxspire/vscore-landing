@@ -107,7 +107,34 @@ export async function fetchTeams(): Promise<WorldCup26Team[]> {
   return data.teams ?? [];
 }
 
-export function parseLocalDate(localDate: string): string | null {
+/** IANA timezone per worldcup26 stadium id (venue local wall-clock for local_date). */
+export const STADIUM_TIMEZONES: Record<string, string> = {
+  "1": "America/Mexico_City",
+  "2": "America/Mexico_City",
+  "3": "America/Mexico_City",
+  "4": "America/Chicago",
+  "5": "America/Chicago",
+  "6": "America/Chicago",
+  "7": "America/New_York",
+  "8": "America/New_York",
+  "9": "America/New_York",
+  "10": "America/New_York",
+  "11": "America/New_York",
+  "12": "America/Toronto",
+  "13": "America/Vancouver",
+  "14": "America/Los_Angeles",
+  "15": "America/Los_Angeles",
+  "16": "America/Los_Angeles",
+};
+
+const DEFAULT_VENUE_TIMEZONE = "America/Chicago";
+
+export function stadiumTimezone(stadiumId?: string | null): string {
+  if (!stadiumId) return DEFAULT_VENUE_TIMEZONE;
+  return STADIUM_TIMEZONES[stadiumId] ?? DEFAULT_VENUE_TIMEZONE;
+}
+
+export function parseLocalDate(localDate: string, stadiumId?: string | null): string | null {
   const m = localDate.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
   if (!m) return null;
   const month = +m[1];
@@ -115,11 +142,10 @@ export function parseLocalDate(localDate: string): string | null {
   const year = +m[3];
   const hour = +m[4];
   const minute = +m[5];
-  // worldcup26 local_date is venue wall-clock (US host cities, Eastern default)
-  return wallTimeInZoneToUtcIso(year, month, day, hour, minute, "America/New_York");
+  return wallTimeInZoneToUtcIso(year, month, day, hour, minute, stadiumTimezone(stadiumId));
 }
 
-/** Convert wall-clock in IANA zone to UTC ISO (Node / sync). */
+/** Convert venue wall-clock to UTC ISO. */
 function wallTimeInZoneToUtcIso(
   year: number,
   month: number,
@@ -128,34 +154,12 @@ function wallTimeInZoneToUtcIso(
   minute: number,
   timeZone: string,
 ): string | null {
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
-  let guess = Date.UTC(year, month - 1, day, hour, minute, 0);
-  for (let i = 0; i < 3; i++) {
-    const parts = Object.fromEntries(dtf.formatToParts(new Date(guess)).map((p) => [p.type, p.value]));
-    let hour = +parts.hour;
-    if (hour === 24) hour = 0;
-    const asUtc = Date.UTC(
-      +parts.year,
-      +parts.month - 1,
-      +parts.day,
-      hour,
-      +parts.minute,
-      +(parts.second ?? 0),
-    );
-    guess += guess - asUtc;
-  }
-
-  const d = new Date(guess);
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute);
+  const probe = new Date(utcGuess);
+  const inTz = new Date(probe.toLocaleString("en-US", { timeZone }));
+  const inUtc = new Date(probe.toLocaleString("en-US", { timeZone: "UTC" }));
+  const offsetMs = inUtc.getTime() - inTz.getTime();
+  const d = new Date(utcGuess + offsetMs);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 

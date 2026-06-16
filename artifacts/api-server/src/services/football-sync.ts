@@ -118,7 +118,7 @@ async function updateJobState(
 }
 
 function mapGameToRow(game: WorldCup26Game, syncedAt: string) {
-  const kickoff = parseLocalDate(game.local_date);
+  const kickoff = parseLocalDate(game.local_date, game.stadium_id);
   const homeGoals = parseInt(game.home_score, 10);
   const awayGoals = parseInt(game.away_score, 10);
   return {
