@@ -80,7 +80,7 @@ Frontend live-data panel and Vercel sync need **public HTTPS** on `vscor-supabas
 - [x] GoDaddy A record `vscor-supabase` → `72.61.227.53`
 - [x] NPM proxy + Let's Encrypt for `vscor-supabase.auxspire.com`
 - [x] Confirm `https://vscor-supabase.auxspire.com/rest/v1/` responds (401 without key = OK)
-- [x] Vercel cron: `job=all` every **15 minutes** (`*/15 * * * *`)
+- [x] Auto-sync every **15 minutes** via GitHub Actions (`.github/workflows/sync-football-data.yml`) — Vercel Hobby allows only daily crons
 
 ## Env mapping (this repo)
 
