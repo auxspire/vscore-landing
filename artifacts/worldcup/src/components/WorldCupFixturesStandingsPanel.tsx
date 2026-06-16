@@ -17,7 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn, getFlagEmoji } from "@/lib/utils";
 import {
-  formatKickoffDateTime,
   formatKickoffTime,
   getTimezoneLabel,
   getVisitorTimezone,
@@ -71,8 +70,8 @@ function MatchCard({
 }) {
   const finished = f.is_finished;
   const live = !finished && isLive(f.time_elapsed);
-  const kickoff = formatKickoffDateTime(f.kickoff_at, timeZone);
-  const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone);
+  const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone, { withTimezone: true });
+  const kickoffTimeShort = formatKickoffTime(f.kickoff_at, timeZone);
 
   return (
     <article className="px-4 py-4 hover:bg-secondary/30 transition-colors border-b border-border/20 last:border-0">
@@ -95,7 +94,7 @@ function MatchCard({
         ) : finished ? (
           <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">FT</span>
         ) : (
-          <span className="text-xs text-muted-foreground">{kickoff}</span>
+          <span className="text-xs text-muted-foreground">{kickoffTime}</span>
         )}
       </div>
 
@@ -121,8 +120,10 @@ function MatchCard({
             </span>
           ) : (
             <>
-              <span className="text-lg font-mono font-bold text-muted-foreground">{kickoffTime}</span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Kickoff</span>
+              <span className="text-lg font-mono font-bold text-muted-foreground">{kickoffTimeShort}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                Kickoff · {getTimezoneLabel(timeZone)}
+              </span>
             </>
           )}
         </div>
@@ -525,6 +526,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
             <h2 className="text-xl font-bold tracking-tight">Fixtures &amp; Standings</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Live schedule, results, and group tables synced from World Cup 2026 data.
+              <span className="block text-xs mt-1 font-mono text-muted-foreground/80">
+                Kickoff times in {tzLabel}
+              </span>
             </p>
           </div>
           <Link href="/fixtures">

@@ -28,22 +28,37 @@ export function getTimezoneLabel(timeZone = getVisitorTimezone()): string {
   return timeZone === FALLBACK_TIMEZONE ? "IST" : timeZone;
 }
 
+function normalizeKickoffInput(raw: string): string {
+  let s = raw.trim();
+  if (s.includes(" ") && !s.includes("T")) {
+    s = s.replace(" ", "T");
+  }
+  // Postgres may return +00, +0000, or +00:00 — normalize to ±HH:MM
+  s = s.replace(/([+-]\d{2})(\d{2})(?::(\d{2}))?$/, (_, h, m, sec) =>
+    sec != null ? `${h}:${m}:${sec}` : `${h}:${m}`,
+  );
+  s = s.replace(/([+-]\d{2})$/, "$1:00");
+  return s;
+}
+
 /** DB timestamps are UTC; normalize strings missing a timezone suffix. */
 export function parseKickoffUtc(iso: string | null | undefined): Date | null {
   if (!iso) return null;
   const trimmed = iso.trim();
   if (!trimmed) return null;
 
-  // Postgres / Supabase may return "YYYY-MM-DD HH:mm:ss+00" — normalize to ISO
-  const normalizedInput = trimmed.includes(" ") && !trimmed.includes("T")
-    ? trimmed.replace(" ", "T")
-    : trimmed;
+  const normalized = normalizeKickoffInput(trimmed);
+  const hasOffset = /(?:Z|[+-]\d{2}:\d{2}(?::\d{2})?)$/i.test(normalized);
+  const withZone = hasOffset
+    ? normalized
+    : `${normalized.replace(/\.\d+$/, "")}Z`;
 
-  const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalizedInput);
-  const normalized = hasOffset
-    ? normalizedInput
-    : `${normalizedInput.replace(/\.\d+$/, "")}Z`;
-  const d = parseISO(normalized);
+  const parsedMs = Date.parse(withZone);
+  if (!Number.isNaN(parsedMs)) {
+    return new Date(parsedMs);
+  }
+
+  const d = parseISO(withZone);
   return isValid(d) ? d : null;
 }
 
@@ -67,16 +82,22 @@ export function formatKickoffDateTime(
 export function formatKickoffTime(
   iso: string | null | undefined,
   timeZone = getVisitorTimezone(),
+  options?: { withTimezone?: boolean },
 ): string {
   const d = parseKickoffUtc(iso);
   if (!d) return "TBD";
 
-  return new Intl.DateTimeFormat("en-IN", {
+  const time = new Intl.DateTimeFormat("en-IN", {
     timeZone,
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
   }).format(d);
+
+  if (options?.withTimezone) {
+    return `${time} ${getTimezoneLabel(timeZone)}`;
+  }
+  return time;
 }
 
 export function isTodayInTimezone(

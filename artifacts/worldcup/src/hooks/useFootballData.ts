@@ -42,7 +42,7 @@ export interface FootballTeam {
   flag_url: string | null;
 }
 
-const STALE = 5 * 60 * 1000;
+const STALE = 60 * 1000;
 const SYNC_POLL = 60 * 1000;
 
 function sbQuery<T>(
@@ -98,18 +98,28 @@ export function useFootballSyncState() {
 }
 
 export function useFootballFixtures() {
-  return sbQuery(["football-fixtures"], async () => {
-    const sb = getSupabaseBrowserClient();
-    if (!sb) return [] as FootballFixture[];
-    const { data, error } = await sb
-      .from("football_fixtures")
-      .select(
-        "api_fixture_id, kickoff_at, home_team_id, home_team_name, away_team_id, away_team_name, home_goals, away_goals, home_scorers, away_scorers, group_name, match_type, time_elapsed, is_finished",
-      )
-      .eq("competition_key", "worldcup")
-      .order("kickoff_at", { ascending: true });
-    if (error) throw error;
-    return (data ?? []) as FootballFixture[];
+  const { data: syncJobs = [] } = useFootballSyncJobs();
+  const gamesSyncedAt =
+    syncJobs.find((j) => j.job_name === "games")?.last_synced_at ?? "pending";
+
+  return useQuery({
+    queryKey: ["football-fixtures", gamesSyncedAt],
+    queryFn: async () => {
+      const sb = getSupabaseBrowserClient();
+      if (!sb) return [] as FootballFixture[];
+      const { data, error } = await sb
+        .from("football_fixtures")
+        .select(
+          "api_fixture_id, kickoff_at, home_team_id, home_team_name, away_team_id, away_team_name, home_goals, away_goals, home_scorers, away_scorers, group_name, match_type, time_elapsed, is_finished",
+        )
+        .eq("competition_key", "worldcup")
+        .order("kickoff_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as FootballFixture[];
+    },
+    staleTime: STALE,
+    refetchOnWindowFocus: true,
+    retry: 1,
   });
 }
 
