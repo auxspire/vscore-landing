@@ -144,13 +144,63 @@ teamB: string;
  * Number of simulations to run
  */
 simulations?: number;
+/**
+ * When 1/true, blend synced group standings and recent form into Elo
+ */
+useLiveMetrics?: GetMatchProbabilityUseLiveMetrics;
 };
+
+export type GetMatchProbabilityUseLiveMetrics = typeof GetMatchProbabilityUseLiveMetrics[keyof typeof GetMatchProbabilityUseLiveMetrics];
+
+
+export const GetMatchProbabilityUseLiveMetrics = {
+  NUMBER_0: '0',
+  NUMBER_1: '1',
+  true: 'true',
+  false: 'false',
+} as const;
 
 export type GetBracketExplorerParams = {
 simulations?: number;
+useLiveMetrics?: GetBracketExplorerUseLiveMetrics;
 };
+
+export type GetBracketExplorerUseLiveMetrics = typeof GetBracketExplorerUseLiveMetrics[keyof typeof GetBracketExplorerUseLiveMetrics];
+
+
+export const GetBracketExplorerUseLiveMetrics = {
+  NUMBER_0: '0',
+  NUMBER_1: '1',
+  true: 'true',
+  false: 'false',
+} as const;
 
 export type GetTournamentRankingsParams = {
 simulations?: number;
+useLiveMetrics?: GetTournamentRankingsUseLiveMetrics;
 };
+
+export type GetTournamentRankingsUseLiveMetrics = typeof GetTournamentRankingsUseLiveMetrics[keyof typeof GetTournamentRankingsUseLiveMetrics];
+
+
+export const GetTournamentRankingsUseLiveMetrics = {
+  NUMBER_0: '0',
+  NUMBER_1: '1',
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type GetTeamStageBreakdownParams = {
+useLiveMetrics?: GetTeamStageBreakdownUseLiveMetrics;
+};
+
+export type GetTeamStageBreakdownUseLiveMetrics = typeof GetTeamStageBreakdownUseLiveMetrics[keyof typeof GetTeamStageBreakdownUseLiveMetrics];
+
+
+export const GetTeamStageBreakdownUseLiveMetrics = {
+  NUMBER_0: '0',
+  NUMBER_1: '1',
+  true: 'true',
+  false: 'false',
+} as const;
 

@@ -1,5 +1,7 @@
-import { TEAMS, GROUPS, TEAMS_BY_ID, type Team } from "../data/teams";
+import { TEAMS_BY_ID, type Team } from "../data/teams";
 import { buildBracket, type GroupResult } from "./bracketBuilder";
+import type { EloAdjustments } from "./liveMetrics";
+import { getAdjustedTeamsContext } from "./teamAdjustments";
 
 // ─── Elo match utilities ───────────────────────────────────────────────────
 
@@ -117,9 +119,11 @@ const GROUP_LETTERS   = "ABCDEFGHIJKL".split("");
 
 export function simulateBracketExplorer(
   teamId: string,
-  numSimulations = 5000
+  numSimulations = 5000,
+  eloAdjustments?: EloAdjustments,
 ): BracketExplorerData {
-  const team = TEAMS_BY_ID[teamId];
+  const { groups, teamsById } = getAdjustedTeamsContext(eloAdjustments);
+  const team = teamsById[teamId];
   if (!team) throw new Error(`Team not found: ${teamId}`);
 
   const stageData: Record<string, BracketStageData> = {};
@@ -139,7 +143,7 @@ export function simulateBracketExplorer(
     // ── Group stage ────────────────────────────────────────────────────────
     const groupResults: Record<string, GroupResult[]> = {};
     for (const g of GROUP_LETTERS) {
-      groupResults[g] = simulateGroup(GROUPS[g]);
+      groupResults[g] = simulateGroup(groups[g]);
     }
 
     // Build position lookup for every team: "1st" / "2nd" / "3rd"
@@ -260,7 +264,7 @@ export function simulateBracketExplorer(
         cp.reachCount++;
 
         if (!cp.opponents[nextOppId]) {
-          cp.opponents[nextOppId] = { team: TEAMS_BY_ID[nextOppId], encounterCount: 0, winsIfFacing: 0 };
+          cp.opponents[nextOppId] = { team: teamsById[nextOppId], encounterCount: 0, winsIfFacing: 0 };
         }
         cp.opponents[nextOppId].encounterCount++;
         if (wonNext) cp.opponents[nextOppId].winsIfFacing++;

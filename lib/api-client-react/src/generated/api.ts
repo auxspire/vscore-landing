@@ -20,6 +20,7 @@ import type {
   ErrorResponse,
   GetBracketExplorerParams,
   GetMatchProbabilityParams,
+  GetTeamStageBreakdownParams,
   GetTournamentRankingsParams,
   HealthStatus,
   MatchProbabilityResult,
@@ -611,21 +612,30 @@ export function useGetTournamentRankings<TData = Awaited<ReturnType<typeof getTo
 
 
 
-export const getGetTeamStageBreakdownUrl = (teamId: string,) => {
+export const getGetTeamStageBreakdownUrl = (teamId: string,
+    params?: GetTeamStageBreakdownParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/stage-breakdown/${teamId}`
+  return stringifiedParams.length > 0 ? `/api/stage-breakdown/${teamId}?${stringifiedParams}` : `/api/stage-breakdown/${teamId}`
 }
 
 /**
  * Returns how likely a given team is to reach each stage of the tournament
  * @summary Get a team's probability of reaching each stage
  */
-export const getTeamStageBreakdown = async (teamId: string, options?: RequestInit): Promise<TeamStageBreakdown> => {
+export const getTeamStageBreakdown = async (teamId: string,
+    params?: GetTeamStageBreakdownParams, options?: RequestInit): Promise<TeamStageBreakdown> => {
 
-  return customFetch<TeamStageBreakdown>(getGetTeamStageBreakdownUrl(teamId),
+  return customFetch<TeamStageBreakdown>(getGetTeamStageBreakdownUrl(teamId,params),
   {
     ...options,
     method: 'GET'
@@ -638,23 +648,25 @@ export const getTeamStageBreakdown = async (teamId: string, options?: RequestIni
 
 
 
-export const getGetTeamStageBreakdownQueryKey = (teamId: string,) => {
+export const getGetTeamStageBreakdownQueryKey = (teamId: string,
+    params?: GetTeamStageBreakdownParams,) => {
     return [
-    `/api/stage-breakdown/${teamId}`
+    `/api/stage-breakdown/${teamId}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetTeamStageBreakdownQueryOptions = <TData = Awaited<ReturnType<typeof getTeamStageBreakdown>>, TError = ErrorType<ErrorResponse>>(teamId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamStageBreakdown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetTeamStageBreakdownQueryOptions = <TData = Awaited<ReturnType<typeof getTeamStageBreakdown>>, TError = ErrorType<ErrorResponse>>(teamId: string,
+    params?: GetTeamStageBreakdownParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamStageBreakdown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetTeamStageBreakdownQueryKey(teamId);
+  const queryKey =  queryOptions?.queryKey ?? getGetTeamStageBreakdownQueryKey(teamId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTeamStageBreakdown>>> = ({ signal }) => getTeamStageBreakdown(teamId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTeamStageBreakdown>>> = ({ signal }) => getTeamStageBreakdown(teamId,params, { signal, ...requestOptions });
 
 
 
@@ -672,11 +684,12 @@ export type GetTeamStageBreakdownQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetTeamStageBreakdown<TData = Awaited<ReturnType<typeof getTeamStageBreakdown>>, TError = ErrorType<ErrorResponse>>(
- teamId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamStageBreakdown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ teamId: string,
+    params?: GetTeamStageBreakdownParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamStageBreakdown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetTeamStageBreakdownQueryOptions(teamId,options)
+  const queryOptions = getGetTeamStageBreakdownQueryOptions(teamId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

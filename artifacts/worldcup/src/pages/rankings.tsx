@@ -6,6 +6,8 @@ import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, PAGE_SEO } from "@/lib/seo"
+import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
+import { useLiveMetrics } from "@/hooks/useLiveMetrics"
 import { Trophy, Medal, Activity, ChevronRight } from "lucide-react"
 
 const STAGES = [
@@ -47,9 +49,12 @@ export default function Rankings() {
 
   usePageSeo(PAGE_SEO.rankings)
 
+  const { queryFlag } = useLiveMetrics()
+  const rankParams = { simulations: 10000, useLiveMetrics: queryFlag }
+
   const { data, isLoading } = useGetTournamentRankings(
-    { simulations: 10000 },
-    { query: { staleTime: 5 * 60 * 1000, queryKey: getGetTournamentRankingsQueryKey({ simulations: 10000 }) } }
+    rankParams,
+    { query: { staleTime: 5 * 60 * 1000, queryKey: getGetTournamentRankingsQueryKey(rankParams) } },
   )
 
   const sorted = data?.rankings
@@ -79,6 +84,8 @@ export default function Rankings() {
           {data ? data.simulationsRun.toLocaleString() : "10,000"} Monte Carlo simulations
         </p>
       </div>
+
+      <LiveMetricsToggle className="mb-6" />
 
       {/* Sort controls */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -132,7 +139,7 @@ export default function Rankings() {
 
                     {/* Team */}
                     <Link
-                      href={`/bracket?team=${entry.team.id}`}
+                      href={`/bracket?team=${entry.team.id}${queryFlag ? "&useLiveMetrics=1" : ""}`}
                       className="flex items-center gap-2 min-w-0 hover:text-primary transition-colors"
                     >
                       <span className="text-xl leading-none flex-shrink-0">

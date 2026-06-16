@@ -1,6 +1,9 @@
 {
   "buildCommand": "pnpm run vercel-build",
   "outputDirectory": "dist",
+  "crons": [
+    { "path": "/api/sync-football-data?job=all", "schedule": "*/15 * * * *" }
+  ],
   "redirects": [
     {
       "source": "/worldcup",

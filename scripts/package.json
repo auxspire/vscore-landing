@@ -5,7 +5,12 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "setup:worldcup-football": "node ./setup-worldcup-football.mjs",
+    "sync:football": "tsx ./run-football-sync.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
