@@ -34,8 +34,15 @@ export function parseKickoffUtc(iso: string | null | undefined): Date | null {
   const trimmed = iso.trim();
   if (!trimmed) return null;
 
-  const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
-  const normalized = hasOffset ? trimmed : `${trimmed.replace(/\.\d+$/, "")}Z`;
+  // Postgres / Supabase may return "YYYY-MM-DD HH:mm:ss+00" — normalize to ISO
+  const normalizedInput = trimmed.includes(" ") && !trimmed.includes("T")
+    ? trimmed.replace(" ", "T")
+    : trimmed;
+
+  const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalizedInput);
+  const normalized = hasOffset
+    ? normalizedInput
+    : `${normalizedInput.replace(/\.\d+$/, "")}Z`;
   const d = parseISO(normalized);
   return isValid(d) ? d : null;
 }

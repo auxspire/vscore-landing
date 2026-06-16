@@ -69,8 +69,8 @@ function MatchCard({
   teams: FootballTeam[];
   timeZone: string;
 }) {
-  const live = isLive(f.time_elapsed);
   const finished = f.is_finished;
+  const live = !finished && isLive(f.time_elapsed);
   const kickoff = formatKickoffDateTime(f.kickoff_at, timeZone);
   const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone);
 
@@ -401,6 +401,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const [activeGroup, setActiveGroup] = useState("A");
   const [standingsView, setStandingsView] = useState<"grid" | "table">("grid");
   const [primaryTab, setPrimaryTab] = useState<"fixtures" | "standings">("fixtures");
+  const [fixtureSubTab, setFixtureSubTab] = useState<string | null>(null);
 
   const configured = isSupabaseConfigured();
   const { data: syncJobs = [], isLoading: syncLoading } = useFootballSyncJobs();
@@ -478,11 +479,16 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     return [...set].sort();
   }, [standings]);
 
+  const groupsWithStandings = useMemo(
+    () => groups.filter((g) => standings.some((s) => s.group_name === g)),
+    [groups, standings],
+  );
+
   useEffect(() => {
-    if (groups.length > 0 && !groups.includes(activeGroup)) {
-      setActiveGroup(groups[0]);
+    if (groupsWithStandings.length > 0 && !groupsWithStandings.includes(activeGroup)) {
+      setActiveGroup(groupsWithStandings[0]);
     }
-  }, [groups, activeGroup]);
+  }, [groupsWithStandings, activeGroup]);
 
   const teamNameById = useMemo(
     () => Object.fromEntries(teams.map((t) => [t.api_team_id, t.name_en])),
@@ -490,7 +496,15 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   );
 
   const loading = syncLoading || fixturesLoading || standingsLoading;
-  const defaultFixtureTab = todayMatches.length > 0 || liveMatches.length > 0 ? "today" : "upcoming";
+  const defaultFixtureTab =
+    liveMatches.length > 0 || todayMatches.length > 0
+      ? "today"
+      : upcomingMatches.length > 0
+        ? "upcoming"
+        : recentResults.length > 0
+          ? "results"
+          : "upcoming";
+  const activeFixtureSubTab = fixtureSubTab ?? defaultFixtureTab;
 
   if (variant === "teaser") {
     const preview =
@@ -561,7 +575,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                       Group standings snapshot
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {groups.slice(0, 2).map((g) => (
+                      {groupsWithStandings.slice(0, 2).map((g) => (
                         <GroupStandingsCard
                           key={g}
                           group={g}
@@ -643,7 +657,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               </div>
 
               <TabsContent value="fixtures" className="mt-0">
-                {recentResultsPreview.length > 0 && (
+                {recentResultsPreview.length > 0 && activeFixtureSubTab !== "results" && (
                   <RecentResultsBlock
                     results={recentResultsPreview}
                     teams={teams}
@@ -651,7 +665,11 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     limit={4}
                   />
                 )}
-                <Tabs defaultValue={defaultFixtureTab} className="w-full">
+                <Tabs
+                  value={activeFixtureSubTab}
+                  onValueChange={setFixtureSubTab}
+                  className="w-full"
+                >
                   <div className="px-4 pt-3 overflow-x-auto">
                     <TabsList className="w-max bg-secondary/25">
                       <TabsTrigger value="today">Today</TabsTrigger>
@@ -812,7 +830,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
                     {standingsView === "grid" ? (
                       <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {groups.map((g) => (
+                        {groupsWithStandings.map((g) => (
                           <GroupStandingsCard
                             key={g}
                             group={g}
@@ -825,7 +843,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     ) : (
                       <>
                         <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-border/30">
-                          {groups.map((g) => (
+                          {groupsWithStandings.map((g) => (
                             <button
                               key={g}
                               type="button"

@@ -142,11 +142,13 @@ function wallTimeInZoneToUtcIso(
   let guess = Date.UTC(year, month - 1, day, hour, minute, 0);
   for (let i = 0; i < 3; i++) {
     const parts = Object.fromEntries(dtf.formatToParts(new Date(guess)).map((p) => [p.type, p.value]));
+    let hour = +parts.hour;
+    if (hour === 24) hour = 0;
     const asUtc = Date.UTC(
       +parts.year,
       +parts.month - 1,
       +parts.day,
-      +parts.hour,
+      hour,
       +parts.minute,
       +(parts.second ?? 0),
     );
