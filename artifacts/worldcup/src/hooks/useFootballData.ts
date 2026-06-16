@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { isTodayInTimezone } from "@/lib/match-datetime";
 
 export interface FootballFixture {
   api_fixture_id: string;
@@ -141,15 +142,8 @@ export function useFootballTeams() {
   });
 }
 
-export function isToday(iso: string | null): boolean {
-  if (!iso) return false;
-  const d = new Date(iso);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
+export function isToday(iso: string | null, timeZone?: string): boolean {
+  return isTodayInTimezone(iso, timeZone);
 }
 
 export function isLive(timeElapsed: string | null): boolean {
@@ -165,30 +159,71 @@ export interface ScorerEntry {
 }
 
 function scorerName(entry: unknown): string {
-  if (typeof entry === "string") return entry;
+  if (typeof entry === "string") {
+    const trimmed = entry.trim();
+    if (!trimmed) return "Unknown";
+    // e.g. "45' Lionel Messi" or raw JSON string
+    const tick = trimmed.match(/^\d+'\s*(.+)$/);
+    if (tick) return tick[1].trim();
+    if (trimmed.startsWith("{")) {
+      try {
+        return scorerName(JSON.parse(trimmed));
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }
   if (entry && typeof entry === "object") {
     const o = entry as Record<string, unknown>;
-    if (typeof o.name === "string") return o.name;
-    if (typeof o.raw === "string") return o.raw;
+    for (const key of ["name", "name_en", "player_name", "player_name_en", "scorer"]) {
+      if (typeof o[key] === "string" && o[key]) return o[key] as string;
+    }
+    if (typeof o.raw === "string") return scorerName(o.raw);
   }
   return "Unknown";
 }
 
-export function aggregateTopScorers(fixtures: FootballFixture[], limit = 10): ScorerEntry[] {
+function normalizeScorerList(raw: unknown[] | null): unknown[] {
+  if (!raw?.length) return [];
+  const flat: unknown[] = [];
+  for (const item of raw) {
+    if (typeof item === "string" && item.trim().startsWith("[")) {
+      try {
+        const parsed = JSON.parse(item);
+        if (Array.isArray(parsed)) {
+          flat.push(...parsed);
+          continue;
+        }
+      } catch {
+        /* keep as string */
+      }
+    }
+    flat.push(item);
+  }
+  return flat;
+}
+
+export function aggregateTopScorers(fixtures: FootballFixture[], limit = 15): ScorerEntry[] {
   const counts = new Map<string, ScorerEntry>();
   for (const f of fixtures.filter((x) => x.is_finished)) {
     for (const side of [
-      { scorers: f.home_scorers, team: f.home_team_name },
-      { scorers: f.away_scorers, team: f.away_team_name },
+      { scorers: f.home_scorers, team: f.home_team_name, teamId: f.home_team_id },
+      { scorers: f.away_scorers, team: f.away_team_name, teamId: f.away_team_id },
     ]) {
-      for (const raw of side.scorers ?? []) {
+      for (const raw of normalizeScorerList(side.scorers)) {
         const name = scorerName(raw);
-        const key = `${name}|${side.team ?? ""}`;
-        const cur = counts.get(key) ?? { name, goals: 0, teamName: side.team ?? undefined };
+        if (name === "Unknown") continue;
+        const key = `${name.toLowerCase()}|${side.teamId ?? side.team ?? ""}`;
+        const cur = counts.get(key) ?? {
+          name,
+          goals: 0,
+          teamName: side.team ?? undefined,
+        };
         cur.goals += 1;
         counts.set(key, cur);
       }
     }
   }
-  return [...counts.values()].sort((a, b) => b.goals - a.goals).slice(0, limit);
+  return [...counts.values()].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, limit);
 }

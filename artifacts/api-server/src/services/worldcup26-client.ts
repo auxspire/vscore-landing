@@ -110,8 +110,50 @@ export async function fetchTeams(): Promise<WorldCup26Team[]> {
 export function parseLocalDate(localDate: string): string | null {
   const m = localDate.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
   if (!m) return null;
-  const [, mm, dd, yyyy, hh, min] = m;
-  const d = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:00`);
+  const month = +m[1];
+  const day = +m[2];
+  const year = +m[3];
+  const hour = +m[4];
+  const minute = +m[5];
+  // worldcup26 local_date is venue wall-clock (US host cities, Eastern default)
+  return wallTimeInZoneToUtcIso(year, month, day, hour, minute, "America/New_York");
+}
+
+/** Convert wall-clock in IANA zone to UTC ISO (Node / sync). */
+function wallTimeInZoneToUtcIso(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone: string,
+): string | null {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  let guess = Date.UTC(year, month - 1, day, hour, minute, 0);
+  for (let i = 0; i < 3; i++) {
+    const parts = Object.fromEntries(dtf.formatToParts(new Date(guess)).map((p) => [p.type, p.value]));
+    const asUtc = Date.UTC(
+      +parts.year,
+      +parts.month - 1,
+      +parts.day,
+      +parts.hour,
+      +parts.minute,
+      +(parts.second ?? 0),
+    );
+    guess += guess - asUtc;
+  }
+
+  const d = new Date(guess);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 

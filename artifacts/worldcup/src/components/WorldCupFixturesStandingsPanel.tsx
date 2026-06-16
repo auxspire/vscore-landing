@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { format, parseISO, isValid } from "date-fns";
 import { Link } from "wouter";
 import {
   Calendar,
@@ -8,20 +7,22 @@ import {
   Radio,
   LayoutGrid,
   List,
+  Clock,
 } from "lucide-react";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
+import { FootballTeamSelect } from "@/components/FootballTeamSelect";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn, getFlagEmoji } from "@/lib/utils";
+import {
+  formatKickoffDateTime,
+  formatKickoffTime,
+  getTimezoneLabel,
+  getVisitorTimezone,
+  parseKickoffUtc,
+} from "@/lib/match-datetime";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   useFootballFixtures,
@@ -34,29 +35,10 @@ import {
   type FootballFixture,
   type FootballStanding,
   type FootballTeam,
+  type ScorerEntry,
 } from "@/hooks/useFootballData";
 
 const QUALIFYING_SPOTS = 2;
-
-function formatKickoff(iso: string | null): string {
-  if (!iso) return "TBD";
-  try {
-    const d = parseISO(iso);
-    return isValid(d) ? format(d, "MMM d · HH:mm") : "TBD";
-  } catch {
-    return "TBD";
-  }
-}
-
-function formatKickoffTime(iso: string | null): string {
-  if (!iso) return "TBD";
-  try {
-    const d = parseISO(iso);
-    return isValid(d) ? format(d, "HH:mm") : "TBD";
-  } catch {
-    return "TBD";
-  }
-}
 
 function teamFlag(teamId: string | null, teams: FootballTeam[], size = "text-xl") {
   if (!teamId) return <span className={cn(size, "opacity-40")}>🏳️</span>;
@@ -78,11 +60,19 @@ function teamFlag(teamId: string | null, teams: FootballTeam[], size = "text-xl"
   return <span className={cn(size, "opacity-40")}>🏳️</span>;
 }
 
-function MatchCard({ f, teams }: { f: FootballFixture; teams: FootballTeam[] }) {
+function MatchCard({
+  f,
+  teams,
+  timeZone,
+}: {
+  f: FootballFixture;
+  teams: FootballTeam[];
+  timeZone: string;
+}) {
   const live = isLive(f.time_elapsed);
   const finished = f.is_finished;
-  const kickoff = formatKickoff(f.kickoff_at);
-  const kickoffTime = formatKickoffTime(f.kickoff_at);
+  const kickoff = formatKickoffDateTime(f.kickoff_at, timeZone);
+  const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone);
 
   return (
     <article className="px-4 py-4 hover:bg-secondary/30 transition-colors border-b border-border/20 last:border-0">
@@ -109,15 +99,15 @@ function MatchCard({ f, teams }: { f: FootballFixture; teams: FootballTeam[] }) 
         )}
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
-        <div className="flex items-center justify-end gap-2 min-w-0">
-          <span className="font-semibold text-sm md:text-base truncate text-right">
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-2 sm:gap-3 items-center min-w-0">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 min-w-0">
+          <span className="font-semibold text-xs sm:text-sm md:text-base truncate text-right">
             {f.home_team_name ?? "TBD"}
           </span>
           {teamFlag(f.home_team_id, teams)}
         </div>
 
-        <div className="flex flex-col items-center justify-center min-w-[4.5rem] px-2">
+        <div className="flex flex-col items-center justify-center min-w-[3.5rem] sm:min-w-[4.5rem] px-1 sm:px-2">
           {finished || live ? (
             <span
               className={cn(
@@ -137,14 +127,98 @@ function MatchCard({ f, teams }: { f: FootballFixture; teams: FootballTeam[] }) 
           )}
         </div>
 
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           {teamFlag(f.away_team_id, teams)}
-          <span className="font-semibold text-sm md:text-base truncate">
+          <span className="font-semibold text-xs sm:text-sm md:text-base truncate">
             {f.away_team_name ?? "TBD"}
           </span>
         </div>
       </div>
     </article>
+  );
+}
+
+function RecentResultsBlock({
+  results,
+  teams,
+  timeZone,
+  title = "Recent results",
+  limit = 5,
+}: {
+  results: FootballFixture[];
+  teams: FootballTeam[];
+  timeZone: string;
+  title?: string;
+  limit?: number;
+}) {
+  if (results.length === 0) return null;
+
+  return (
+    <div className="border-b border-border/30 bg-secondary/5">
+      <div className="px-4 py-2.5 flex items-center gap-2 border-b border-border/20">
+        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      </div>
+      <div>
+        {results.slice(0, limit).map((f) => (
+          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TopScorersList({ scorers, teams }: { scorers: ScorerEntry[]; teams: FootballTeam[] }) {
+  if (scorers.length === 0) return null;
+
+  const teamByName = Object.fromEntries(teams.map((t) => [t.name_en.toLowerCase(), t]));
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="grid grid-cols-[2.5rem,1fr,auto] gap-2 px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 bg-secondary/20">
+        <span>#</span>
+        <span>Player</span>
+        <span className="text-right">Goals</span>
+      </div>
+      <div className="divide-y divide-border/15">
+        {scorers.map((s, i) => {
+          const team = s.teamName ? teamByName[s.teamName.toLowerCase()] : undefined;
+          const rank = i + 1;
+          return (
+            <div
+              key={`${s.name}-${s.teamName ?? ""}-${i}`}
+              className="grid grid-cols-[2.5rem,1fr,auto] gap-2 items-center px-4 py-3 hover:bg-secondary/30"
+            >
+              <span
+                className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold",
+                  rank === 1 && "bg-primary/20 text-primary",
+                  rank === 2 && "bg-secondary text-foreground",
+                  rank === 3 && "bg-secondary text-amber-400/90",
+                  rank > 3 && "text-muted-foreground",
+                )}
+              >
+                {rank}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold text-sm truncate">{s.name}</p>
+                {s.teamName && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5 truncate">
+                    {team?.fifa_code ? (
+                      <span className="text-base leading-none shrink-0">{getFlagEmoji(team.fifa_code)}</span>
+                    ) : null}
+                    <span className="truncate">{s.teamName}</span>
+                  </p>
+                )}
+              </div>
+              <span className="inline-flex min-w-[2rem] justify-center px-2.5 py-1 rounded-full bg-primary/10 text-primary font-mono font-bold text-sm tabular-nums">
+                {s.goals}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -334,11 +408,13 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const { data: standings = [], isLoading: standingsLoading } = useFootballStandings();
   const { data: teams = [] } = useFootballTeams();
 
+  const timeZone = useMemo(() => getVisitorTimezone(), []);
+  const tzLabel = useMemo(() => getTimezoneLabel(timeZone), [timeZone]);
   const now = useMemo(() => new Date(), [fixtures]);
 
   const todayMatches = useMemo(
-    () => fixtures.filter((f) => isToday(f.kickoff_at)),
-    [fixtures],
+    () => fixtures.filter((f) => isToday(f.kickoff_at, timeZone)),
+    [fixtures, timeZone],
   );
 
   const liveMatches = useMemo(
@@ -349,8 +425,12 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const upcomingMatches = useMemo(
     () =>
       fixtures
-        .filter((f) => !f.is_finished && f.kickoff_at && new Date(f.kickoff_at) >= now)
-        .slice(0, variant === "teaser" ? 3 : 20),
+        .filter((f) => {
+          if (f.is_finished) return false;
+          const kickoff = parseKickoffUtc(f.kickoff_at);
+          return kickoff != null && kickoff >= now;
+        })
+        .slice(0, variant === "teaser" ? 3 : 30),
     [fixtures, now, variant],
   );
 
@@ -358,23 +438,38 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     () =>
       fixtures
         .filter((f) => f.is_finished)
-        .sort((a, b) => (b.kickoff_at ?? "").localeCompare(a.kickoff_at ?? ""))
-        .slice(0, variant === "teaser" ? 3 : 12),
-    [fixtures, variant],
+        .sort((a, b) => (b.kickoff_at ?? "").localeCompare(a.kickoff_at ?? "")),
+    [fixtures],
+  );
+
+  const recentResultsPreview = useMemo(
+    () => recentResults.slice(0, variant === "teaser" ? 3 : 8),
+    [recentResults, variant],
   );
 
   const upcomingForTeam = useMemo(() => {
     if (!teamFilter) return [];
     return fixtures
-      .filter(
-        (f) =>
-          !f.is_finished &&
-          f.kickoff_at &&
-          new Date(f.kickoff_at) >= now &&
-          (f.home_team_id === teamFilter || f.away_team_id === teamFilter),
-      )
+      .filter((f) => {
+        if (f.is_finished) return false;
+        const kickoff = parseKickoffUtc(f.kickoff_at);
+        if (!kickoff || kickoff < now) return false;
+        return f.home_team_id === teamFilter || f.away_team_id === teamFilter;
+      })
       .slice(0, 8);
   }, [fixtures, teamFilter, now]);
+
+  const recentForTeam = useMemo(() => {
+    if (!teamFilter) return [];
+    return fixtures
+      .filter(
+        (f) =>
+          f.is_finished &&
+          (f.home_team_id === teamFilter || f.away_team_id === teamFilter),
+      )
+      .sort((a, b) => (b.kickoff_at ?? "").localeCompare(a.kickoff_at ?? ""))
+      .slice(0, 6);
+  }, [fixtures, teamFilter]);
 
   const topScorers = useMemo(() => aggregateTopScorers(fixtures), [fixtures]);
 
@@ -398,7 +493,16 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const defaultFixtureTab = todayMatches.length > 0 || liveMatches.length > 0 ? "today" : "upcoming";
 
   if (variant === "teaser") {
-    const preview = liveMatches.length > 0 ? liveMatches : todayMatches.length > 0 ? todayMatches : upcomingMatches;
+    const preview =
+      liveMatches.length > 0
+        ? liveMatches
+        : todayMatches.length > 0
+          ? todayMatches
+          : upcomingMatches.length > 0
+            ? upcomingMatches
+            : recentResultsPreview;
+    const teaserShowsRecentOnly =
+      liveMatches.length === 0 && todayMatches.length === 0 && upcomingMatches.length === 0;
 
     return (
       <section id="fixtures-standings" className="mb-12 scroll-mt-24">
@@ -434,13 +538,22 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
             {configured && !loading && !fixturesError && (
               <>
                 {preview.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-6 text-center">No upcoming fixtures synced yet.</p>
+                  <p className="text-sm text-muted-foreground p-6 text-center">No fixtures synced yet.</p>
                 ) : (
                   <div>
                     {preview.slice(0, 3).map((f) => (
-                      <MatchCard key={f.api_fixture_id} f={f} teams={teams} />
+                      <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
                     ))}
                   </div>
+                )}
+                {recentResultsPreview.length > 0 && !teaserShowsRecentOnly && (
+                  <RecentResultsBlock
+                    results={recentResultsPreview}
+                    teams={teams}
+                    timeZone={timeZone}
+                    title="Recent results"
+                    limit={2}
+                  />
                 )}
                 {groups.length > 0 && (
                   <div className="p-4 border-t border-border/30 bg-secondary/10">
@@ -477,6 +590,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               <h2 className="text-xl font-bold tracking-tight">Fixtures &amp; Standings</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Official World Cup 2026 schedule, live scores, and group tables
+                <span className="block text-xs mt-1 font-mono text-muted-foreground/80">
+                  Kickoff times in {tzLabel}
+                </span>
               </p>
             </div>
             {liveMatches.length > 0 && (
@@ -527,6 +643,14 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               </div>
 
               <TabsContent value="fixtures" className="mt-0">
+                {recentResultsPreview.length > 0 && (
+                  <RecentResultsBlock
+                    results={recentResultsPreview}
+                    teams={teams}
+                    timeZone={timeZone}
+                    limit={4}
+                  />
+                )}
                 <Tabs defaultValue={defaultFixtureTab} className="w-full">
                   <div className="px-4 pt-3 overflow-x-auto">
                     <TabsList className="w-max bg-secondary/25">
@@ -546,7 +670,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     ) : (
                       <div>
                         {[...liveMatches, ...todayMatches.filter((f) => !isLive(f.time_elapsed))].map((f) => (
-                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} />
+                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
                         ))}
                       </div>
                     )}
@@ -558,7 +682,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     ) : (
                       <div>
                         {upcomingMatches.map((f) => (
-                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} />
+                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
                         ))}
                       </div>
                     )}
@@ -571,42 +695,59 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                       </p>
                     ) : (
                       <div>
-                        {recentResults.map((f) => (
-                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} />
+                        {recentResults.slice(0, 20).map((f) => (
+                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
                         ))}
                       </div>
                     )}
                   </TabsContent>
 
-                  <TabsContent value="team" className="p-4 space-y-4">
+                  <TabsContent value="team" className="p-4 space-y-5">
                     <div>
                       <label className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
                         Filter by team
                       </label>
-                      <Select value={teamFilter} onValueChange={setTeamFilter}>
-                        <SelectTrigger className="max-w-sm bg-secondary/30">
-                          <SelectValue placeholder="Select a team…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teams.map((t) => (
-                            <SelectItem key={t.api_team_id} value={t.api_team_id}>
-                              {t.name_en}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FootballTeamSelect
+                        teams={teams}
+                        value={teamFilter}
+                        onChange={setTeamFilter}
+                      />
                     </div>
                     {!teamFilter && (
-                      <p className="text-sm text-muted-foreground">Choose a team to see their upcoming fixtures.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Choose a team to see their upcoming fixtures and recent results.
+                      </p>
                     )}
-                    {teamFilter && upcomingForTeam.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No upcoming fixtures for this team.</p>
+                    {teamFilter && (
+                      <>
+                        {recentForTeam.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                              Recent results
+                            </h4>
+                            <div className="rounded-xl border border-border overflow-hidden">
+                              {recentForTeam.map((f) => (
+                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                            Upcoming
+                          </h4>
+                          {upcomingForTeam.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No upcoming fixtures for this team.</p>
+                          ) : (
+                            <div className="rounded-xl border border-border overflow-hidden">
+                              {upcomingForTeam.map((f) => (
+                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
-                    <div className="rounded-xl border border-border overflow-hidden">
-                      {upcomingForTeam.map((f) => (
-                        <MatchCard key={f.api_fixture_id} f={f} teams={teams} />
-                      ))}
-                    </div>
                   </TabsContent>
 
                   <TabsContent value="scorers" className="p-4">
@@ -615,31 +756,22 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                         Scorer data appears after matches finish.
                       </p>
                     ) : (
-                      <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/20">
-                        {topScorers.map((s, i) => (
-                          <div
-                            key={`${s.name}-${i}`}
-                            className="flex items-center justify-between px-4 py-3 hover:bg-secondary/30"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="w-6 text-xs font-mono text-muted-foreground text-center">{i + 1}</span>
-                              <div>
-                                <span className="font-medium">{s.name}</span>
-                                {s.teamName && (
-                                  <span className="text-xs text-muted-foreground ml-2">{s.teamName}</span>
-                                )}
-                              </div>
-                            </div>
-                            <span className="font-mono font-bold text-primary tabular-nums">{s.goals}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <TopScorersList scorers={topScorers} teams={teams} />
                     )}
                   </TabsContent>
                 </Tabs>
               </TabsContent>
 
               <TabsContent value="standings" className="mt-0 pb-2">
+                {recentResultsPreview.length > 0 && (
+                  <RecentResultsBlock
+                    results={recentResultsPreview}
+                    teams={teams}
+                    timeZone={timeZone}
+                    title="Latest results"
+                    limit={3}
+                  />
+                )}
                 {standings.length === 0 ? (
                   <p className="text-sm text-muted-foreground p-8 text-center">No standings available yet.</p>
                 ) : (
