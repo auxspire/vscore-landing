@@ -45,6 +45,30 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (id.includes("date-fns")) {
+            return "date-fns";
+          }
+          if (id.includes("@tanstack/react-query")) {
+            return "react-query";
+          }
+          // Keep React + Radix in one vendor chunk to avoid circular chunk dependencies
+          if (
+            id.includes("@radix-ui") ||
+            id.includes("@floating-ui") ||
+            id.includes("react-dom") ||
+            /node_modules[/\\]react[/\\]/.test(id)
+          ) {
+            return "react-vendor";
+          }
+        },
+      },
+    },
   },
   server: {
     port,
