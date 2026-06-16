@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Share2, MessageCircle, Link2, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatShareClipboard } from "@/lib/share-messages";
 
 interface SharePredictionButtonProps {
   title: string;
@@ -13,7 +14,7 @@ export function SharePredictionButton({ title, text, url }: SharePredictionButto
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  const shareText = `${text}\n${url}`;
+  const shareText = formatShareClipboard({ title, text, url });
 
   async function handleNativeShare() {
     if (navigator.share) {
@@ -30,7 +31,10 @@ export function SharePredictionButton({ title, text, url }: SharePredictionButto
     try {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
-      toast({ title: "Link copied", description: "Share this prediction anywhere." });
+      toast({
+        title: "Copied to clipboard",
+        description: "Share the prediction details and VScor link anywhere.",
+      });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: "Copy failed", variant: "destructive" });
@@ -55,7 +59,7 @@ export function SharePredictionButton({ title, text, url }: SharePredictionButto
       </Button>
       <Button type="button" variant="outline" size="sm" onClick={handleCopy} className="gap-2">
         {copied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
-        Copy link
+        Copy
       </Button>
     </div>
   );

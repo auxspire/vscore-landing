@@ -89,6 +89,12 @@ export const PAGE_SEO = {
       "VScor World Cup 2026 power rankings: all 48 teams ranked by championship win probability from 10,000 tournament simulations. Compare round-of-32, quarter-final, and final odds.",
     path: "/rankings",
   },
+  fixtures: {
+    title: "World Cup 2026 Fixtures, Results & Group Standings | VScor",
+    description:
+      "Live World Cup 2026 fixtures, match results, and group standings for all 48 teams. Updated schedule and tables synced from official tournament data.",
+    path: "/fixtures",
+  },
 } as const
 
 export function matchupSeo(teamA: string, teamB: string, probability?: number) {

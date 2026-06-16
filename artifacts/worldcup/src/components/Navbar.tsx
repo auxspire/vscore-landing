@@ -2,13 +2,14 @@ import { useState } from "react"
 import { Link, useLocation } from "wouter"
 import { cn } from "@/lib/utils"
 import { publicAsset } from "@/lib/assets"
-import { Menu, X, Swords, BarChart3 } from "lucide-react"
+import { Menu, X, Swords, BarChart3, Calendar } from "lucide-react"
 
 export function Navbar() {
   const [location] = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const navLinks = [
+    { href: "/fixtures", label: "Fixtures", icon: <Calendar className="w-3.5 h-3.5" /> },
     { href: "/rankings", label: "Rankings", icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { href: "/matchup", label: "Matchup", icon: <Swords className="w-3.5 h-3.5" /> },
     {

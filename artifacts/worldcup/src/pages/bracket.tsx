@@ -8,6 +8,7 @@ import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
+import { buildBracketShareMessage } from "@/lib/share-messages"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { ArrowLeft, Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap, Lock, X } from "lucide-react"
@@ -766,11 +767,43 @@ export default function Bracket() {
           </Card>
 
           <div className="flex justify-center">
-            <SharePredictionButton
-              title={`${bracketData.team.name} World Cup 2026 path | VScor`}
-              text={`${bracketData.team.name} — ${(displayWinProb * 100).toFixed(1)}% World Cup 2026 win probability (VScor bracket explorer)`}
-              url={`${WORLDCUP_BASE}/bracket?team=${bracketData.team.id}${liveSuffix}`}
-            />
+            {(() => {
+              let lockedOpponentName: string | null = null;
+              if (lockedStage && lockedOpponentId && bracketData) {
+                const lockStageNode = bracketData.path.find((s) => s.stage === lockedStage) as
+                  | RichStageNode
+                  | undefined;
+                const lockOpp =
+                  lockStageNode?.topOpponents.find((o) => o.team.id === lockedOpponentId) ??
+                  (lockStageNode?.opponentsByFinish
+                    ? Object.values(lockStageNode.opponentsByFinish)
+                        .flat()
+                        .find(
+                          (o): o is RichOpponent =>
+                            (o as RichOpponent).team?.id === lockedOpponentId,
+                        )
+                    : undefined);
+                lockedOpponentName = lockOpp?.team.name ?? null;
+              }
+
+              const share = buildBracketShareMessage({
+                teamName: bracketData.team.name,
+                winProbability: displayWinProb,
+                simulationsRun: bracketData.simulationsRun,
+                lockedStage,
+                lockedOpponentName,
+                useLiveMetrics: !!queryFlag,
+                shareUrl: `${WORLDCUP_BASE}/bracket?team=${bracketData.team.id}${liveSuffix}`,
+              });
+
+              return (
+                <SharePredictionButton
+                  title={share.title}
+                  text={share.text}
+                  url={share.url}
+                />
+              );
+            })()}
           </div>
 
           {/* Lock banner */}

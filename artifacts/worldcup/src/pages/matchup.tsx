@@ -10,6 +10,7 @@ import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, matchupSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
+import { buildMatchupShareMessage } from "@/lib/share-messages"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
@@ -74,6 +75,19 @@ export default function Matchup() {
 
   if (!teamA || !teamB) return null
 
+  const matchupShare = matchResult
+    ? buildMatchupShareMessage({
+        teamA: matchResult.teamA.name,
+        teamB: matchResult.teamB.name,
+        totalProbability: matchResult.totalProbability,
+        stages: matchResult.stages,
+        simulationsRun: matchResult.simulationsRun,
+        sameGroup: matchResult.sameGroup,
+        useLiveMetrics: !!queryFlag,
+        shareUrl: `${WORLDCUP_BASE}/matchup?teamA=${matchResult.teamA.id}&teamB=${matchResult.teamB.id}${queryFlag ? "&useLiveMetrics=1" : ""}`,
+      })
+    : null
+
   return (
     <div className="min-h-[100dvh] w-full flex flex-col">
       <Navbar />
@@ -132,11 +146,13 @@ export default function Matchup() {
 
             <div className="mt-8 flex flex-col items-center gap-4 max-w-md mx-auto">
               <LiveMetricsToggle className="w-full text-left" />
-              <SharePredictionButton
-                title={`${matchResult.teamA.name} vs ${matchResult.teamB.name} | VScor`}
-                text={`${matchResult.teamA.name} vs ${matchResult.teamB.name} — ${(matchResult.totalProbability * 100).toFixed(1)}% chance to meet at World Cup 2026 (VScor Monte Carlo)`}
-                url={`${WORLDCUP_BASE}/matchup?teamA=${matchResult.teamA.id}&teamB=${matchResult.teamB.id}${queryFlag ? "&useLiveMetrics=1" : ""}`}
-              />
+              {matchupShare && (
+                <SharePredictionButton
+                  title={matchupShare.title}
+                  text={matchupShare.text}
+                  url={matchupShare.url}
+                />
+              )}
             </div>
           </div>
 

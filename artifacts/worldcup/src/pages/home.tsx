@@ -125,7 +125,7 @@ export default function Home() {
           </div>
         </section>
 
-        <WorldCupFixturesStandingsPanel />
+        <WorldCupFixturesStandingsPanel variant="teaser" />
 
         <section id="path-to-final" className="mb-20 scroll-mt-24">
           <div className="relative rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-background via-secondary/40 to-background shadow-[0_0_60px_-20px_hsl(var(--primary)/0.25)]">
