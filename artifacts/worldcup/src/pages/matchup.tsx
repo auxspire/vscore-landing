@@ -8,7 +8,10 @@ import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { Navbar } from "@/components/Navbar"
 import { getFlagEmoji, cn } from "@/lib/utils"
-import { usePageSeo, matchupSeo, PAGE_SEO } from "@/lib/seo"
+import { usePageSeo, matchupSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
+import { SharePredictionButton } from "@/components/SharePredictionButton"
+import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
+import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
 
 export default function Matchup() {
@@ -19,6 +22,7 @@ export default function Matchup() {
   const searchParams = new URLSearchParams(search)
   const teamA = searchParams.get("teamA")
   const teamB = searchParams.get("teamB")
+  const { queryFlag } = useLiveMetricsFromUrl(search)
 
   // Redirect to home if no teams provided — must be in useEffect to avoid render-time side effects
   useEffect(() => {
@@ -28,11 +32,15 @@ export default function Matchup() {
   }, [teamA, teamB, setLocation])
 
   const { data: matchResult, isLoading: isLoadingMatch } = useGetMatchProbability(
-    { teamA: teamA ?? "", teamB: teamB ?? "" },
+    { teamA: teamA ?? "", teamB: teamB ?? "", useLiveMetrics: queryFlag },
     {
       query: {
         enabled: !!teamA && !!teamB,
-        queryKey: getGetMatchProbabilityQueryKey({ teamA: teamA ?? "", teamB: teamB ?? "" }),
+        queryKey: getGetMatchProbabilityQueryKey({
+          teamA: teamA ?? "",
+          teamB: teamB ?? "",
+          useLiveMetrics: queryFlag,
+        }),
       },
     },
   )
@@ -47,12 +55,14 @@ export default function Matchup() {
 
   const { data: teamABreakdown, isLoading: isLoadingBreakdownA } = useGetTeamStageBreakdown(
     teamA ?? "",
-    { query: { enabled: !!teamA, queryKey: getGetTeamStageBreakdownQueryKey(teamA ?? "") } },
+    { useLiveMetrics: queryFlag },
+    { query: { enabled: !!teamA, queryKey: getGetTeamStageBreakdownQueryKey(teamA ?? "", { useLiveMetrics: queryFlag }) } },
   )
 
   const { data: teamBBreakdown, isLoading: isLoadingBreakdownB } = useGetTeamStageBreakdown(
     teamB ?? "",
-    { query: { enabled: !!teamB, queryKey: getGetTeamStageBreakdownQueryKey(teamB ?? "") } },
+    { useLiveMetrics: queryFlag },
+    { query: { enabled: !!teamB, queryKey: getGetTeamStageBreakdownQueryKey(teamB ?? "", { useLiveMetrics: queryFlag }) } },
   )
 
   const [animated, setAnimated] = useState(false)
@@ -119,6 +129,15 @@ export default function Matchup() {
                 Teams are in the same group (Guaranteed group stage meeting)
               </div>
             )}
+
+            <div className="mt-8 flex flex-col items-center gap-4 max-w-md mx-auto">
+              <LiveMetricsToggle className="w-full text-left" />
+              <SharePredictionButton
+                title={`${matchResult.teamA.name} vs ${matchResult.teamB.name} | VScor`}
+                text={`${matchResult.teamA.name} vs ${matchResult.teamB.name} — ${(matchResult.totalProbability * 100).toFixed(1)}% chance to meet at World Cup 2026 (VScor Monte Carlo)`}
+                url={`${WORLDCUP_BASE}/matchup?teamA=${matchResult.teamA.id}&teamB=${matchResult.teamB.id}${queryFlag ? "&useLiveMetrics=1" : ""}`}
+              />
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-[1fr,350px] gap-8">

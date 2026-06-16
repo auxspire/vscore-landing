@@ -84,8 +84,14 @@ No Replit required. Develop in Cursor, commit, push.
 
 ## Environment variables
 
+See [`.env.example`](.env.example), [`docs/VSCOR-CONNECTIVITY.md`](docs/VSCOR-CONNECTIVITY.md), and [`docs/RESTORE-WORLDCUP-BACKUP.md`](docs/RESTORE-WORLDCUP-BACKUP.md).
+
 | Variable | Required | Notes |
 |---|---|---|
 | `PORT` | Dev only | Defaults: website `19161`, worldcup `24152`, API `8080` |
 | `BASE_PATH` | Dev only | Defaults: `/` (website), `/worldcup` (app) |
-| `DATABASE_URL` | Future | Not used by predictor API today (in-memory teams) |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Live data panel | Public; RLS read-only |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Sync route | Server only |
+| `WORLD_CUP26_JWT_TOKEN` | Sync route | From worldcup26.ir register/login |
+| `CRON_SECRET` | Sync cron | Protects `/api/sync-football-data` |
+| `DATABASE_URL` | Migrations | VPS pooler only; not used by Vercel sync |

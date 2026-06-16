@@ -60,7 +60,8 @@ export const getMatchProbabilityQuerySimulationsDefault = 10000;
 export const GetMatchProbabilityQueryParams = zod.object({
   "teamA": zod.coerce.string().describe('Team A ID'),
   "teamB": zod.coerce.string().describe('Team B ID'),
-  "simulations": zod.coerce.number().default(getMatchProbabilityQuerySimulationsDefault).describe('Number of simulations to run')
+  "simulations": zod.coerce.number().default(getMatchProbabilityQuerySimulationsDefault).describe('Number of simulations to run'),
+  "useLiveMetrics": zod.enum(['0', '1', 'true', 'false']).optional().describe('When 1\/true, blend synced group standings and recent form into Elo')
 })
 
 export const GetMatchProbabilityResponse = zod.object({
@@ -133,7 +134,8 @@ export const GetBracketExplorerParams = zod.object({
 export const getBracketExplorerQuerySimulationsDefault = 5000;
 
 export const GetBracketExplorerQueryParams = zod.object({
-  "simulations": zod.coerce.number().default(getBracketExplorerQuerySimulationsDefault)
+  "simulations": zod.coerce.number().default(getBracketExplorerQuerySimulationsDefault),
+  "useLiveMetrics": zod.enum(['0', '1', 'true', 'false']).optional()
 })
 
 export const GetBracketExplorerResponse = zod.object({
@@ -176,7 +178,8 @@ export const GetBracketExplorerResponse = zod.object({
 export const getTournamentRankingsQuerySimulationsDefault = 10000;
 
 export const GetTournamentRankingsQueryParams = zod.object({
-  "simulations": zod.coerce.number().default(getTournamentRankingsQuerySimulationsDefault)
+  "simulations": zod.coerce.number().default(getTournamentRankingsQuerySimulationsDefault),
+  "useLiveMetrics": zod.enum(['0', '1', 'true', 'false']).optional()
 })
 
 export const GetTournamentRankingsResponse = zod.object({
@@ -208,6 +211,10 @@ export const GetTournamentRankingsResponse = zod.object({
  */
 export const GetTeamStageBreakdownParams = zod.object({
   "teamId": zod.coerce.string()
+})
+
+export const GetTeamStageBreakdownQueryParams = zod.object({
+  "useLiveMetrics": zod.enum(['0', '1', 'true', 'false']).optional()
 })
 
 export const GetTeamStageBreakdownResponse = zod.object({

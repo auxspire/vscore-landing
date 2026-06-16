@@ -7,6 +7,7 @@ import {
   type StageProbability,
 } from "../services/simulator";
 import { simulateBracketExplorer } from "../services/bracketExplorer";
+import { getLiveEloAdjustments, parseUseLiveMetrics } from "../services/liveMetrics";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
   final: "Final",
 };
 
-router.get("/match-probability", (req, res) => {
+router.get("/match-probability", async (req, res) => {
   const { teamA: teamAId, teamB: teamBId, simulations } = req.query;
 
   if (!teamAId || !teamBId || typeof teamAId !== "string" || typeof teamBId !== "string") {
@@ -45,7 +46,10 @@ router.get("/match-probability", (req, res) => {
   );
 
   try {
-    const result = simulateMatchProbability(teamAId, teamBId, numSims);
+    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+      ? await getLiveEloAdjustments()
+      : undefined;
+    const result = simulateMatchProbability(teamAId, teamBId, numSims, adjustments);
 
     res.json({
       teamA,
@@ -105,7 +109,7 @@ router.get("/popular-matchups", (_req, res) => {
   res.json(matchups);
 });
 
-router.get("/bracket-explorer/:teamId", (req, res) => {
+router.get("/bracket-explorer/:teamId", async (req, res) => {
   const team = TEAMS_BY_ID[req.params.teamId];
   if (!team) {
     res.status(404).json({ error: `Team not found: ${req.params.teamId}` });
@@ -118,7 +122,10 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
   );
 
   try {
-    const data = simulateBracketExplorer(req.params.teamId, numSims);
+    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+      ? await getLiveEloAdjustments()
+      : undefined;
+    const data = simulateBracketExplorer(req.params.teamId, numSims, adjustments);
 
     const KNOCKOUT_STAGES = ["round_of_32", "round_of_16", "quarterfinal", "semifinal", "final"];
 
@@ -249,14 +256,17 @@ router.get("/bracket-explorer/:teamId", (req, res) => {
   }
 });
 
-router.get("/rankings", (req, res) => {
+router.get("/rankings", async (req, res) => {
   const numSims = Math.min(
     20000,
     Math.max(1000, req.query.simulations ? parseInt(req.query.simulations as string, 10) : 10000)
   );
 
   try {
-    const raw = simulateAllTeamsRankings(numSims);
+    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+      ? await getLiveEloAdjustments()
+      : undefined;
+    const raw = simulateAllTeamsRankings(numSims, adjustments);
 
     const rankings = raw.map((r, i) => ({
       rank: i + 1,
@@ -276,7 +286,7 @@ router.get("/rankings", (req, res) => {
   }
 });
 
-router.get("/stage-breakdown/:teamId", (req, res) => {
+router.get("/stage-breakdown/:teamId", async (req, res) => {
   const team = TEAMS_BY_ID[req.params.teamId];
   if (!team) {
     res.status(404).json({ error: `Team not found: ${req.params.teamId}` });
@@ -284,7 +294,10 @@ router.get("/stage-breakdown/:teamId", (req, res) => {
   }
 
   try {
-    const reachProbs = simulateTeamStageReach(req.params.teamId, 5000);
+    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+      ? await getLiveEloAdjustments()
+      : undefined;
+    const reachProbs = simulateTeamStageReach(req.params.teamId, 5000, adjustments);
 
     const stages = Object.entries(reachProbs).map(([stage, probability]) => ({
       stage,

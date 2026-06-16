@@ -96,6 +96,13 @@ paths:
             type: integer
             default: 10000
           description: Number of simulations to run
+        - name: useLiveMetrics
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["0", "1", "true", "false"]
+          description: When 1/true, blend synced group standings and recent form into Elo
       responses:
         "200":
           description: Match probability by stage
@@ -143,6 +150,12 @@ paths:
           schema:
             type: integer
             default: 5000
+        - name: useLiveMetrics
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["0", "1", "true", "false"]
       responses:
         "200":
           description: Bracket path for team
@@ -170,6 +183,12 @@ paths:
           schema:
             type: integer
             default: 10000
+        - name: useLiveMetrics
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["0", "1", "true", "false"]
       responses:
         "200":
           description: All teams ranked by win probability
@@ -190,6 +209,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: useLiveMetrics
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["0", "1", "true", "false"]
       responses:
         "200":
           description: Stage breakdown for team

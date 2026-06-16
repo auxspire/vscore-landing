@@ -6,7 +6,10 @@ import { Navbar } from "@/components/Navbar"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { getFlagEmoji, cn } from "@/lib/utils"
-import { usePageSeo, PAGE_SEO } from "@/lib/seo"
+import { usePageSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
+import { SharePredictionButton } from "@/components/SharePredictionButton"
+import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
+import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { ArrowLeft, Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap, Lock, X } from "lucide-react"
 
 // ─── Extended types for enriched API response ─────────────────────────────────
@@ -565,6 +568,8 @@ export default function Bracket() {
   const [, setLocation] = useLocation()
   const search = useSearch()
   const teamId = new URLSearchParams(search).get("team") ?? ""
+  const { queryFlag } = useLiveMetricsFromUrl(search)
+  const liveSuffix = queryFlag ? "&useLiveMetrics=1" : ""
 
   const [lockedStage, setLockedStage]           = useState<string | null>(null)
   const [lockedOpponentId, setLockedOpponentId] = useState<string | null>(null)
@@ -579,7 +584,7 @@ export default function Bracket() {
 
   // Navigate to a different team
   const handleTeamChange = (id: string) => {
-    setLocation(`/bracket?team=${id}`)
+    setLocation(`/bracket?team=${id}${liveSuffix}`)
   }
 
   const handleLockOpponent = (stage: string, opponentId: string | null, finishPos?: string | null) => {
@@ -596,8 +601,14 @@ export default function Bracket() {
 
   const { data: teams = [], isLoading: isLoadingTeams } = useGetTeams()
   const { data: rawBracketData, isLoading: isLoadingBracket } = useGetBracketExplorer(
-    teamId, {},
-    { query: { enabled: !!teamId, queryKey: getGetBracketExplorerQueryKey(teamId) } }
+    teamId,
+    { useLiveMetrics: queryFlag },
+    {
+      query: {
+        enabled: !!teamId,
+        queryKey: getGetBracketExplorerQueryKey(teamId, { useLiveMetrics: queryFlag }),
+      },
+    },
   )
 
   // Cast to our enriched type
@@ -709,6 +720,8 @@ export default function Bracket() {
         </div>
       </header>
 
+      <LiveMetricsToggle className="mb-6" />
+
       {!teamId ? (
         <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border rounded-2xl bg-secondary/20">
           <GitBranch className="w-16 h-16 text-muted-foreground mb-4 opacity-30" />
@@ -751,6 +764,14 @@ export default function Bracket() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="flex justify-center">
+            <SharePredictionButton
+              title={`${bracketData.team.name} World Cup 2026 path | VScor`}
+              text={`${bracketData.team.name} — ${(displayWinProb * 100).toFixed(1)}% World Cup 2026 win probability (VScor bracket explorer)`}
+              url={`${WORLDCUP_BASE}/bracket?team=${bracketData.team.id}${liveSuffix}`}
+            />
+          </div>
 
           {/* Lock banner */}
           {lockedStage && lockedOpponentId && (() => {

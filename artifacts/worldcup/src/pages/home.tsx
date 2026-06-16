@@ -3,6 +3,10 @@ import { useLocation, Link } from "wouter"
 import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { Navbar } from "@/components/Navbar"
+import { WorldCupFixturesStandingsPanel } from "@/components/WorldCupFixturesStandingsPanel"
+import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
+import { FaqSection, HOME_FAQ } from "@/components/FaqSection"
+import { useLiveMetrics } from "@/hooks/useLiveMetrics"
 import { publicAsset } from "@/lib/assets"
 import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { Button } from "@/components/ui/button"
@@ -24,9 +28,12 @@ export default function Home() {
   const { data: teams = [], isLoading: isLoadingTeams } = useGetTeams()
   const { data: popularMatchups = [], isLoading: isLoadingMatchups } = useGetPopularMatchups()
 
+  const { queryFlag } = useLiveMetrics()
+
   const handlePredict = () => {
     if (teamA && teamB && teamA !== teamB) {
-      setLocation(`/matchup?teamA=${teamA}&teamB=${teamB}`)
+      const live = queryFlag ? `&useLiveMetrics=1` : ""
+      setLocation(`/matchup?teamA=${teamA}&teamB=${teamB}${live}`)
     }
   }
 
@@ -102,6 +109,10 @@ export default function Home() {
             </div>
           </div>
 
+          <div className="mb-6 max-w-xl mx-auto md:mx-0">
+            <LiveMetricsToggle />
+          </div>
+
           <div className="flex justify-center mb-4">
             <Button
               size="lg"
@@ -113,6 +124,8 @@ export default function Home() {
             </Button>
           </div>
         </section>
+
+        <WorldCupFixturesStandingsPanel />
 
         <section id="path-to-final" className="mb-20 scroll-mt-24">
           <div className="relative rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-background via-secondary/40 to-background shadow-[0_0_60px_-20px_hsl(var(--primary)/0.25)]">
@@ -260,6 +273,8 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        <FaqSection items={HOME_FAQ} className="mb-12" />
 
       </div>
     </div>

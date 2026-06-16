@@ -1,5 +1,7 @@
 import { TEAMS, GROUPS, type Team } from "../data/teams";
 import { buildBracket, type GroupResult } from "./bracketBuilder";
+import type { EloAdjustments } from "./liveMetrics";
+import { getAdjustedTeamsContext } from "./teamAdjustments";
 
 // ─── Elo match utilities ───────────────────────────────────────────────────
 
@@ -122,10 +124,12 @@ export interface SimulationResult {
 export function simulateMatchProbability(
   teamAId: string,
   teamBId: string,
-  numSimulations = 10000
+  numSimulations = 10000,
+  eloAdjustments?: EloAdjustments,
 ): SimulationResult {
-  const teamA = TEAMS.find(t => t.id === teamAId);
-  const teamB = TEAMS.find(t => t.id === teamBId);
+  const { teams, groups } = getAdjustedTeamsContext(eloAdjustments);
+  const teamA = teams.find(t => t.id === teamAId);
+  const teamB = teams.find(t => t.id === teamBId);
   if (!teamA || !teamB) throw new Error(`Team not found: ${teamAId} or ${teamBId}`);
 
   const sameGroup = teamA.group === teamB.group;
@@ -140,7 +144,7 @@ export function simulateMatchProbability(
   for (let sim = 0; sim < numSimulations; sim++) {
     const groupResults: Record<string, GroupResult[]> = {};
     for (const g of groupLetters) {
-      groupResults[g] = simulateGroup(GROUPS[g]);
+      groupResults[g] = simulateGroup(groups[g]);
     }
 
     if (sameGroup) stageCounts["group_stage"]++;
@@ -189,19 +193,22 @@ export interface TeamRankingData {
   r32Probability:      number;
 }
 
-export function simulateAllTeamsRankings(numSimulations = 10000): TeamRankingData[] {
+export function simulateAllTeamsRankings(
+  numSimulations = 10000,
+  eloAdjustments?: EloAdjustments,
+): TeamRankingData[] {
+  const { teams, groups } = getAdjustedTeamsContext(eloAdjustments);
   const groupLetters = "ABCDEFGHIJKL".split("");
 
-  // Counters for each team
   const counts: Record<string, Record<string, number>> = {};
-  for (const t of TEAMS) {
+  for (const t of teams) {
     counts[t.id] = { r32: 0, r16: 0, qf: 0, sf: 0, final: 0, win: 0 };
   }
 
   for (let sim = 0; sim < numSimulations; sim++) {
     const groupResults: Record<string, GroupResult[]> = {};
     for (const g of groupLetters) {
-      groupResults[g] = simulateGroup(GROUPS[g]);
+      groupResults[g] = simulateGroup(groups[g]);
     }
 
     const allThirds = groupLetters.map(g => {
@@ -230,7 +237,7 @@ export function simulateAllTeamsRankings(numSimulations = 10000): TeamRankingDat
     }
   }
 
-  return TEAMS.map(t => ({
+  return teams.map(t => ({
     teamId:               t.id,
     winProbability:       counts[t.id].win   / numSimulations,
     finalProbability:     counts[t.id].final / numSimulations,
@@ -243,9 +250,11 @@ export function simulateAllTeamsRankings(numSimulations = 10000): TeamRankingDat
 
 export function simulateTeamStageReach(
   teamId: string,
-  numSimulations = 5000
+  numSimulations = 5000,
+  eloAdjustments?: EloAdjustments,
 ): Record<string, number> {
-  const team = TEAMS.find(t => t.id === teamId);
+  const { teams, groups } = getAdjustedTeamsContext(eloAdjustments);
+  const team = teams.find(t => t.id === teamId);
   if (!team) throw new Error(`Team not found: ${teamId}`);
 
   const reachCounts: Record<string, number> = {
@@ -258,7 +267,7 @@ export function simulateTeamStageReach(
   for (let sim = 0; sim < numSimulations; sim++) {
     const groupResults: Record<string, GroupResult[]> = {};
     for (const g of groupLetters) {
-      groupResults[g] = simulateGroup(GROUPS[g]);
+      groupResults[g] = simulateGroup(groups[g]);
     }
 
     const allThirds = groupLetters.map(g => {
