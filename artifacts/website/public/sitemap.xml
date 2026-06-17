@@ -20,4 +20,9 @@
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://vscor.in/worldcup/fixtures</loc>
+    <changefreq>hourly</changefreq>
+    <priority>0.85</priority>
+  </url>
 </urlset>

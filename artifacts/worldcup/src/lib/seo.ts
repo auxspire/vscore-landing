@@ -72,9 +72,9 @@ export function usePageSeo(options: PageSeoOptions) {
 
 export const PAGE_SEO = {
   home: {
-    title: "VScor World Cup 2026 Predictor | Free Match Probability Tool",
+    title: "VScor World Cup 2026 Hub | Predictor, Bracket & Fixtures",
     description:
-      "Free VScor World Cup 2026 predictor: run 10,000 Monte Carlo simulations for any matchup probability, explore bracket paths to the final, and browse power rankings for all 48 teams.",
+      "Free VScor World Cup 2026 hub: Monte Carlo match predictions, path-to-final bracket explorer, live fixtures, results, and group standings for all 48 teams.",
     path: "/",
   },
   bracket: {
@@ -93,7 +93,7 @@ export const PAGE_SEO = {
     title: "World Cup 2026 Fixtures, Results & Group Standings | VScor",
     description:
       "Live World Cup 2026 fixtures, match results, and group standings for all 48 teams. Updated schedule and tables synced from official tournament data.",
-    path: "/fixtures",
+    path: "/?tab=fixtures",
   },
 } as const
 

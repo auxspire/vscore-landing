@@ -531,7 +531,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               </span>
             </p>
           </div>
-          <Link href="/fixtures">
+          <Link href="/?tab=fixtures">
             <Button variant="outline" className="gap-2 shrink-0 border-primary/30 hover:border-primary/60">
               View all <ChevronRight className="w-4 h-4" />
             </Button>
