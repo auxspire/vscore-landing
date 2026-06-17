@@ -56,6 +56,8 @@ export interface FootballLivePayload {
   standings: FootballStandingDto[];
   teams: FootballTeamDto[];
   fetchedAt: string;
+  source?: "api" | "supabase";
+  liveApiError?: string | null;
 }
 
 export function mapGameToFixtureDto(game: WorldCup26Game, nowMs = Date.now()): FootballFixtureDto {

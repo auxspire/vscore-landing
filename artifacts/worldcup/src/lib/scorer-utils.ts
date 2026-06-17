@@ -62,6 +62,76 @@ export function scorerDisplayName(entry: unknown): string {
   return "Unknown";
 }
 
+function normalizeScorerRaw(raw: string): string {
+  return raw
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .trim();
+}
+
+function extractQuotedScorerSegments(inner: string): string[] {
+  const results: string[] = [];
+  const re = /"((?:\\.|[^"\\])*)"/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(inner)) !== null) {
+    const value = match[1].replace(/\\"/g, '"').trim();
+    if (value && value.toLowerCase() !== "null") results.push(value);
+  }
+  return results;
+}
+
+/** Parse worldcup26 / Supabase scorer blobs into a flat list of entries. */
+export function parseScorerBlob(raw: string | null): unknown[] {
+  if (!raw || raw === "null" || raw.trim() === "") return [];
+
+  const normalized = normalizeScorerRaw(raw);
+
+  try {
+    const parsed = JSON.parse(normalized);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === "object") return Object.values(parsed as Record<string, unknown>);
+    if (typeof parsed === "string") return parseScorerBlob(parsed);
+    return [];
+  } catch {
+    const trimmed = normalized.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      const quoted = extractQuotedScorerSegments(trimmed.slice(1, -1));
+      if (quoted.length > 0) return quoted;
+    }
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fall through */
+      }
+    }
+    if (/^\d+['′]/.test(trimmed) || /['′]\s*$/.test(trimmed)) return [trimmed];
+    if (trimmed.length > 0 && trimmed.toLowerCase() !== "null") return [trimmed];
+    return [];
+  }
+}
+
+/** Normalise JSONB / API scorer fields (array, string blob, or null). */
+export function coerceScorerField(raw: unknown): unknown[] | null {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) {
+    if (raw.length === 0) return null;
+    const flat: unknown[] = [];
+    for (const item of raw) {
+      if (typeof item === "string") flat.push(...parseScorerBlob(item));
+      else flat.push(item);
+    }
+    return flat.length > 0 ? flat : null;
+  }
+  if (typeof raw === "string") {
+    const parsed = parseScorerBlob(raw);
+    return parsed.length > 0 ? parsed : null;
+  }
+  if (typeof raw === "object") return [raw];
+  return null;
+}
+
 export function normalizeScorerList(raw: unknown[] | null): unknown[] {
   if (!raw?.length) return [];
   const flat: unknown[] = [];
@@ -69,16 +139,9 @@ export function normalizeScorerList(raw: unknown[] | null): unknown[] {
   for (const item of raw) {
     if (typeof item === "string") {
       const trimmed = item.trim();
-      if (trimmed.startsWith("[")) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (Array.isArray(parsed)) {
-            flat.push(...parsed);
-            continue;
-          }
-        } catch {
-          /* fall through */
-        }
+      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+        flat.push(...parseScorerBlob(trimmed));
+        continue;
       }
     }
     flat.push(item);

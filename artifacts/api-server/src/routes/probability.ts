@@ -6,7 +6,13 @@ import {
   simulateAllTeamsRankings,
   type StageProbability,
 } from "../services/simulator";
-import { simulateBracketExplorer } from "../services/bracketExplorer";
+import { simulateBracketExplorer, type BracketOpponentData } from "../services/bracketExplorer";
+import {
+  canGroupFinishesMeetAtStage,
+  topFinishKey,
+  type GroupFinish,
+  type KnockoutStage,
+} from "../services/bracketTopology";
 import { getLiveEloAdjustments, parseUseLiveMetrics } from "../services/liveMetrics";
 
 const router = Router();
@@ -140,41 +146,98 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
       );
     }
 
+    function buildConditionalPathResponse(
+      fromStage: string,
+      o: BracketOpponentData,
+      winsDenominator: number,
+      conditionalSource: BracketOpponentData["conditionalPath"],
+      scenario?: {
+        teamGroup: string;
+        teamFinish: GroupFinish;
+        opponentFinishCounts: Record<string, number>;
+      },
+    ) {
+      return KNOCKOUT_STAGES.filter((s) => KNOCKOUT_STAGES.indexOf(s) > KNOCKOUT_STAGES.indexOf(fromStage))
+        .map((nextStage) => {
+          const cp = conditionalSource[nextStage];
+          if (!cp || cp.reachCount === 0) return null;
+
+          const cpOpponents = Object.values(cp.opponents)
+            .filter((co) => {
+              if (!scenario) return true;
+              const oppFinish =
+                topFinishKey(scenario.opponentFinishCounts) ??
+                topFinishKey(o.opponentGroupFinishByTeamFinish[scenario.teamFinish] ?? o.opponentGroupFinish);
+              if (!oppFinish) return true;
+              return canGroupFinishesMeetAtStage(
+                scenario.teamGroup,
+                scenario.teamFinish,
+                co.team.group,
+                oppFinish,
+                nextStage as KnockoutStage,
+              );
+            })
+            .sort((a, b) => b.encounterCount - a.encounterCount)
+            .slice(0, 5)
+            .map((co) => ({
+              team: co.team,
+              encounterProbability: cp.reachCount > 0 ? co.encounterCount / cp.reachCount : 0,
+              winProbabilityIfFacing: co.encounterCount > 0 ? co.winsIfFacing / co.encounterCount : 0,
+            }));
+
+          if (cpOpponents.length === 0) return null;
+
+          return {
+            stage: nextStage,
+            reachProbability: winsDenominator > 0 ? Math.min(1, cp.reachCount / winsDenominator) : 0,
+            sampleCount: cp.reachCount,
+            topOpponents: cpOpponents,
+          };
+        })
+        .filter(Boolean);
+    }
+
     const path = KNOCKOUT_STAGES.map((stage) => {
       const sd = data.stageData[stage];
       const reachProb = sd.reachCount / numSims;
+      const likelyTeamFinish = topFinishKey(sd.teamGroupFinish);
+
+      const stageOpponents = Object.values(sd.opponents).filter((o) => {
+        if (!likelyTeamFinish) return true;
+        const oppFinish = topFinishKey(o.opponentGroupFinish);
+        if (!oppFinish) return true;
+        return canGroupFinishesMeetAtStage(
+          team.group,
+          likelyTeamFinish,
+          o.team.group,
+          oppFinish,
+          stage as KnockoutStage,
+        );
+      });
 
       // All opponents sorted by encounter count (up to 10)
-      const allOpponents = Object.values(sd.opponents)
+      const allOpponents = stageOpponents
         .sort((a, b) => b.encounterCount - a.encounterCount)
         .slice(0, 10)
         .map((o) => {
           const encounterProb = sd.reachCount > 0 ? o.encounterCount / sd.reachCount : 0;
           const winProb       = o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0;
 
-          // Conditional path: stages after this one, given we beat opponent o
-          const conditionalPath = KNOCKOUT_STAGES
-            .filter(s => KNOCKOUT_STAGES.indexOf(s) > KNOCKOUT_STAGES.indexOf(stage))
-            .map(nextStage => {
-              const cp = o.conditionalPath[nextStage];
-              if (!cp || cp.reachCount === 0) return null;
-              const cpOpponents = Object.values(cp.opponents)
-                .sort((a, b) => b.encounterCount - a.encounterCount)
-                .slice(0, 5)
-                .map(co => ({
-                  team: co.team,
-                  encounterProbability: cp.reachCount > 0 ? co.encounterCount / cp.reachCount : 0,
-                  winProbabilityIfFacing: co.encounterCount > 0 ? co.winsIfFacing / co.encounterCount : 0,
-                }));
+          const conditionalPath = buildConditionalPathResponse(
+            stage,
+            o,
+            o.winsIfFacing,
+            o.conditionalPath,
+            (() => {
+              const likelyFinish = topFinishKey(sd.teamGroupFinish);
+              if (!likelyFinish) return undefined;
               return {
-                stage: nextStage,
-                // Cap at 1.0 — with small samples cp.reachCount can equal winsIfFacing
-                reachProbability: o.winsIfFacing > 0 ? Math.min(1, cp.reachCount / o.winsIfFacing) : 0,
-                sampleCount: cp.reachCount,
-                topOpponents: cpOpponents,
+                teamGroup: team.group,
+                teamFinish: likelyFinish,
+                opponentFinishCounts: o.opponentGroupFinish,
               };
-            })
-            .filter(Boolean);
+            })(),
+          );
 
           return {
             team: o.team,
@@ -198,36 +261,51 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
           if (finishCount === 0) continue;
           const posOpps = Object.values(sd.opponents)
             .filter(o => (o.encountersByTeamFinish[pos] ?? 0) > 0)
+            .filter((o) => {
+              const oppFinish = topFinishKey(
+                o.opponentGroupFinishByTeamFinish[pos] ?? o.opponentGroupFinish,
+              );
+              if (!oppFinish) return true;
+              return canGroupFinishesMeetAtStage(
+                team.group,
+                pos as GroupFinish,
+                o.team.group,
+                oppFinish,
+                stage as KnockoutStage,
+              );
+            })
             .sort((a, b) =>
               (b.encountersByTeamFinish[pos] ?? 0) - (a.encountersByTeamFinish[pos] ?? 0)
             )
             .map(o => {
               const enc  = o.encountersByTeamFinish[pos] ?? 0;
               const wins = o.winsIfFacingByTeamFinish[pos] ?? 0;
-              // Per-scenario win rate: how often we beat this opponent specifically
-              // when our team finished in `pos`. Falls back to overall if no data.
               const winProbScenario = enc > 0
                 ? wins / enc
                 : (o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0);
-              // Reuse the full opponent data (with conditionalPath) from allOpponents
-              const full = allOpponents.find(ao => ao.team.id === o.team.id);
-              // Use per-scenario opponent group finish (how this opponent finished
-              // specifically in simulations where our team finished `pos`)
               const scenarioGroupFinish = normaliseCounts(
                 o.opponentGroupFinishByTeamFinish[pos] ?? o.opponentGroupFinish
               );
+              const scenarioConditionalSource =
+                o.conditionalPathByTeamFinish[pos] ?? o.conditionalPath;
+              const conditionalPath = buildConditionalPathResponse(
+                stage,
+                o,
+                wins,
+                scenarioConditionalSource,
+                {
+                  teamGroup: team.group,
+                  teamFinish: pos as GroupFinish,
+                  opponentFinishCounts: o.opponentGroupFinishByTeamFinish[pos] ?? o.opponentGroupFinish,
+                },
+              );
               return {
-                ...(full ?? {
-                  team: o.team,
-                  groupFinish: scenarioGroupFinish,
-                  conditionalPath: [],
-                }),
-                // Override with per-scenario values
+                team: o.team,
                 groupFinish: scenarioGroupFinish,
                 encounterProbability: enc / finishCount,
                 winProbabilityIfFacing: winProbScenario,
-                // Expose per-scenario sample count for low-confidence display
                 sampleCount: enc,
+                conditionalPath,
               };
             });
           if (posOpps.length > 0) opponentsByFinish[pos] = posOpps;

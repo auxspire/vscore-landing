@@ -60,6 +60,27 @@ interface RichStageNode {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
+function resolveLockedOpponent(
+  lockStageNode: RichStageNode | undefined,
+  lockedOpponentId: string,
+  lockedFinishPos: string | null,
+): RichOpponent | undefined {
+  if (!lockStageNode) return undefined;
+  if (lockedFinishPos && lockStageNode.opponentsByFinish?.[lockedFinishPos]) {
+    const fromSection = lockStageNode.opponentsByFinish[lockedFinishPos].find(
+      (o) => o.team.id === lockedOpponentId,
+    );
+    if (fromSection) return fromSection;
+  }
+  return (
+    lockStageNode.topOpponents.find((o) => o.team.id === lockedOpponentId) ??
+    (lockStageNode.opponentsByFinish
+      ? Object.values(lockStageNode.opponentsByFinish)
+          .flat()
+          .find((o): o is RichOpponent => o.team?.id === lockedOpponentId)
+      : undefined)
+  );
+}
 function topKey(map: Record<string, number>): string | null {
   const entries = Object.entries(map)
   if (!entries.length) return null
@@ -642,7 +663,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
 
         // Stages after the lock: use conditional path data from the locked opponent
         const lockStageNode = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
-        const lockOpp = lockStageNode?.topOpponents.find(o => o.team.id === lockedOpponentId)
+        const lockOpp = resolveLockedOpponent(lockStageNode, lockedOpponentId, lockedFinishPos)
         const cpEntry = lockOpp?.conditionalPath?.find(cp => cp.stage === stage.stage)
 
         if (cpEntry) {
@@ -667,10 +688,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
     }
     // Find locked opponent — search topOpponents first, then opponentsByFinish for R32
     const lockStageNode = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
-    const lockOpp = lockStageNode?.topOpponents.find(o => o.team.id === lockedOpponentId)
-      ?? (lockStageNode?.opponentsByFinish
-        ? Object.values(lockStageNode.opponentsByFinish).flat().find((o): o is RichOpponent => (o as RichOpponent).team?.id === lockedOpponentId)
-        : undefined)
+    const lockOpp = resolveLockedOpponent(lockStageNode, lockedOpponentId, lockedFinishPos)
     const finalCp = lockOpp?.conditionalPath?.find(cp => cp.stage === "final")
     if (finalCp) {
       // Conditional win = reachFinalGivenLock * winIfInFinal
@@ -736,16 +754,11 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                 const lockStageNode = bracketData.path.find((s) => s.stage === lockedStage) as
                   | RichStageNode
                   | undefined;
-                const lockOpp =
-                  lockStageNode?.topOpponents.find((o) => o.team.id === lockedOpponentId) ??
-                  (lockStageNode?.opponentsByFinish
-                    ? Object.values(lockStageNode.opponentsByFinish)
-                        .flat()
-                        .find(
-                          (o): o is RichOpponent =>
-                            (o as RichOpponent).team?.id === lockedOpponentId,
-                        )
-                    : undefined);
+                const lockOpp = resolveLockedOpponent(
+                  lockStageNode,
+                  lockedOpponentId,
+                  lockedFinishPos,
+                );
                 lockedOpponentName = lockOpp?.team.name ?? null;
               }
 
@@ -772,11 +785,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
           {/* Lock banner */}
           {lockedStage && lockedOpponentId && (() => {
             const lockStageData = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
-            // For R32, the locked opponent may only exist in opponentsByFinish, not topOpponents
-            const lockOpp = lockStageData?.topOpponents.find(o => o.team.id === lockedOpponentId)
-              ?? (lockStageData?.opponentsByFinish
-                ? Object.values(lockStageData.opponentsByFinish).flat().find((o): o is RichOpponent => (o as RichOpponent).team?.id === lockedOpponentId)
-                : undefined)
+            const lockOpp = resolveLockedOpponent(lockStageData, lockedOpponentId, lockedFinishPos)
             if (!lockOpp) return null
             return (
               <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5">

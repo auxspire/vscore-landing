@@ -55,12 +55,14 @@ export function SyncStatusFooter({
           <Clock className="w-3.5 h-3.5 shrink-0" />
           {usingLiveApi ? (
             <>Live data · updated {formatSyncTime(liveFetchedAt)}</>
+          ) : latest?.last_synced_at ? (
+            <>Synced · last update {formatSyncTime(latest.last_synced_at)}</>
+          ) : liveFetchedAt && liveSource === "supabase" ? (
+            <>Synced · last update {formatSyncTime(liveFetchedAt)}</>
           ) : liveApiError ? (
-            <>Cached data · live API failed ({liveApiError})</>
+            <>Data unavailable · {liveApiError}</>
           ) : isLoading ? (
             "Loading sync status…"
-          ) : latest?.last_synced_at ? (
-            <>Cached · last sync {formatSyncTime(latest.last_synced_at)}</>
           ) : (
             "Waiting for live data…"
           )}

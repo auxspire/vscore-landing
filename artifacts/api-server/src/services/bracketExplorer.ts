@@ -65,6 +65,25 @@ interface ConditionalStageRaw {
   opponents: Record<string, { team: Team; encounterCount: number; winsIfFacing: number }>;
 }
 
+function bumpConditionalPath(
+  store: Record<string, ConditionalStageRaw>,
+  nextStage: string,
+  nextOppId: string,
+  teamsById: Record<string, Team>,
+  wonNext: boolean,
+): void {
+  if (!store[nextStage]) {
+    store[nextStage] = { reachCount: 0, opponents: {} };
+  }
+  const cp = store[nextStage];
+  cp.reachCount++;
+  if (!cp.opponents[nextOppId]) {
+    cp.opponents[nextOppId] = { team: teamsById[nextOppId], encounterCount: 0, winsIfFacing: 0 };
+  }
+  cp.opponents[nextOppId].encounterCount++;
+  if (wonNext) cp.opponents[nextOppId].winsIfFacing++;
+}
+
 export interface BracketOpponentData {
   team: Team;
   encounterCount: number;
@@ -86,6 +105,8 @@ export interface BracketOpponentData {
   opponentGroupFinishByTeamFinish: Record<string, Record<string, number>>;
   /** Given our team beat this opponent, what happened at subsequent stages */
   conditionalPath: Record<string, ConditionalStageRaw>;
+  /** Same as conditionalPath but only sims where our team finished in that group position */
+  conditionalPathByTeamFinish: Record<string, Record<string, ConditionalStageRaw>>;
 }
 
 export interface BracketStageData {
@@ -202,6 +223,7 @@ export function simulateBracketExplorer(
               winsIfFacingByTeamFinish: {},
               opponentGroupFinishByTeamFinish: {},
               conditionalPath: {},
+              conditionalPathByTeamFinish: {},
             };
           }
           const oppData = sd.opponents[opponent.id];
@@ -257,17 +279,20 @@ export function simulateBracketExplorer(
       for (let j = i + 1; j < simPath.length; j++) {
         const { stage: nextStage, opponentId: nextOppId, teamWon: wonNext } = simPath[j];
 
-        if (!rootOppData.conditionalPath[nextStage]) {
-          rootOppData.conditionalPath[nextStage] = { reachCount: 0, opponents: {} };
-        }
-        const cp = rootOppData.conditionalPath[nextStage];
-        cp.reachCount++;
+        bumpConditionalPath(rootOppData.conditionalPath, nextStage, nextOppId, teamsById, wonNext);
 
-        if (!cp.opponents[nextOppId]) {
-          cp.opponents[nextOppId] = { team: teamsById[nextOppId], encounterCount: 0, winsIfFacing: 0 };
+        if (teamGroupPos) {
+          if (!rootOppData.conditionalPathByTeamFinish[teamGroupPos]) {
+            rootOppData.conditionalPathByTeamFinish[teamGroupPos] = {};
+          }
+          bumpConditionalPath(
+            rootOppData.conditionalPathByTeamFinish[teamGroupPos],
+            nextStage,
+            nextOppId,
+            teamsById,
+            wonNext,
+          );
         }
-        cp.opponents[nextOppId].encounterCount++;
-        if (wonNext) cp.opponents[nextOppId].winsIfFacing++;
       }
     }
   }

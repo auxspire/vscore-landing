@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { LiveMetricsProvider } from "@/hooks/useLiveMetrics";
+import { prefetchFootballLiveCache, prefetchFootballLivePanel } from "@/hooks/useFootballData";
 
 const Home = lazy(() => import("@/pages/home"));
 const Matchup = lazy(() => import("@/pages/matchup"));
@@ -15,6 +16,16 @@ const Fixtures = lazy(() => import("@/pages/fixtures"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
+
+function FixturesPrefetch() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") !== "fixtures") return;
+    void prefetchFootballLiveCache(queryClient);
+    void prefetchFootballLivePanel();
+  }, []);
+  return null;
+}
 
 function Router() {
   return (
@@ -34,6 +45,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <FixturesPrefetch />
       <LiveMetricsProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>

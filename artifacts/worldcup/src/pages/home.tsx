@@ -1,14 +1,15 @@
-import { useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { useLocation } from "wouter"
+import { useQueryClient } from "@tanstack/react-query"
 import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { WorldCupLayout } from "@/components/WorldCupLayout"
-import { WorldCupFixturesStandingsPanel } from "@/components/WorldCupFixturesStandingsPanel"
 import { PathToFinalPanel } from "@/components/PathToFinalPanel"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { FaqSection, HOME_FAQ } from "@/components/FaqSection"
 import { useLiveMetrics } from "@/hooks/useLiveMetrics"
 import { useHomeTab, type HomeTab } from "@/hooks/useHomeTab"
+import { prefetchFootballLiveCache, prefetchFootballLivePanel } from "@/hooks/useFootballData"
 import { publicAsset } from "@/lib/assets"
 import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { Button } from "@/components/ui/button"
@@ -17,16 +18,33 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getFlagEmoji } from "@/lib/utils"
 import { Swords, Activity, Calendar } from "lucide-react"
 
+const WorldCupFixturesStandingsPanel = lazy(() =>
+  import("@/components/WorldCupFixturesStandingsPanel").then((m) => ({
+    default: m.WorldCupFixturesStandingsPanel,
+  })),
+)
+
 export default function Home() {
   const [, setLocation] = useLocation()
+  const queryClient = useQueryClient()
   const [teamA, setTeamA] = useState<string>("")
   const [teamB, setTeamB] = useState<string>("")
   const { tab, setTab } = useHomeTab()
 
   usePageSeo(PAGE_SEO.home)
 
-  const { data: teams = [], isLoading: isLoadingTeams } = useGetTeams()
-  const { data: popularMatchups = [], isLoading: isLoadingMatchups } = useGetPopularMatchups()
+  useEffect(() => {
+    if (tab !== "fixtures") return
+    void prefetchFootballLiveCache(queryClient)
+    void prefetchFootballLivePanel()
+  }, [tab, queryClient])
+
+  const { data: teams = [], isLoading: isLoadingTeams } = useGetTeams({
+    query: { enabled: tab === "predictor" },
+  })
+  const { data: popularMatchups = [], isLoading: isLoadingMatchups } = useGetPopularMatchups({
+    query: { enabled: tab === "predictor" },
+  })
   const { queryFlag } = useLiveMetrics()
 
   const handlePredict = () => {
@@ -162,7 +180,17 @@ export default function Home() {
             <Calendar className="w-4 h-4 text-primary shrink-0" />
             <span>Matches in your timezone · fixtures, tables &amp; scorers live from API</span>
           </div>
-          <WorldCupFixturesStandingsPanel variant="full" />
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full max-w-md" />
+                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-48 w-full" />
+              </div>
+            }
+          >
+            <WorldCupFixturesStandingsPanel variant="full" />
+          </Suspense>
         </div>
       )}
 

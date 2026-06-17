@@ -166,17 +166,52 @@ function wallTimeInZoneToUtcIso(
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function normalizeScorerRaw(raw: string): string {
+  return raw
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .trim();
+}
+
+/** Extract double-quoted segments from worldcup26 pseudo-JSON scorer blobs. */
+function extractQuotedScorerSegments(inner: string): string[] {
+  const results: string[] = [];
+  const re = /"((?:\\.|[^"\\])*)"/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(inner)) !== null) {
+    const value = match[1].replace(/\\"/g, '"').trim();
+    if (value && value.toLowerCase() !== "null") results.push(value);
+  }
+  return results;
+}
+
 export function parseScorers(raw: string | null): unknown[] {
   if (!raw || raw === "null" || raw.trim() === "") return [];
+
+  const normalized = normalizeScorerRaw(raw);
+
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(normalized);
     if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === "object") return [parsed];
+    if (parsed && typeof parsed === "object") return Object.values(parsed as Record<string, unknown>);
     if (typeof parsed === "string") return parseScorers(parsed);
     return [];
   } catch {
-    const trimmed = raw.trim();
-    if (/^\d+['′]/.test(trimmed)) return [trimmed];
+    const trimmed = normalized.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      const quoted = extractQuotedScorerSegments(trimmed.slice(1, -1));
+      if (quoted.length > 0) return quoted;
+    }
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fall through */
+      }
+    }
+    if (/^\d+['′]/.test(trimmed) || /['′]\s*$/.test(trimmed)) return [trimmed];
+    if (trimmed.length > 0 && trimmed.toLowerCase() !== "null") return [trimmed];
     return [];
   }
 }

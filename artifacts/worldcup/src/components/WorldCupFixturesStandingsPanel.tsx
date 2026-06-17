@@ -453,13 +453,13 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const [scheduleView, setScheduleView] = useState<ScheduleView>("today");
 
   const configured = isSupabaseConfigured();
-  const { data: syncJobs = [], isLoading: syncLoading } = useFootballSyncJobs();
   const {
     data: liveData,
     isLoading: liveLoading,
     isError: liveError,
     isFetching: liveFetching,
-  } = useFootballLive();
+    isScorersLoading,
+  } = useFootballLive({ needScorers: dataSection === "scorers" });
 
   const fixtures = liveData?.fixtures ?? [];
   const standings = liveData?.standings ?? [];
@@ -470,6 +470,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
   const hasLiveContent = fixtures.length > 0 || standings.length > 0 || teams.length > 0;
   const canShowSchedule = hasLiveContent || liveLoading || configured;
+  const { data: syncJobs = [], isLoading: syncLoading } = useFootballSyncJobs({
+    enabled: canShowSchedule && !liveLoading,
+  });
 
   const timeZone = useMemo(() => getVisitorTimezone(), []);
   const tzLabel = useMemo(() => getTimezoneLabel(timeZone), [timeZone]);
@@ -532,7 +535,10 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
       .slice(0, 6);
   }, [fixtures, teamFilter]);
 
-  const topScorers = useMemo(() => aggregateTopScorers(fixtures), [fixtures]);
+  const topScorers = useMemo(
+    () => (dataSection === "scorers" ? aggregateTopScorers(fixtures) : []),
+    [fixtures, dataSection],
+  );
 
   const groups = useMemo(() => {
     const set = new Set(standings.map((s) => s.group_name));
@@ -968,9 +974,17 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               {/* ── Top scorers ── */}
               {dataSection === "scorers" && (
                 <div className="p-3 sm:p-4">
-                  {topScorers.length === 0 ? (
+                  {isScorersLoading ? (
+                    <div className="space-y-2 py-4">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-3/4" />
+                    </div>
+                  ) : topScorers.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-6">
-                      Scorer data appears after matches finish.
+                      {fixtures.some((f) => f.is_finished)
+                        ? "Scorer names are still syncing — check back after the next 15-minute update."
+                        : "Scorer data appears after matches finish."}
                     </p>
                   ) : (
                     <div className="max-h-[min(28rem,60vh)] overflow-y-auto">

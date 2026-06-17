@@ -1,7 +1,9 @@
 import { Link } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { publicAsset } from "@/lib/assets";
 import type { HomeTab } from "@/hooks/useHomeTab";
+import { prefetchFootballLiveCache, prefetchFootballLivePanel } from "@/hooks/useFootballData";
 import { Swords, Calendar } from "lucide-react";
 
 export type HubTab = HomeTab;
@@ -67,6 +69,13 @@ export function WorldCupHubTabs({
   onTabChange,
   className,
 }: WorldCupHubTabsProps) {
+  const queryClient = useQueryClient();
+
+  const prefetchFixtures = () => {
+    void prefetchFootballLiveCache(queryClient);
+    void prefetchFootballLivePanel();
+  };
+
   return (
     <div
       className={cn(
@@ -95,6 +104,8 @@ export function WorldCupHubTabs({
               aria-selected={isActive}
               className={pillClass}
               onClick={() => onTabChange?.(tab.id)}
+              onMouseEnter={tab.id === "fixtures" ? prefetchFixtures : undefined}
+              onFocus={tab.id === "fixtures" ? prefetchFixtures : undefined}
             >
               {tab.icon}
               <span className="sm:hidden">{tab.shortLabel}</span>
@@ -107,7 +118,15 @@ export function WorldCupHubTabs({
         const href = tab.href;
 
         return (
-          <Link key={tab.id} href={href} role="tab" aria-selected={isActive} className={pillClass}>
+          <Link
+            key={tab.id}
+            href={href}
+            role="tab"
+            aria-selected={isActive}
+            className={pillClass}
+            onMouseEnter={tab.id === "fixtures" ? prefetchFixtures : undefined}
+            onFocus={tab.id === "fixtures" ? prefetchFixtures : undefined}
+          >
             {tab.icon}
             <span className="sm:hidden">{tab.shortLabel}</span>
             <span className="hidden sm:inline">{tab.label}</span>
