@@ -11,9 +11,9 @@ import {
   Search,
 } from "lucide-react";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
+import { FixturesLoadingState, FixturesRefreshingBar, ScorersLoadingState } from "@/components/FixturesLoadingState";
 import { FootballTeamSelect } from "@/components/FootballTeamSelect";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, getFlagEmoji } from "@/lib/utils";
@@ -624,7 +624,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     [teams],
   );
 
-  const loading = liveLoading;
+  const loading = liveLoading || (!hasLiveContent && liveFetching);
 
   /** Finished matches for Today view — exclude those still listed in the upcoming window */
   const todayCollapsedResults = useMemo(() => {
@@ -668,12 +668,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               </p>
             )}
 
-            {canShowSchedule && loading && (
-              <div className="p-6 space-y-3">
-                <Skeleton className="h-16 w-full bg-secondary/50" />
-                <Skeleton className="h-16 w-full bg-secondary/50" />
-              </div>
-            )}
+            {canShowSchedule && loading && <FixturesLoadingState compact />}
 
             {canShowSchedule && !loading && hasLiveContent && (
               <>
@@ -742,19 +737,14 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
         </CardHeader>
 
         <CardContent className="p-0">
+          <FixturesRefreshingBar active={liveFetching && !liveLoading && hasLiveContent} />
           {!canShowSchedule && (
             <p className="text-sm text-muted-foreground p-6 text-center">
               Live data unavailable — could not reach worldcup26 API.
             </p>
           )}
 
-          {canShowSchedule && loading && (
-            <div className="p-6 space-y-3">
-              <Skeleton className="h-12 w-full bg-secondary/50" />
-              <Skeleton className="h-24 w-full bg-secondary/50" />
-              <Skeleton className="h-24 w-full bg-secondary/50" />
-            </div>
-          )}
+          {canShowSchedule && loading && <FixturesLoadingState />}
 
           {canShowSchedule && !loading && liveError && !hasLiveContent && (
             <p className="text-sm text-muted-foreground p-6 text-center">
@@ -1038,11 +1028,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               {dataSection === "scorers" && (
                 <div className="p-3 sm:p-4">
                   {isScorersLoading ? (
-                    <div className="space-y-2 py-4">
-                      <Skeleton className="h-8 w-full" />
-                      <Skeleton className="h-8 w-full" />
-                      <Skeleton className="h-8 w-3/4" />
-                    </div>
+                    <ScorersLoadingState />
                   ) : topScorers.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-6">
                       {fixtures.some((f) => f.is_finished)

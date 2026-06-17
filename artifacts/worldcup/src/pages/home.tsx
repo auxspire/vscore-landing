@@ -15,6 +15,7 @@ import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { FixturesLoadingState } from "@/components/FixturesLoadingState"
 import { getFlagEmoji } from "@/lib/utils"
 import { Swords, Activity, Calendar } from "lucide-react"
 
@@ -181,13 +182,7 @@ export default function Home() {
             <span>Matches in your timezone · fixtures, tables &amp; scorers live from API</span>
           </div>
           <Suspense
-            fallback={
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-full max-w-md" />
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-48 w-full" />
-              </div>
-            }
+            fallback={<FixturesLoadingState compact delayed={false} />}
           >
             <WorldCupFixturesStandingsPanel variant="full" />
           </Suspense>

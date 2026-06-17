@@ -104,3 +104,35 @@
   66%       { content: '..'; }
   100%      { content: '...'; }
 }
+
+@keyframes fixtures-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes fixtures-progress {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(420%); }
+}
+
+.fixtures-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--primary) / 0.07),
+    transparent
+  );
+  animation: fixtures-shimmer 1.4s ease-in-out infinite;
+}
+
+.fixtures-loading-dots::after {
+  content: "";
+  animation: loading-dots 1.2s steps(1, end) infinite;
+}
+
+.fixtures-progress {
+  animation: fixtures-progress 1.1s ease-in-out infinite;
+}
