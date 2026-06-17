@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { isTodayInTimezone, isTodayOrTomorrowInTimezone } from "@/lib/match-datetime";
+import { normalizeFixtures } from "@/lib/fixture-status";
 
 export interface FootballFixture {
   api_fixture_id: string;
@@ -44,8 +45,8 @@ export interface FootballTeam {
 
 const STALE = 60 * 1000;
 const SYNC_POLL = 60 * 1000;
-const LIVE_STALE = 2 * 60 * 1000;
-const LIVE_REFETCH = 5 * 60 * 1000;
+const LIVE_STALE = 60 * 1000;
+const LIVE_REFETCH = 2 * 60 * 1000;
 
 export interface FootballLiveData {
   fixtures: FootballFixture[];
@@ -53,6 +54,7 @@ export interface FootballLiveData {
   teams: FootballTeam[];
   fetchedAt: string | null;
   source: "api" | "supabase";
+  apiError?: string | null;
 }
 
 const FIXTURE_COLUMNS =
@@ -88,18 +90,23 @@ async function fetchLiveFromSupabase(): Promise<FootballLiveData> {
   if (teamsRes.error) throw teamsRes.error;
 
   return {
-    fixtures: (fixturesRes.data ?? []) as FootballFixture[],
+    fixtures: normalizeFixtures((fixturesRes.data ?? []) as FootballFixture[]),
     standings: (standingsRes.data ?? []) as FootballStanding[],
     teams: (teamsRes.data ?? []) as FootballTeam[],
     fetchedAt: null,
     source: "supabase",
+    apiError: null,
   };
 }
 
 async function fetchLiveFromApi(): Promise<FootballLiveData> {
-  const res = await fetch("/api/football/live");
+  const res = await fetch(`/api/football/live?_=${Date.now()}`, {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
   if (!res.ok) {
-    throw new Error(`Football live API ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `Football live API ${res.status}`);
   }
   const body = (await res.json()) as {
     fixtures?: FootballFixture[];
@@ -108,19 +115,24 @@ async function fetchLiveFromApi(): Promise<FootballLiveData> {
     fetchedAt?: string;
   };
   return {
-    fixtures: body.fixtures ?? [],
+    fixtures: normalizeFixtures(body.fixtures ?? []),
     standings: body.standings ?? [],
     teams: body.teams ?? [],
     fetchedAt: body.fetchedAt ?? new Date().toISOString(),
     source: "api",
+    apiError: null,
   };
 }
 
 async function fetchFootballLive(): Promise<FootballLiveData> {
   try {
     return await fetchLiveFromApi();
-  } catch {
-    return fetchLiveFromSupabase();
+  } catch (err) {
+    const fallback = await fetchLiveFromSupabase();
+    return {
+      ...fallback,
+      apiError: err instanceof Error ? err.message : "Live API unavailable",
+    };
   }
 }
 

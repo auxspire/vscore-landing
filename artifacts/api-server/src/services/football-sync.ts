@@ -7,11 +7,11 @@ import {
   fetchTeams,
   parseLocalDate,
   parseScorers,
-  isFinished,
   type WorldCup26Game,
   type WorldCup26Group,
   type WorldCup26Team,
 } from "./worldcup26-client";
+import { resolveGameFinished } from "./match-status";
 
 export interface SyncJobResult {
   job: SyncJobName;
@@ -141,7 +141,7 @@ function mapGameToRow(game: WorldCup26Game, syncedAt: string) {
     match_type: game.type,
     matchday: game.matchday,
     time_elapsed: game.time_elapsed,
-    is_finished: isFinished(game.finished),
+    is_finished: resolveGameFinished(game),
     stadium_id: game.stadium_id,
     home_team_label: game.home_team_label ?? null,
     away_team_label: game.away_team_label ?? null,

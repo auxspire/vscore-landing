@@ -459,6 +459,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const teams = liveData?.teams ?? [];
   const liveFetchedAt = liveData?.fetchedAt ?? null;
   const liveSource = liveData?.source ?? "supabase";
+  const liveApiError = liveData?.apiError ?? null;
 
   const hasLiveContent = fixtures.length > 0 || standings.length > 0 || teams.length > 0;
   const canShowSchedule = hasLiveContent || liveLoading || configured;
@@ -655,7 +656,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
               <span className="hidden sm:inline text-muted-foreground/80">
                 {liveSource === "api"
                   ? " · live from worldcup26.ir"
-                  : " · cached copy"}
+                  : liveApiError
+                    ? " · using cached data (API unavailable)"
+                    : " · cached copy"}
                 {liveFetching && !liveLoading ? " · updating…" : ""}
               </span>
             </p>
@@ -975,6 +978,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
             isLoading={syncLoading}
             liveFetchedAt={liveFetchedAt}
             liveSource={liveSource}
+            liveApiError={liveApiError}
           />
         </CardContent>
       </Card>

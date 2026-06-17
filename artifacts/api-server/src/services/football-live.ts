@@ -2,13 +2,13 @@ import {
   fetchGames,
   fetchGroups,
   fetchTeams,
-  isFinished,
   parseLocalDate,
   parseScorers,
   type WorldCup26Game,
   type WorldCup26Group,
   type WorldCup26Team,
 } from "./worldcup26-client";
+import { resolveGameFinished } from "./match-status";
 
 /** Client-facing fixture row (matches worldcup FootballFixture). */
 export interface FootballFixtureDto {
@@ -58,10 +58,10 @@ export interface FootballLivePayload {
   fetchedAt: string;
 }
 
-export function mapGameToFixtureDto(game: WorldCup26Game): FootballFixtureDto {
+export function mapGameToFixtureDto(game: WorldCup26Game, nowMs = Date.now()): FootballFixtureDto {
   const homeGoals = parseInt(game.home_score, 10);
   const awayGoals = parseInt(game.away_score, 10);
-  return {
+  const row: FootballFixtureDto = {
     api_fixture_id: game.id,
     kickoff_at: parseLocalDate(game.local_date, game.stadium_id),
     home_team_id: game.home_team_id,
@@ -75,8 +75,9 @@ export function mapGameToFixtureDto(game: WorldCup26Game): FootballFixtureDto {
     group_name: game.group,
     match_type: game.type,
     time_elapsed: game.time_elapsed,
-    is_finished: isFinished(game.finished),
+    is_finished: resolveGameFinished(game, nowMs),
   };
+  return row;
 }
 
 export function mapTeamToDto(team: WorldCup26Team): FootballTeamDto {

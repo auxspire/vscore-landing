@@ -71,7 +71,10 @@ async function apiFetch<T>(path: string, retry = true): Promise<T> {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${WORLD_CUP26_CONFIG.baseUrl}${path}`, { headers });
+  const res = await fetch(`${WORLD_CUP26_CONFIG.baseUrl}${path}`, {
+    headers,
+    cache: "no-store",
+  });
   if (res.status === 401 && retry && token) {
     const fresh = await authenticate();
     if (fresh) return apiFetch<T>(path, false);
