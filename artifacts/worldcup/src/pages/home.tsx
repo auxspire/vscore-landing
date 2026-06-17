@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import { useLocation } from "wouter"
 import { useQueryClient } from "@tanstack/react-query"
-import { useGetTeams, useGetPopularMatchups } from "@workspace/api-client-react"
+import { useGetTeams, useGetPopularMatchups, getGetTeamsQueryKey, getGetPopularMatchupsQueryKey } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { WorldCupLayout } from "@/components/WorldCupLayout"
 import { PathToFinalPanel } from "@/components/PathToFinalPanel"
@@ -41,10 +41,10 @@ export default function Home() {
   }, [tab, queryClient])
 
   const { data: teams = [], isLoading: isLoadingTeams } = useGetTeams({
-    query: { enabled: tab === "predictor" },
+    query: { enabled: tab === "predictor", queryKey: getGetTeamsQueryKey() },
   })
   const { data: popularMatchups = [], isLoading: isLoadingMatchups } = useGetPopularMatchups({
-    query: { enabled: tab === "predictor" },
+    query: { enabled: tab === "predictor", queryKey: getGetPopularMatchupsQueryKey() },
   })
   const { queryFlag } = useLiveMetrics()
 

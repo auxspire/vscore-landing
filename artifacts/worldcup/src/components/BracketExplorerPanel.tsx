@@ -3,7 +3,7 @@ import { useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace
 import {
   buildLockedDisplayPath,
   inferFinishPosForOpponent,
-  KNOCKOUT_STAGES,
+  knockoutStageIndex,
   resolveLockedOpponent,
 } from "@workspace/bracket-path"
 import { Card, CardContent } from "@/components/ui/card"
@@ -622,7 +622,8 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
     })
   }, [bracketData?.path, bracketData?.team.group, lockedStage, lockedOpponentId, lockedFinishPos])
 
-  const displayStages: RichStageNode[] = lockedPathResult?.stages ?? bracketData?.path ?? []
+  const displayStages: RichStageNode[] =
+    (lockedPathResult?.stages ?? bracketData?.path ?? []) as RichStageNode[]
 
   const displayWinProb =
     lockedPathResult?.winProbability ?? bracketData?.tournamentWinProbability ?? 0
@@ -725,7 +726,9 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
           {/* Lock banner */}
           {lockedStage && lockedOpponentId && (() => {
             const lockStageData = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
-            const lockOpp = resolveLockedOpponent(lockStageData, lockedOpponentId, lockedFinishPos)
+            const lockOpp = resolveLockedOpponent(lockStageData, lockedOpponentId, lockedFinishPos) as
+              | RichOpponent
+              | undefined
             if (!lockOpp) return null
             return (
               <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5">
@@ -770,7 +773,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
               const isLockedStage = stage.stage === lockedStage
               // For stages after the lock, they don't have their own lock control
               const isAfterLock = lockedStage
-                ? KNOCKOUT_STAGES.indexOf(stage.stage) > KNOCKOUT_STAGES.indexOf(lockedStage)
+                ? knockoutStageIndex(stage.stage) > knockoutStageIndex(lockedStage)
                 : false
 
               return (
