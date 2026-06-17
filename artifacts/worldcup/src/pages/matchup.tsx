@@ -15,7 +15,7 @@ import { buildMatchupShareMessage } from "@/lib/share-messages"
 import { simulationCount } from "@/lib/simulation-config"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
-import { RefreshCcw, Activity, GitBranch } from "lucide-react"
+import { RefreshCcw, Activity, GitBranch, AlertTriangle } from "lucide-react"
 
 export default function Matchup() {
   const [, setLocation] = useLocation()
