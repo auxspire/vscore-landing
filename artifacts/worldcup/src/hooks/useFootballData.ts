@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
-import { isTodayInTimezone } from "@/lib/match-datetime";
+import { isTodayInTimezone, isTodayOrTomorrowInTimezone } from "@/lib/match-datetime";
 
 export interface FootballFixture {
   api_fixture_id: string;
@@ -44,6 +44,32 @@ export interface FootballTeam {
 
 const STALE = 60 * 1000;
 const SYNC_POLL = 60 * 1000;
+const FIXTURES_STALE = 2 * 60 * 1000;
+const FIXTURES_REFETCH = 5 * 60 * 1000;
+
+const FIXTURE_COLUMNS =
+  "api_fixture_id, kickoff_at, home_team_id, home_team_name, away_team_id, away_team_name, home_goals, away_goals, home_scorers, away_scorers, group_name, match_type, time_elapsed, is_finished";
+
+async function fetchFixturesFromSupabase(): Promise<FootballFixture[]> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("football_fixtures")
+    .select(FIXTURE_COLUMNS)
+    .eq("competition_key", "worldcup")
+    .order("kickoff_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as FootballFixture[];
+}
+
+async function fetchFixturesFromApi(): Promise<FootballFixture[]> {
+  const res = await fetch("/api/football/fixtures");
+  if (!res.ok) {
+    throw new Error(`Fixtures API ${res.status}`);
+  }
+  const body = (await res.json()) as { fixtures?: FootballFixture[] };
+  return body.fixtures ?? [];
+}
 
 function sbQuery<T>(
   key: string[],
@@ -98,26 +124,17 @@ export function useFootballSyncState() {
 }
 
 export function useFootballFixtures() {
-  const { data: syncJobs = [] } = useFootballSyncJobs();
-  const gamesSyncedAt =
-    syncJobs.find((j) => j.job_name === "games")?.last_synced_at ?? "pending";
-
   return useQuery({
-    queryKey: ["football-fixtures", gamesSyncedAt],
+    queryKey: ["football-fixtures"],
     queryFn: async () => {
-      const sb = getSupabaseBrowserClient();
-      if (!sb) return [] as FootballFixture[];
-      const { data, error } = await sb
-        .from("football_fixtures")
-        .select(
-          "api_fixture_id, kickoff_at, home_team_id, home_team_name, away_team_id, away_team_name, home_goals, away_goals, home_scorers, away_scorers, group_name, match_type, time_elapsed, is_finished",
-        )
-        .eq("competition_key", "worldcup")
-        .order("kickoff_at", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as FootballFixture[];
+      try {
+        return await fetchFixturesFromApi();
+      } catch {
+        return fetchFixturesFromSupabase();
+      }
     },
-    staleTime: STALE,
+    staleTime: FIXTURES_STALE,
+    refetchInterval: FIXTURES_REFETCH,
     refetchOnWindowFocus: true,
     retry: 1,
   });
@@ -154,6 +171,10 @@ export function useFootballTeams() {
 
 export function isToday(iso: string | null, timeZone?: string): boolean {
   return isTodayInTimezone(iso, timeZone);
+}
+
+export function isTodayOrTomorrow(iso: string | null, timeZone?: string): boolean {
+  return isTodayOrTomorrowInTimezone(iso, timeZone);
 }
 
 export function isLive(timeElapsed: string | null): boolean {

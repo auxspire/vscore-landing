@@ -5,7 +5,6 @@ import {
   Trophy,
   ChevronRight,
   ChevronDown,
-  Radio,
   LayoutGrid,
   List,
   Clock,
@@ -18,9 +17,11 @@ import { Button } from "@/components/ui/button";
 import { cn, getFlagEmoji } from "@/lib/utils";
 import {
   formatKickoffTime,
+  formatKickoffDateTime,
   getTimezoneLabel,
   getVisitorTimezone,
   parseKickoffUtc,
+  isTodayInTimezone,
 } from "@/lib/match-datetime";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
@@ -28,8 +29,7 @@ import {
   useFootballStandings,
   useFootballSyncJobs,
   useFootballTeams,
-  isToday,
-  isLive,
+  isTodayOrTomorrow,
   aggregateTopScorers,
   type FootballFixture,
   type FootballStanding,
@@ -69,9 +69,13 @@ function MatchCard({
   timeZone: string;
 }) {
   const finished = f.is_finished;
-  const live = !finished && isLive(f.time_elapsed);
   const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone, { withTimezone: true });
   const kickoffTimeShort = formatKickoffTime(f.kickoff_at, timeZone);
+  const showDate =
+    f.kickoff_at != null && !isTodayInTimezone(f.kickoff_at, timeZone);
+  const kickoffLabel = showDate
+    ? formatKickoffDateTime(f.kickoff_at, timeZone)
+    : kickoffTime;
 
   return (
     <article className="px-4 py-4 hover:bg-secondary/30 transition-colors border-b border-border/20 last:border-0">
@@ -86,15 +90,10 @@ function MatchCard({
             <span className="uppercase tracking-wider">{f.match_type.replace(/_/g, " ")}</span>
           )}
         </div>
-        {live ? (
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-            <Radio className="w-3 h-3 animate-pulse" />
-            Live{f.time_elapsed ? ` · ${f.time_elapsed}'` : ""}
-          </span>
-        ) : finished ? (
+        {finished ? (
           <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">FT</span>
         ) : (
-          <span className="text-xs text-muted-foreground">{kickoffTime}</span>
+          <span className="text-xs text-muted-foreground">{kickoffLabel}</span>
         )}
       </div>
 
@@ -107,13 +106,8 @@ function MatchCard({
         </div>
 
         <div className="flex flex-col items-center justify-center min-w-[3.5rem] sm:min-w-[4.5rem] px-1 sm:px-2">
-          {finished || live ? (
-            <span
-              className={cn(
-                "text-xl md:text-2xl font-mono font-bold tabular-nums",
-                live && "text-primary",
-              )}
-            >
+          {finished ? (
+            <span className="text-xl md:text-2xl font-mono font-bold tabular-nums">
               {f.home_goals ?? 0}
               <span className="text-muted-foreground mx-1.5 font-normal">–</span>
               {f.away_goals ?? 0}
@@ -463,14 +457,12 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const tzLabel = useMemo(() => getTimezoneLabel(timeZone), [timeZone]);
   const now = useMemo(() => new Date(), [fixtures]);
 
-  const todayMatches = useMemo(
-    () => fixtures.filter((f) => isToday(f.kickoff_at, timeZone)),
+  const upcomingWindow = useMemo(
+    () =>
+      fixtures
+        .filter((f) => !f.is_finished && isTodayOrTomorrow(f.kickoff_at, timeZone))
+        .sort((a, b) => (a.kickoff_at ?? "").localeCompare(b.kickoff_at ?? "")),
     [fixtures, timeZone],
-  );
-
-  const liveMatches = useMemo(
-    () => fixtures.filter((f) => isLive(f.time_elapsed)),
-    [fixtures],
   );
 
   const upcomingMatches = useMemo(
@@ -547,31 +539,20 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
   const loading = syncLoading || fixturesLoading || standingsLoading;
 
-  const todayUpcoming = useMemo(
-    () => todayMatches.filter((f) => !f.is_finished && !isLive(f.time_elapsed)),
-    [todayMatches],
-  );
-
-  /** Finished matches for Today view — shown in collapsed recent block so live/upcoming stay on top */
+  /** Finished matches for Today view — exclude those still listed in the upcoming window */
   const todayCollapsedResults = useMemo(() => {
-    const shown = new Set([
-      ...liveMatches.map((f) => f.api_fixture_id),
-      ...todayUpcoming.map((f) => f.api_fixture_id),
-    ]);
+    const shown = new Set(upcomingWindow.map((f) => f.api_fixture_id));
     return recentResults.filter((f) => !shown.has(f.api_fixture_id)).slice(0, 8);
-  }, [recentResults, liveMatches, todayUpcoming]);
+  }, [recentResults, upcomingWindow]);
 
   if (variant === "teaser") {
     const preview =
-      liveMatches.length > 0
-        ? liveMatches
-        : todayMatches.length > 0
-          ? todayMatches
-          : upcomingMatches.length > 0
-            ? upcomingMatches
-            : recentResultsPreview;
-    const teaserShowsRecentOnly =
-      liveMatches.length === 0 && todayMatches.length === 0 && upcomingMatches.length === 0;
+      upcomingWindow.length > 0
+        ? upcomingWindow
+        : upcomingMatches.length > 0
+          ? upcomingMatches
+          : recentResultsPreview;
+    const teaserShowsRecentOnly = upcomingWindow.length === 0 && upcomingMatches.length === 0;
 
     return (
       <section id="fixtures-standings" className="mb-12 scroll-mt-24">
@@ -661,13 +642,8 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               Kickoff times in <span className="font-mono text-foreground/90">{tzLabel}</span>
+              <span className="hidden sm:inline text-muted-foreground/80"> · refreshed from API every 5 min</span>
             </p>
-            {liveMatches.length > 0 && (
-              <span className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/25">
-                <Radio className="w-3 h-3 animate-pulse" />
-                {liveMatches.length} live now
-              </span>
-            )}
           </div>
         </CardHeader>
 
@@ -747,9 +723,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                           )}
                         >
                           {label}
-                          {id === "today" && liveMatches.length > 0 && (
-                            <span className="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-primary-foreground animate-pulse" />
-                          )}
                         </button>
                       ))}
                     </div>
@@ -761,15 +734,12 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                         <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center gap-2">
                           <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
                           <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
-                            Today&apos;s matches
+                            Today &amp; tomorrow
                           </span>
-                          {liveMatches.length > 0 && (
-                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                          )}
                         </div>
-                        {liveMatches.length === 0 && todayUpcoming.length === 0 ? (
+                        {upcomingWindow.length === 0 ? (
                           <p className="text-sm text-muted-foreground p-8 text-center">
-                            No matches on today&apos;s schedule.
+                            No matches scheduled for today or tomorrow.
                             {upcomingMatches.length > 0 && (
                               <button
                                 type="button"
@@ -781,35 +751,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                             )}
                           </p>
                         ) : (
-                          <>
-                            {liveMatches.length > 0 && (
-                              <div>
-                                <div className="px-4 py-2 bg-primary/5 border-b border-primary/15 flex items-center gap-2">
-                                  <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
-                                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary">
-                                    Live now
-                                  </span>
-                                </div>
-                                {liveMatches.map((f) => (
-                                  <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                                ))}
-                              </div>
-                            )}
-                            {todayUpcoming.length > 0 && (
-                              <div>
-                                {liveMatches.length > 0 && (
-                                  <div className="px-4 py-2 bg-secondary/20 border-b border-border/20">
-                                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
-                                      Later today
-                                    </span>
-                                  </div>
-                                )}
-                                {todayUpcoming.map((f) => (
-                                  <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                                ))}
-                              </div>
-                            )}
-                          </>
+                          upcomingWindow.map((f) => (
+                            <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                          ))
                         )}
                       </div>
 

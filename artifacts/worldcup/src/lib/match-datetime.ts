@@ -106,12 +106,41 @@ export function isTodayInTimezone(
 ): boolean {
   const d = parseKickoffUtc(iso);
   if (!d) return false;
+  return calendarDateInTimezone(d, timeZone) === calendarDateInTimezone(new Date(), timeZone);
+}
 
-  const fmt = new Intl.DateTimeFormat("en-CA", {
+export function calendarDateInTimezone(d: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  });
-  return fmt.format(d) === fmt.format(new Date());
+  }).format(d);
+}
+
+/** Tomorrow's calendar date in the visitor timezone. */
+function tomorrowCalendarDate(timeZone: string): string {
+  let t = Date.now();
+  const today = calendarDateInTimezone(new Date(t), timeZone);
+  do {
+    t += 3600_000;
+  } while (calendarDateInTimezone(new Date(t), timeZone) === today);
+  return calendarDateInTimezone(new Date(t), timeZone);
+}
+
+export function isTomorrowInTimezone(
+  iso: string | null | undefined,
+  timeZone = getVisitorTimezone(),
+): boolean {
+  const d = parseKickoffUtc(iso);
+  if (!d) return false;
+  return calendarDateInTimezone(d, timeZone) === tomorrowCalendarDate(timeZone);
+}
+
+/** Today or tomorrow in visitor timezone — covers late-night kickoffs across time zones. */
+export function isTodayOrTomorrowInTimezone(
+  iso: string | null | undefined,
+  timeZone = getVisitorTimezone(),
+): boolean {
+  return isTodayInTimezone(iso, timeZone) || isTomorrowInTimezone(iso, timeZone);
 }
