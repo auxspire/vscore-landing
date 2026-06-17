@@ -146,6 +146,7 @@ function RecentResultsBlock({
   title = "Recent results",
   limit = 5,
   defaultCollapsed = false,
+  collapsible = true,
 }: {
   results: FootballFixture[];
   teams: FootballTeam[];
@@ -153,11 +154,39 @@ function RecentResultsBlock({
   title?: string;
   limit?: number;
   defaultCollapsed?: boolean;
+  collapsible?: boolean;
 }) {
-  const [open, setOpen] = useState(!defaultCollapsed);
+  const [open, setOpen] = useState(collapsible ? !defaultCollapsed : true);
   const slice = results.slice(0, limit);
 
   if (slice.length === 0) return null;
+
+  const header = (
+    <span className="flex items-center gap-2 min-w-0">
+      <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </span>
+      <span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
+        ({slice.length})
+      </span>
+    </span>
+  );
+
+  if (!collapsible) {
+    return (
+      <div className="min-w-0">
+        <div className="px-4 py-2.5 flex items-center border-b border-border/20 bg-secondary/10">
+          {header}
+        </div>
+        <div>
+          {slice.map((f) => (
+            <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border-t border-border/30 bg-secondary/5">
@@ -167,15 +196,7 @@ function RecentResultsBlock({
         className="w-full px-4 py-2.5 flex items-center justify-between gap-2 border-b border-border/20 hover:bg-secondary/30 transition-colors text-left"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-2 min-w-0">
-          <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
-            {title}
-          </span>
-          <span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
-            ({slice.length})
-          </span>
-        </span>
+        {header}
         <ChevronDown
           className={cn(
             "w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200",
@@ -735,9 +756,18 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                   </div>
 
                   {scheduleView === "today" && (
-                    <div>
-                      {liveMatches.length === 0 && todayUpcoming.length === 0 ? (
-                        <>
+                    <div className="grid lg:grid-cols-2 lg:divide-x divide-border/30">
+                      <div className="min-w-0">
+                        <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                            Today&apos;s matches
+                          </span>
+                          {liveMatches.length > 0 && (
+                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                          )}
+                        </div>
+                        {liveMatches.length === 0 && todayUpcoming.length === 0 ? (
                           <p className="text-sm text-muted-foreground p-8 text-center">
                             No matches on today&apos;s schedule.
                             {upcomingMatches.length > 0 && (
@@ -750,58 +780,61 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                               </button>
                             )}
                           </p>
-                          {todayCollapsedResults.length > 0 && (
-                            <RecentResultsBlock
-                              results={todayCollapsedResults}
-                              teams={teams}
-                              timeZone={timeZone}
-                              title="Recent results"
-                              limit={8}
-                              defaultCollapsed
-                            />
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {liveMatches.length > 0 && (
-                            <div>
-                              <div className="px-4 py-2 bg-primary/5 border-b border-primary/15 flex items-center gap-2">
-                                <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
-                                <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary">
-                                  Live now
-                                </span>
-                              </div>
-                              {liveMatches.map((f) => (
-                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                              ))}
-                            </div>
-                          )}
-                          {todayUpcoming.length > 0 && (
-                            <div>
-                              {liveMatches.length > 0 && (
-                                <div className="px-4 py-2 bg-secondary/20 border-b border-border/20">
-                                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
-                                    Later today
+                        ) : (
+                          <>
+                            {liveMatches.length > 0 && (
+                              <div>
+                                <div className="px-4 py-2 bg-primary/5 border-b border-primary/15 flex items-center gap-2">
+                                  <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
+                                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary">
+                                    Live now
                                   </span>
                                 </div>
-                              )}
-                              {todayUpcoming.map((f) => (
-                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                              ))}
+                                {liveMatches.map((f) => (
+                                  <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                                ))}
+                              </div>
+                            )}
+                            {todayUpcoming.length > 0 && (
+                              <div>
+                                {liveMatches.length > 0 && (
+                                  <div className="px-4 py-2 bg-secondary/20 border-b border-border/20">
+                                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                                      Later today
+                                    </span>
+                                  </div>
+                                )}
+                                {todayUpcoming.map((f) => (
+                                  <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 border-t lg:border-t-0 border-border/30">
+                        {todayCollapsedResults.length > 0 ? (
+                          <RecentResultsBlock
+                            results={todayCollapsedResults}
+                            teams={teams}
+                            timeZone={timeZone}
+                            title="Recent results"
+                            limit={8}
+                            collapsible={false}
+                          />
+                        ) : (
+                          <div>
+                            <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                                Recent results
+                              </span>
                             </div>
-                          )}
-                          {todayCollapsedResults.length > 0 && (
-                            <RecentResultsBlock
-                              results={todayCollapsedResults}
-                              teams={teams}
-                              timeZone={timeZone}
-                              title="Recent results"
-                              limit={8}
-                              defaultCollapsed
-                            />
-                          )}
-                        </>
-                      )}
+                            <p className="text-sm text-muted-foreground p-8 text-center">No recent results yet.</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 

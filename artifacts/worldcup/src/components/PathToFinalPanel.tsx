@@ -45,8 +45,9 @@ export function PathToFinalPanel() {
         </div>
       </div>
 
+      {/* Mobile: switch between bracket and rankings */}
       <div
-        className="flex gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border/50 w-full sm:w-auto sm:inline-flex"
+        className="flex gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border/50 w-full sm:w-auto sm:inline-flex lg:hidden"
         role="tablist"
         aria-label="Path to final sections"
       >
@@ -73,7 +74,26 @@ export function PathToFinalPanel() {
         })}
       </div>
 
-      <div className="animate-in fade-in duration-300">
+      {/* Desktop: both panels side by side */}
+      <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+        <section className="min-w-0 space-y-3">
+          <h3 className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground px-1">
+            <GitBranch className="w-3.5 h-3.5 text-primary" />
+            Bracket Explorer
+          </h3>
+          <BracketExplorerPanel teamId={pathTeam} onTeamChange={setPathTeam} />
+        </section>
+        <section className="min-w-0 space-y-3">
+          <h3 className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground px-1">
+            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+            Power Rankings
+          </h3>
+          <PowerRankingsPanel onTeamSelect={openBracketForTeam} />
+        </section>
+      </div>
+
+      {/* Mobile: single active panel */}
+      <div className="lg:hidden animate-in fade-in duration-300">
         {pathSection === "bracket" ? (
           <BracketExplorerPanel teamId={pathTeam} onTeamChange={setPathTeam} />
         ) : (
