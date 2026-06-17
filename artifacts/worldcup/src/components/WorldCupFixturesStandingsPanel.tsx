@@ -4,6 +4,7 @@ import {
   Calendar,
   Trophy,
   ChevronRight,
+  ChevronDown,
   Radio,
   LayoutGrid,
   List,
@@ -144,26 +145,51 @@ function RecentResultsBlock({
   timeZone,
   title = "Recent results",
   limit = 5,
+  defaultCollapsed = false,
 }: {
   results: FootballFixture[];
   teams: FootballTeam[];
   timeZone: string;
   title?: string;
   limit?: number;
+  defaultCollapsed?: boolean;
 }) {
-  if (results.length === 0) return null;
+  const [open, setOpen] = useState(!defaultCollapsed);
+  const slice = results.slice(0, limit);
+
+  if (slice.length === 0) return null;
 
   return (
-    <div className="border-b border-border/30 bg-secondary/5">
-      <div className="px-4 py-2.5 flex items-center gap-2 border-b border-border/20">
-        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">{title}</h3>
-      </div>
-      <div>
-        {results.slice(0, limit).map((f) => (
-          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-        ))}
-      </div>
+    <div className="border-t border-border/30 bg-secondary/5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-4 py-2.5 flex items-center justify-between gap-2 border-b border-border/20 hover:bg-secondary/30 transition-colors text-left"
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+            {title}
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
+            ({slice.length})
+          </span>
+        </span>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      {open && (
+        <div>
+          {slice.map((f) => (
+            <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -505,6 +531,15 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     [todayMatches],
   );
 
+  /** Finished matches for Today view — shown in collapsed recent block so live/upcoming stay on top */
+  const todayCollapsedResults = useMemo(() => {
+    const shown = new Set([
+      ...liveMatches.map((f) => f.api_fixture_id),
+      ...todayUpcoming.map((f) => f.api_fixture_id),
+    ]);
+    return recentResults.filter((f) => !shown.has(f.api_fixture_id)).slice(0, 8);
+  }, [recentResults, liveMatches, todayUpcoming]);
+
   if (variant === "teaser") {
     const preview =
       liveMatches.length > 0
@@ -568,7 +603,8 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     teams={teams}
                     timeZone={timeZone}
                     title="Recent results"
-                    limit={2}
+                    limit={4}
+                    defaultCollapsed
                   />
                 )}
                 {groups.length > 0 && (
@@ -701,18 +737,30 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                   {scheduleView === "today" && (
                     <div>
                       {liveMatches.length === 0 && todayUpcoming.length === 0 ? (
-                        <p className="text-sm text-muted-foreground p-8 text-center">
-                          No matches on today&apos;s schedule.
-                          {upcomingMatches.length > 0 && (
-                            <button
-                              type="button"
-                              className="block mx-auto mt-3 text-primary font-semibold hover:underline"
-                              onClick={() => setScheduleView("upcoming")}
-                            >
-                              View upcoming fixtures →
-                            </button>
+                        <>
+                          <p className="text-sm text-muted-foreground p-8 text-center">
+                            No matches on today&apos;s schedule.
+                            {upcomingMatches.length > 0 && (
+                              <button
+                                type="button"
+                                className="block mx-auto mt-3 text-primary font-semibold hover:underline"
+                                onClick={() => setScheduleView("upcoming")}
+                              >
+                                View upcoming fixtures →
+                              </button>
+                            )}
+                          </p>
+                          {todayCollapsedResults.length > 0 && (
+                            <RecentResultsBlock
+                              results={todayCollapsedResults}
+                              teams={teams}
+                              timeZone={timeZone}
+                              title="Recent results"
+                              limit={8}
+                              defaultCollapsed
+                            />
                           )}
-                        </p>
+                        </>
                       ) : (
                         <>
                           {liveMatches.length > 0 && (
@@ -741,6 +789,16 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                                 <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
                               ))}
                             </div>
+                          )}
+                          {todayCollapsedResults.length > 0 && (
+                            <RecentResultsBlock
+                              results={todayCollapsedResults}
+                              teams={teams}
+                              timeZone={timeZone}
+                              title="Recent results"
+                              limit={8}
+                              defaultCollapsed
+                            />
                           )}
                         </>
                       )}
