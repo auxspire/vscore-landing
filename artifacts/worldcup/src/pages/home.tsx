@@ -160,7 +160,7 @@ export default function Home() {
         <div className="animate-in fade-in duration-300">
           <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4 text-primary shrink-0" />
-            <span>Matches shown in your local timezone · schedule refreshed from API every 5 minutes</span>
+            <span>Matches in your timezone · fixtures, tables &amp; scorers live from API</span>
           </div>
           <WorldCupFixturesStandingsPanel variant="full" />
         </div>

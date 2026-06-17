@@ -44,31 +44,84 @@ export interface FootballTeam {
 
 const STALE = 60 * 1000;
 const SYNC_POLL = 60 * 1000;
-const FIXTURES_STALE = 2 * 60 * 1000;
-const FIXTURES_REFETCH = 5 * 60 * 1000;
+const LIVE_STALE = 2 * 60 * 1000;
+const LIVE_REFETCH = 5 * 60 * 1000;
+
+export interface FootballLiveData {
+  fixtures: FootballFixture[];
+  standings: FootballStanding[];
+  teams: FootballTeam[];
+  fetchedAt: string | null;
+  source: "api" | "supabase";
+}
 
 const FIXTURE_COLUMNS =
   "api_fixture_id, kickoff_at, home_team_id, home_team_name, away_team_id, away_team_name, home_goals, away_goals, home_scorers, away_scorers, group_name, match_type, time_elapsed, is_finished";
 
-async function fetchFixturesFromSupabase(): Promise<FootballFixture[]> {
+async function fetchLiveFromSupabase(): Promise<FootballLiveData> {
   const sb = getSupabaseBrowserClient();
-  if (!sb) return [];
-  const { data, error } = await sb
-    .from("football_fixtures")
-    .select(FIXTURE_COLUMNS)
-    .eq("competition_key", "worldcup")
-    .order("kickoff_at", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as FootballFixture[];
+  if (!sb) {
+    return { fixtures: [], standings: [], teams: [], fetchedAt: null, source: "supabase" };
+  }
+
+  const [fixturesRes, standingsRes, teamsRes] = await Promise.all([
+    sb
+      .from("football_fixtures")
+      .select(FIXTURE_COLUMNS)
+      .eq("competition_key", "worldcup")
+      .order("kickoff_at", { ascending: true }),
+    sb
+      .from("football_standings")
+      .select("*")
+      .eq("competition_key", "worldcup")
+      .order("group_name")
+      .order("rank"),
+    sb
+      .from("football_teams")
+      .select("api_team_id, name_en, fifa_code, group_name, flag_url")
+      .eq("competition_key", "worldcup")
+      .order("name_en"),
+  ]);
+
+  if (fixturesRes.error) throw fixturesRes.error;
+  if (standingsRes.error) throw standingsRes.error;
+  if (teamsRes.error) throw teamsRes.error;
+
+  return {
+    fixtures: (fixturesRes.data ?? []) as FootballFixture[],
+    standings: (standingsRes.data ?? []) as FootballStanding[],
+    teams: (teamsRes.data ?? []) as FootballTeam[],
+    fetchedAt: null,
+    source: "supabase",
+  };
 }
 
-async function fetchFixturesFromApi(): Promise<FootballFixture[]> {
-  const res = await fetch("/api/football/fixtures");
+async function fetchLiveFromApi(): Promise<FootballLiveData> {
+  const res = await fetch("/api/football/live");
   if (!res.ok) {
-    throw new Error(`Fixtures API ${res.status}`);
+    throw new Error(`Football live API ${res.status}`);
   }
-  const body = (await res.json()) as { fixtures?: FootballFixture[] };
-  return body.fixtures ?? [];
+  const body = (await res.json()) as {
+    fixtures?: FootballFixture[];
+    standings?: FootballStanding[];
+    teams?: FootballTeam[];
+    fetchedAt?: string;
+  };
+  return {
+    fixtures: body.fixtures ?? [],
+    standings: body.standings ?? [],
+    teams: body.teams ?? [],
+    fetchedAt: body.fetchedAt ?? new Date().toISOString(),
+    source: "api",
+  };
+}
+
+async function fetchFootballLive(): Promise<FootballLiveData> {
+  try {
+    return await fetchLiveFromApi();
+  } catch {
+    return fetchLiveFromSupabase();
+  }
 }
 
 function sbQuery<T>(
@@ -123,50 +176,39 @@ export function useFootballSyncState() {
   return { ...q, data: latest ?? null };
 }
 
-export function useFootballFixtures() {
+export function useFootballLive() {
   return useQuery({
-    queryKey: ["football-fixtures"],
-    queryFn: async () => {
-      try {
-        return await fetchFixturesFromApi();
-      } catch {
-        return fetchFixturesFromSupabase();
-      }
-    },
-    staleTime: FIXTURES_STALE,
-    refetchInterval: FIXTURES_REFETCH,
+    queryKey: ["football-live"],
+    queryFn: fetchFootballLive,
+    staleTime: LIVE_STALE,
+    refetchInterval: LIVE_REFETCH,
     refetchOnWindowFocus: true,
     retry: 1,
   });
 }
 
+export function useFootballFixtures() {
+  const query = useFootballLive();
+  return {
+    ...query,
+    data: query.data?.fixtures ?? [],
+  };
+}
+
 export function useFootballStandings() {
-  return sbQuery(["football-standings"], async () => {
-    const sb = getSupabaseBrowserClient();
-    if (!sb) return [] as FootballStanding[];
-    const { data, error } = await sb
-      .from("football_standings")
-      .select("*")
-      .eq("competition_key", "worldcup")
-      .order("group_name")
-      .order("rank");
-    if (error) throw error;
-    return (data ?? []) as FootballStanding[];
-  });
+  const query = useFootballLive();
+  return {
+    ...query,
+    data: query.data?.standings ?? [],
+  };
 }
 
 export function useFootballTeams() {
-  return sbQuery(["football-teams"], async () => {
-    const sb = getSupabaseBrowserClient();
-    if (!sb) return [] as FootballTeam[];
-    const { data, error } = await sb
-      .from("football_teams")
-      .select("api_team_id, name_en, fifa_code, group_name, flag_url")
-      .eq("competition_key", "worldcup")
-      .order("name_en");
-    if (error) throw error;
-    return (data ?? []) as FootballTeam[];
-  });
+  const query = useFootballLive();
+  return {
+    ...query,
+    data: query.data?.teams ?? [],
+  };
 }
 
 export function isToday(iso: string | null, timeZone?: string): boolean {

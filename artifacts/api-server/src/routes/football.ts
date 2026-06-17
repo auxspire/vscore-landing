@@ -1,9 +1,20 @@
 import { Router } from "express";
-import { fetchLatestFixtures } from "../services/football-fixtures";
+import { fetchLatestFixtures, fetchLatestFootballLive } from "../services/football-live";
 
 const router = Router();
 
-/** Live fixtures from worldcup26.ir — fresher than Supabase cron cache. */
+/** Fixtures, standings, and teams from worldcup26.ir in one request. */
+router.get("/football/live", async (_req, res) => {
+  try {
+    const payload = await fetchLatestFootballLive();
+    res.json(payload);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch live football data";
+    res.status(502).json({ error: message });
+  }
+});
+
+/** Fixtures only — backward compatible. */
 router.get("/football/fixtures", async (_req, res) => {
   try {
     const fixtures = await fetchLatestFixtures();

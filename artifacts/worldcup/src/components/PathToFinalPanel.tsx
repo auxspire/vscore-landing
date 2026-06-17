@@ -83,12 +83,12 @@ export function PathToFinalPanel() {
           </h3>
           <BracketExplorerPanel teamId={pathTeam} onTeamChange={setPathTeam} />
         </section>
-        <section className="min-w-0 space-y-3">
-          <h3 className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground px-1">
-            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
-            Power Rankings
-          </h3>
-          <PowerRankingsPanel onTeamSelect={openBracketForTeam} />
+        <section className="min-w-0">
+          <PowerRankingsPanel
+            key={`rankings-${pathSection}`}
+            onTeamSelect={openBracketForTeam}
+            defaultCollapsed={pathSection !== "rankings"}
+          />
         </section>
       </div>
 
@@ -97,7 +97,10 @@ export function PathToFinalPanel() {
         {pathSection === "bracket" ? (
           <BracketExplorerPanel teamId={pathTeam} onTeamChange={setPathTeam} />
         ) : (
-          <PowerRankingsPanel onTeamSelect={openBracketForTeam} />
+          <PowerRankingsPanel
+            onTeamSelect={openBracketForTeam}
+            defaultCollapsed={false}
+          />
         )}
       </div>
     </div>

@@ -29,35 +29,45 @@ function statusClass(status: string) {
 interface SyncStatusFooterProps {
   jobs: FootballSyncJobState[];
   isLoading?: boolean;
+  liveFetchedAt?: string | null;
+  liveSource?: "api" | "supabase";
 }
 
-export function SyncStatusFooter({ jobs, isLoading }: SyncStatusFooterProps) {
+export function SyncStatusFooter({
+  jobs,
+  isLoading,
+  liveFetchedAt,
+  liveSource = "supabase",
+}: SyncStatusFooterProps) {
   const totalCalls = jobs.reduce((s, j) => s + (j.calls_used_today ?? 0), 0);
   const latest = jobs.length
     ? [...jobs].sort((a, b) => (b.last_synced_at ?? "").localeCompare(a.last_synced_at ?? ""))[0]
     : null;
   const hasError = jobs.some((j) => j.status === "error");
+  const usingLiveApi = liveSource === "api" && liveFetchedAt;
 
   return (
     <footer className="border-t border-border/50 bg-secondary/10 px-4 py-3 space-y-3 text-xs text-muted-foreground">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <span className="flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 shrink-0" />
-          {isLoading ? (
+          {usingLiveApi ? (
+            <>Live data · updated {formatSyncTime(liveFetchedAt)}</>
+          ) : isLoading ? (
             "Loading sync status…"
           ) : latest?.last_synced_at ? (
-            <>Last sync {formatSyncTime(latest.last_synced_at)}</>
+            <>Cached · last sync {formatSyncTime(latest.last_synced_at)}</>
           ) : (
-            "Not synced yet"
+            "Waiting for live data…"
           )}
         </span>
         <span className="flex items-center gap-1.5">
           <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-          Auto-sync every 15 minutes
+          {usingLiveApi ? "Auto-refresh every 5 minutes" : "Auto-sync every 15 minutes"}
         </span>
       </div>
 
-      {!isLoading && jobs.length > 0 && (
+      {!usingLiveApi && !isLoading && jobs.length > 0 && (
         <div className="grid gap-1.5 sm:grid-cols-3">
           {jobs.map((job) => (
             <div
@@ -91,8 +101,9 @@ export function SyncStatusFooter({ jobs, isLoading }: SyncStatusFooterProps) {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5">
         <span className="font-mono text-[10px]">
-          {totalCalls > 0 && `${totalCalls} API call${totalCalls === 1 ? "" : "s"} today`}
-          {hasError && " · check failed jobs above"}
+          {usingLiveApi && "Source: worldcup26.ir live API"}
+          {!usingLiveApi && totalCalls > 0 && `${totalCalls} API call${totalCalls === 1 ? "" : "s"} today`}
+          {!usingLiveApi && hasError && " · check failed jobs above"}
         </span>
         <a
           href="https://worldcup26.ir"

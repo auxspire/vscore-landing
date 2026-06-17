@@ -25,10 +25,8 @@ import {
 } from "@/lib/match-datetime";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
-  useFootballFixtures,
-  useFootballStandings,
+  useFootballLive,
   useFootballSyncJobs,
-  useFootballTeams,
   isTodayOrTomorrow,
   aggregateTopScorers,
   type FootballFixture,
@@ -449,9 +447,21 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
   const configured = isSupabaseConfigured();
   const { data: syncJobs = [], isLoading: syncLoading } = useFootballSyncJobs();
-  const { data: fixtures = [], isLoading: fixturesLoading, isError: fixturesError } = useFootballFixtures();
-  const { data: standings = [], isLoading: standingsLoading } = useFootballStandings();
-  const { data: teams = [] } = useFootballTeams();
+  const {
+    data: liveData,
+    isLoading: liveLoading,
+    isError: liveError,
+    isFetching: liveFetching,
+  } = useFootballLive();
+
+  const fixtures = liveData?.fixtures ?? [];
+  const standings = liveData?.standings ?? [];
+  const teams = liveData?.teams ?? [];
+  const liveFetchedAt = liveData?.fetchedAt ?? null;
+  const liveSource = liveData?.source ?? "supabase";
+
+  const hasLiveContent = fixtures.length > 0 || standings.length > 0 || teams.length > 0;
+  const canShowSchedule = hasLiveContent || liveLoading || configured;
 
   const timeZone = useMemo(() => getVisitorTimezone(), []);
   const tzLabel = useMemo(() => getTimezoneLabel(timeZone), [timeZone]);
@@ -537,7 +547,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     [teams],
   );
 
-  const loading = syncLoading || fixturesLoading || standingsLoading;
+  const loading = liveLoading;
 
   /** Finished matches for Today view — exclude those still listed in the upcoming window */
   const todayCollapsedResults = useMemo(() => {
@@ -575,20 +585,20 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
         <Card className="bg-card border-border shadow-lg overflow-hidden">
           <CardContent className="p-0">
-            {!configured && (
+            {!canShowSchedule && (
               <p className="text-sm text-muted-foreground p-6 text-center">
-                Live data unavailable — Supabase is not configured for this build.
+                Live data unavailable — could not reach worldcup26 API.
               </p>
             )}
 
-            {configured && loading && (
+            {canShowSchedule && loading && (
               <div className="p-6 space-y-3">
                 <Skeleton className="h-16 w-full bg-secondary/50" />
                 <Skeleton className="h-16 w-full bg-secondary/50" />
               </div>
             )}
 
-            {configured && !loading && !fixturesError && (
+            {canShowSchedule && !loading && hasLiveContent && (
               <>
                 {preview.length === 0 ? (
                   <p className="text-sm text-muted-foreground p-6 text-center">No fixtures synced yet.</p>
@@ -642,19 +652,24 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               Kickoff times in <span className="font-mono text-foreground/90">{tzLabel}</span>
-              <span className="hidden sm:inline text-muted-foreground/80"> · refreshed from API every 5 min</span>
+              <span className="hidden sm:inline text-muted-foreground/80">
+                {liveSource === "api"
+                  ? " · live from worldcup26.ir"
+                  : " · cached copy"}
+                {liveFetching && !liveLoading ? " · updating…" : ""}
+              </span>
             </p>
           </div>
         </CardHeader>
 
         <CardContent className="p-0">
-          {!configured && (
+          {!canShowSchedule && (
             <p className="text-sm text-muted-foreground p-6 text-center">
-              Live data unavailable — Supabase is not configured for this build.
+              Live data unavailable — could not reach worldcup26 API.
             </p>
           )}
 
-          {configured && loading && (
+          {canShowSchedule && loading && (
             <div className="p-6 space-y-3">
               <Skeleton className="h-12 w-full bg-secondary/50" />
               <Skeleton className="h-24 w-full bg-secondary/50" />
@@ -662,13 +677,13 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
             </div>
           )}
 
-          {configured && !loading && fixturesError && (
+          {canShowSchedule && !loading && liveError && !hasLiveContent && (
             <p className="text-sm text-muted-foreground p-6 text-center">
-              Could not load synced data. Try again later.
+              Could not load live data. Try again shortly.
             </p>
           )}
 
-          {configured && !loading && !fixturesError && (
+          {canShowSchedule && !loading && hasLiveContent && (
             <>
               {/* Primary: Matches | Tables | Scorers */}
               <div className="px-4 pt-4 pb-2 border-b border-border/30">
@@ -955,7 +970,12 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
             </>
           )}
 
-          <SyncStatusFooter jobs={syncJobs} isLoading={syncLoading} />
+          <SyncStatusFooter
+            jobs={syncJobs}
+            isLoading={syncLoading}
+            liveFetchedAt={liveFetchedAt}
+            liveSource={liveSource}
+          />
         </CardContent>
       </Card>
     </section>
