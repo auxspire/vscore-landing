@@ -12,7 +12,6 @@ import {
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
 import { FootballTeamSelect } from "@/components/FootballTeamSelect";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn, getFlagEmoji } from "@/lib/utils";
@@ -397,12 +396,15 @@ function StandingsTableView({
 
 type PanelVariant = "full" | "teaser";
 
+type ScheduleView = "today" | "upcoming" | "results" | "team";
+type DataSection = "matches" | "tables" | "scorers";
+
 export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?: PanelVariant }) {
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [activeGroup, setActiveGroup] = useState("A");
   const [standingsView, setStandingsView] = useState<"grid" | "table">("grid");
-  const [primaryTab, setPrimaryTab] = useState<"fixtures" | "standings">("fixtures");
-  const [fixtureSubTab, setFixtureSubTab] = useState<string | null>(null);
+  const [dataSection, setDataSection] = useState<DataSection>("matches");
+  const [scheduleView, setScheduleView] = useState<ScheduleView>("today");
 
   const configured = isSupabaseConfigured();
   const { data: syncJobs = [], isLoading: syncLoading } = useFootballSyncJobs();
@@ -497,15 +499,11 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   );
 
   const loading = syncLoading || fixturesLoading || standingsLoading;
-  const defaultFixtureTab =
-    liveMatches.length > 0 || todayMatches.length > 0
-      ? "today"
-      : upcomingMatches.length > 0
-        ? "upcoming"
-        : recentResults.length > 0
-          ? "results"
-          : "upcoming";
-  const activeFixtureSubTab = fixtureSubTab ?? defaultFixtureTab;
+
+  const todayUpcoming = useMemo(
+    () => todayMatches.filter((f) => !f.is_finished && !isLive(f.time_elapsed)),
+    [todayMatches],
+  );
 
   if (variant === "teaser") {
     const preview =
@@ -600,19 +598,13 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   }
 
   return (
-    <section id="fixtures-standings" className="scroll-mt-24">
+    <section id="fixtures-standings" className="scroll-mt-32">
       <Card className="bg-card border-border shadow-lg overflow-hidden">
-        <CardHeader className="py-5 px-4 md:px-6 border-b border-border/50 bg-secondary/20">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight">Fixtures &amp; Standings</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Official World Cup 2026 schedule, live scores, and group tables
-                <span className="block text-xs mt-1 font-mono text-muted-foreground/80">
-                  Kickoff times in {tzLabel}
-                </span>
-              </p>
-            </div>
+        <CardHeader className="py-4 px-4 md:px-6 border-b border-border/50 bg-secondary/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Kickoff times in <span className="font-mono text-foreground/90">{tzLabel}</span>
+            </p>
             {liveMatches.length > 0 && (
               <span className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/25">
                 <Radio className="w-3 h-3 animate-pulse" />
@@ -644,237 +636,288 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
           )}
 
           {configured && !loading && !fixturesError && (
-            <Tabs
-              value={primaryTab}
-              onValueChange={(v) => setPrimaryTab(v as "fixtures" | "standings")}
-              className="w-full"
-            >
+            <>
+              {/* Primary: Matches | Tables | Scorers */}
               <div className="px-4 pt-4 pb-2 border-b border-border/30">
-                <TabsList className="w-full max-w-md grid grid-cols-2 bg-secondary/40">
-                  <TabsTrigger value="fixtures" className="gap-2 font-semibold">
-                    <Calendar className="w-4 h-4" /> Fixtures
-                  </TabsTrigger>
-                  <TabsTrigger value="standings" className="gap-2 font-semibold">
-                    <Trophy className="w-4 h-4" /> Standings
-                  </TabsTrigger>
-                </TabsList>
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-secondary/40 max-w-lg">
+                  {(
+                    [
+                      { id: "matches" as const, label: "Matches", icon: Calendar },
+                      { id: "tables" as const, label: "Tables", icon: Trophy },
+                      { id: "scorers" as const, label: "Scorers", icon: Clock },
+                    ] as const
+                  ).map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setDataSection(id)}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors",
+                        dataSection === id
+                          ? "bg-background text-primary shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">{label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <TabsContent value="fixtures" className="mt-0">
-                {recentResultsPreview.length > 0 && activeFixtureSubTab !== "results" && (
-                  <RecentResultsBlock
-                    results={recentResultsPreview}
-                    teams={teams}
-                    timeZone={timeZone}
-                    limit={4}
-                  />
-                )}
-                <Tabs
-                  value={activeFixtureSubTab}
-                  onValueChange={setFixtureSubTab}
-                  className="w-full"
-                >
-                  <div className="px-4 pt-3 overflow-x-auto">
-                    <TabsList className="w-max bg-secondary/25">
-                      <TabsTrigger value="today">Today</TabsTrigger>
-                      <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                      <TabsTrigger value="results">Results</TabsTrigger>
-                      <TabsTrigger value="team">By team</TabsTrigger>
-                      <TabsTrigger value="scorers">Scorers</TabsTrigger>
-                    </TabsList>
+              {/* ── Matches ── */}
+              {dataSection === "matches" && (
+                <div>
+                  <div className="px-4 pt-3 pb-2 border-b border-border/20 overflow-x-auto">
+                    <div className="flex gap-1 w-max min-w-full sm:min-w-0">
+                      {(
+                        [
+                          { id: "today" as const, label: "Today" },
+                          { id: "upcoming" as const, label: "Upcoming" },
+                          { id: "results" as const, label: "Results" },
+                          { id: "team" as const, label: "By team" },
+                        ] as const
+                      ).map(({ id, label }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setScheduleView(id)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors",
+                            scheduleView === id
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-secondary/60",
+                          )}
+                        >
+                          {label}
+                          {id === "today" && liveMatches.length > 0 && (
+                            <span className="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-primary-foreground animate-pulse" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <TabsContent value="today" className="mt-0">
-                    {todayMatches.length === 0 && liveMatches.length === 0 ? (
-                      <p className="text-sm text-muted-foreground p-8 text-center">
-                        No matches scheduled for today.
-                      </p>
-                    ) : (
-                      <div>
-                        {[...liveMatches, ...todayMatches.filter((f) => !isLive(f.time_elapsed))].map((f) => (
-                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="upcoming" className="mt-0">
-                    {upcomingMatches.length === 0 ? (
-                      <p className="text-sm text-muted-foreground p-8 text-center">No upcoming fixtures synced.</p>
-                    ) : (
-                      <div>
-                        {upcomingMatches.map((f) => (
-                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="results" className="mt-0">
-                    {recentResults.length === 0 ? (
-                      <p className="text-sm text-muted-foreground p-8 text-center">
-                        No finished matches yet.
-                      </p>
-                    ) : (
-                      <div>
-                        {recentResults.slice(0, 20).map((f) => (
-                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="team" className="p-4 space-y-5">
+                  {scheduleView === "today" && (
                     <div>
-                      <label className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
-                        Filter by team
-                      </label>
-                      <FootballTeamSelect
-                        teams={teams}
-                        value={teamFilter}
-                        onChange={setTeamFilter}
-                      />
+                      {liveMatches.length === 0 && todayUpcoming.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-8 text-center">
+                          No matches on today&apos;s schedule.
+                          {upcomingMatches.length > 0 && (
+                            <button
+                              type="button"
+                              className="block mx-auto mt-3 text-primary font-semibold hover:underline"
+                              onClick={() => setScheduleView("upcoming")}
+                            >
+                              View upcoming fixtures →
+                            </button>
+                          )}
+                        </p>
+                      ) : (
+                        <>
+                          {liveMatches.length > 0 && (
+                            <div>
+                              <div className="px-4 py-2 bg-primary/5 border-b border-primary/15 flex items-center gap-2">
+                                <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
+                                <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary">
+                                  Live now
+                                </span>
+                              </div>
+                              {liveMatches.map((f) => (
+                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                              ))}
+                            </div>
+                          )}
+                          {todayUpcoming.length > 0 && (
+                            <div>
+                              {liveMatches.length > 0 && (
+                                <div className="px-4 py-2 bg-secondary/20 border-b border-border/20">
+                                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                                    Later today
+                                  </span>
+                                </div>
+                              )}
+                              {todayUpcoming.map((f) => (
+                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                    {!teamFilter && (
-                      <p className="text-sm text-muted-foreground">
-                        Choose a team to see their upcoming fixtures and recent results.
-                      </p>
-                    )}
-                    {teamFilter && (
-                      <>
-                        {recentForTeam.length > 0 && (
-                          <div>
-                            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                              Recent results
-                            </h4>
-                            <div className="rounded-xl border border-border overflow-hidden">
-                              {recentForTeam.map((f) => (
-                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <div>
-                          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                            Upcoming
-                          </h4>
-                          {upcomingForTeam.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No upcoming fixtures for this team.</p>
-                          ) : (
-                            <div className="rounded-xl border border-border overflow-hidden">
-                              {upcomingForTeam.map((f) => (
-                                <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </TabsContent>
+                  )}
 
-                  <TabsContent value="scorers" className="p-4">
-                    {topScorers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        Scorer data appears after matches finish.
-                      </p>
-                    ) : (
-                      <TopScorersList scorers={topScorers} teams={teams} />
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </TabsContent>
+                  {scheduleView === "upcoming" && (
+                    <div>
+                      {upcomingMatches.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-8 text-center">No upcoming fixtures synced.</p>
+                      ) : (
+                        upcomingMatches.map((f) => (
+                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                        ))
+                      )}
+                    </div>
+                  )}
 
-              <TabsContent value="standings" className="mt-0 pb-2">
-                {recentResultsPreview.length > 0 && (
-                  <RecentResultsBlock
-                    results={recentResultsPreview}
-                    teams={teams}
-                    timeZone={timeZone}
-                    title="Latest results"
-                    limit={3}
-                  />
-                )}
-                {standings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-8 text-center">No standings available yet.</p>
-                ) : (
-                  <>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-b border-border/30 bg-secondary/10">
-                      <p className="text-xs text-muted-foreground max-w-xl">
-                        Top{" "}
-                        <span className="text-primary font-semibold">{QUALIFYING_SPOTS} teams</span> per group advance
-                        to the round of 32. Points (Pts) and goal difference (GD) decide the table.
-                      </p>
-                      <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50 border border-border/50 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setStandingsView("grid")}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors",
-                            standingsView === "grid"
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          <LayoutGrid className="w-3.5 h-3.5" /> All groups
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStandingsView("table")}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors",
-                            standingsView === "table"
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          <List className="w-3.5 h-3.5" /> Detail
-                        </button>
+                  {scheduleView === "results" && (
+                    <div>
+                      {recentResults.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-8 text-center">No finished matches yet.</p>
+                      ) : (
+                        recentResults.slice(0, 30).map((f) => (
+                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {scheduleView === "team" && (
+                    <div className="p-4 space-y-5">
+                      <div>
+                        <label className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
+                          Filter by team
+                        </label>
+                        <FootballTeamSelect teams={teams} value={teamFilter} onChange={setTeamFilter} />
                       </div>
+                      {!teamFilter && (
+                        <p className="text-sm text-muted-foreground">
+                          Choose a team to see their upcoming fixtures and recent results.
+                        </p>
+                      )}
+                      {teamFilter && (
+                        <>
+                          {upcomingForTeam.length > 0 && (
+                            <div>
+                              <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                                Upcoming
+                              </h4>
+                              <div className="rounded-xl border border-border overflow-hidden">
+                                {upcomingForTeam.map((f) => (
+                                  <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {recentForTeam.length > 0 && (
+                            <div>
+                              <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                                Recent results
+                              </h4>
+                              <div className="rounded-xl border border-border overflow-hidden">
+                                {recentForTeam.map((f) => (
+                                  <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {upcomingForTeam.length === 0 && recentForTeam.length === 0 && (
+                            <p className="text-sm text-muted-foreground">No fixtures found for this team.</p>
+                          )}
+                        </>
+                      )}
                     </div>
+                  )}
+                </div>
+              )}
 
-                    {standingsView === "grid" ? (
-                      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {groupsWithStandings.map((g) => (
-                          <GroupStandingsCard
-                            key={g}
-                            group={g}
+              {/* ── Group tables ── */}
+              {dataSection === "tables" && (
+                <div className="pb-2">
+                  {standings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-8 text-center">No standings available yet.</p>
+                  ) : (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-b border-border/30 bg-secondary/10">
+                        <p className="text-xs text-muted-foreground max-w-xl">
+                          Top{" "}
+                          <span className="text-primary font-semibold">{QUALIFYING_SPOTS} teams</span> per group advance
+                          to the round of 32.
+                        </p>
+                        <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50 border border-border/50 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setStandingsView("grid")}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors",
+                              standingsView === "grid"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            <LayoutGrid className="w-3.5 h-3.5" /> All groups
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStandingsView("table")}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors",
+                              standingsView === "table"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            <List className="w-3.5 h-3.5" /> Detail
+                          </button>
+                        </div>
+                      </div>
+
+                      {standingsView === "grid" ? (
+                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {groupsWithStandings.map((g) => (
+                            <GroupStandingsCard
+                              key={g}
+                              group={g}
+                              rows={standings}
+                              teamNameById={teamNameById}
+                              teams={teams}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-border/30">
+                            {groupsWithStandings.map((g) => (
+                              <button
+                                key={g}
+                                type="button"
+                                onClick={() => setActiveGroup(g)}
+                                className={cn(
+                                  "min-w-[2.25rem] px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors",
+                                  activeGroup === g
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "border-border text-muted-foreground hover:border-primary/50",
+                                )}
+                              >
+                                {g}
+                              </button>
+                            ))}
+                          </div>
+                          <StandingsTableView
+                            group={activeGroup}
                             rows={standings}
                             teamNameById={teamNameById}
                             teams={teams}
                           />
-                        ))}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-border/30">
-                          {groupsWithStandings.map((g) => (
-                            <button
-                              key={g}
-                              type="button"
-                              onClick={() => setActiveGroup(g)}
-                              className={cn(
-                                "min-w-[2.25rem] px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors",
-                                activeGroup === g
-                                  ? "bg-primary text-primary-foreground border-primary"
-                                  : "border-border text-muted-foreground hover:border-primary/50",
-                              )}
-                            >
-                              {g}
-                            </button>
-                          ))}
-                        </div>
-                        <StandingsTableView
-                          group={activeGroup}
-                          rows={standings}
-                          teamNameById={teamNameById}
-                          teams={teams}
-                        />
-                      </>
-                    )}
-                  </>
-                )}
-              </TabsContent>
-            </Tabs>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── Top scorers ── */}
+              {dataSection === "scorers" && (
+                <div className="p-4">
+                  {topScorers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Scorer data appears after matches finish.
+                    </p>
+                  ) : (
+                    <TopScorersList scorers={topScorers} teams={teams} />
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           <SyncStatusFooter jobs={syncJobs} isLoading={syncLoading} />

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import { useLocation, useSearch, Link } from "wouter"
 import { useGetTeams, useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
-import { Navbar } from "@/components/Navbar"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { getFlagEmoji, cn } from "@/lib/utils"
@@ -13,6 +12,7 @@ import { simulationCount } from "@/lib/simulation-config"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { ArrowLeft, Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap, Lock, X } from "lucide-react"
+import { WorldCupLayout } from "@/components/WorldCupLayout"
 
 // ─── Extended types for enriched API response ─────────────────────────────────
 
@@ -697,28 +697,24 @@ export default function Bracket() {
   })()
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col">
-      <Navbar />
-      <div className="flex-1 pt-6 pb-24 px-4 md:px-8 max-w-4xl mx-auto w-full relative z-10">
-
-      {/* Header */}
-      <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <WorldCupLayout activeTab="path" wide>
+      <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-wider text-primary bg-primary/10 border border-primary/20">
-            <GitBranch className="w-3 h-3" /> PATH VISUALIZER
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">World Cup 2026 Bracket Predictor</h1>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md">
-            VScor path-to-final tool — visualize each nation&apos;s bracket route and matchup probabilities.
+          <p className="text-xs font-mono uppercase tracking-wider text-primary mb-1">Path to final</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Bracket explorer</h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">
+            Stage-by-stage route and win probability for any nation.
           </p>
         </div>
-        <div className="w-full md:w-80">
-          <label className="text-xs font-mono text-muted-foreground font-bold tracking-wider uppercase ml-1 block mb-2">Select Team</label>
+        <div className="w-full md:w-72 shrink-0">
+          <label className="text-xs font-mono text-muted-foreground font-bold tracking-wider uppercase ml-1 block mb-2">
+            Team
+          </label>
           <TeamCombobox
             teams={teams}
             value={teamId}
             onChange={handleTeamChange}
-            placeholder="Choose a team..."
+            placeholder="Choose a team…"
             disabled={isLoadingTeams}
           />
         </div>
@@ -727,12 +723,15 @@ export default function Bracket() {
       <LiveMetricsToggle className="mb-6" />
 
       {!teamId ? (
-        <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border rounded-2xl bg-secondary/20">
-          <GitBranch className="w-16 h-16 text-muted-foreground mb-4 opacity-30" />
-          <h2 className="text-2xl font-bold mb-2">Select a team</h2>
-          <p className="text-muted-foreground max-w-sm text-sm">
-            Pick any of the 48 qualified nations to visualize their simulated path through the bracket — stage by stage, matchup by matchup.
+        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-2xl bg-secondary/20">
+          <GitBranch className="w-12 h-12 text-muted-foreground mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">Select a team above</h2>
+          <p className="text-muted-foreground max-w-sm text-sm mb-4">
+            Or pick a nation from the Path tab on the hub to start here.
           </p>
+          <Link href="/?tab=path" className="text-sm font-semibold text-primary hover:underline">
+            ← Back to team picker
+          </Link>
         </div>
       ) : isLoadingBracket ? (
         <LoadingSkeleton />
@@ -880,8 +879,6 @@ export default function Bracket() {
 
         </div>
       ) : null}
-
-      </div>
-    </div>
+    </WorldCupLayout>
   )
 }

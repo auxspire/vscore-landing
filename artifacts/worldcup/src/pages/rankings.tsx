@@ -3,7 +3,7 @@ import { Link } from "wouter"
 import { useGetTournamentRankings, getGetTournamentRankingsQueryKey } from "@workspace/api-client-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
-import { Navbar } from "@/components/Navbar"
+import { WorldCupLayout } from "@/components/WorldCupLayout"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
@@ -69,9 +69,7 @@ export default function Rankings() {
     : []
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col">
-      <Navbar />
-      <div className="flex-1 pt-8 pb-24 px-4 md:px-8 max-w-5xl mx-auto w-full">
+    <WorldCupLayout wide>
 
       {/* Page title */}
       <div className="mb-8">
@@ -203,7 +201,6 @@ export default function Rankings() {
           {data.simulationsRun.toLocaleString()} simulations · probabilities vary slightly on each load
         </p>
       )}
-      </div>
-    </div>
+    </WorldCupLayout>
   )
 }

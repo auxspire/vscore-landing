@@ -1,69 +1,14 @@
 import { useState } from "react"
-import { Link, useLocation, useSearch } from "wouter"
+import { Link, useLocation } from "wouter"
 import { cn } from "@/lib/utils"
 import { publicAsset } from "@/lib/assets"
-import { homeTabFromSearch, type HomeTab } from "@/hooks/useHomeTab"
-import { Menu, X, Swords, BarChart3, Calendar } from "lucide-react"
-
-type NavItem = {
-  href: string
-  label: string
-  icon: React.ReactNode
-  homeTab?: HomeTab
-  matchPrefix?: string
-}
+import { Menu, X, BarChart3 } from "lucide-react"
 
 export function Navbar() {
   const [location] = useLocation()
-  const search = useSearch()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const activeHomeTab = location === "/" ? homeTabFromSearch(search) : null
 
-  const navLinks: NavItem[] = [
-    {
-      href: "/",
-      label: "Predictor",
-      icon: <Swords className="w-3.5 h-3.5" />,
-      homeTab: "predictor",
-      matchPrefix: "/matchup",
-    },
-    {
-      href: "/?tab=path",
-      label: "Path to Final",
-      icon: (
-        <img
-          src={publicAsset("wc26-sticker-path.png")}
-          alt=""
-          className="h-4 w-4 object-contain"
-          width={16}
-          height={16}
-        />
-      ),
-      homeTab: "path",
-      matchPrefix: "/bracket",
-    },
-    {
-      href: "/?tab=fixtures",
-      label: "Fixtures",
-      icon: <Calendar className="w-3.5 h-3.5" />,
-      homeTab: "fixtures",
-    },
-    {
-      href: "/rankings",
-      label: "Rankings",
-      icon: <BarChart3 className="w-3.5 h-3.5" />,
-    },
-  ]
-
-  function isActive(item: NavItem): boolean {
-    if (item.matchPrefix && location.startsWith(item.matchPrefix)) return true
-    if (item.homeTab != null) {
-      if (location === "/" || location.startsWith("/?")) {
-        return activeHomeTab === item.homeTab
-      }
-    }
-    return location === item.href || location.startsWith(`${item.href}?`)
-  }
+  const isRankings = location.startsWith("/rankings")
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
@@ -78,22 +23,25 @@ export function Navbar() {
           />
         </Link>
 
-        <div className="hidden md:flex items-center gap-1">
-          {navLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
-                isActive(item)
-                  ? "text-primary bg-primary/10 border border-primary/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-              )}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
+        <div className="hidden md:flex items-center gap-2">
+          <Link
+            href="/rankings"
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
+              isRankings
+                ? "text-primary bg-primary/10 border border-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            Rankings
+          </Link>
+          <a
+            href="https://vscor.in"
+            className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground px-3 py-2"
+          >
+            vscor.in
+          </a>
         </div>
 
         <button
@@ -108,22 +56,23 @@ export function Navbar() {
 
       {mobileOpen && (
         <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-md px-[5%] py-3 space-y-1">
-          {navLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
-                isActive(item)
-                  ? "text-primary bg-primary/10 border border-primary/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-              )}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
+          <Link
+            href="/rankings"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider",
+              isRankings ? "text-primary bg-primary/10" : "text-muted-foreground",
+            )}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Rankings
+          </Link>
+          <a
+            href="https://vscor.in"
+            className="block px-3 py-2.5 text-sm font-bold uppercase tracking-wider text-muted-foreground"
+          >
+            Back to vscor.in
+          </a>
         </div>
       )}
     </nav>

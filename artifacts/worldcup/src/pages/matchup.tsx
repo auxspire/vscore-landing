@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { Navbar } from "@/components/Navbar"
+import { WorldCupLayout } from "@/components/WorldCupLayout"
 import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, matchupSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
@@ -14,7 +15,7 @@ import { buildMatchupShareMessage } from "@/lib/share-messages"
 import { simulationCount } from "@/lib/simulation-config"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
-import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
+import { RefreshCcw, Activity, GitBranch } from "lucide-react"
 
 export default function Matchup() {
   const [, setLocation] = useLocation()
@@ -93,18 +94,7 @@ export default function Matchup() {
     : null
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col">
-      <Navbar />
-      <div className="flex-1 pt-8 pb-24 px-4 md:px-8 max-w-6xl mx-auto w-full">
-      <Button 
-        variant="ghost" 
-        className="mb-8 pl-0 hover:bg-transparent text-muted-foreground hover:text-foreground group"
-        onClick={() => setLocation("/")}
-      >
-        <ArrowLeft className="mr-2 w-4 h-4 transition-transform group-hover:-translate-x-1" />
-        New Prediction
-      </Button>
-
+    <WorldCupLayout activeTab="predictor" wide>
       {isLoadingMatch ? (
         <LoadingAnimation message="Running simulations" />
       ) : matchResult ? (
@@ -236,13 +226,12 @@ export default function Matchup() {
               className="gap-2 font-bold tracking-wider uppercase bg-secondary/50 hover:bg-secondary border-border"
               onClick={() => setLocation("/")}
             >
-              <RefreshCcw className="w-4 h-4" /> Try Another Matchup
+              <RefreshCcw className="w-4 h-4" /> New prediction
             </Button>
           </div>
 
         </div>
       ) : null}
-      </div>
-    </div>
+    </WorldCupLayout>
   )
 }
