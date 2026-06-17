@@ -72,14 +72,36 @@ function resolveLockedOpponent(
     );
     if (fromSection) return fromSection;
   }
-  return (
-    lockStageNode.topOpponents.find((o) => o.team.id === lockedOpponentId) ??
-    (lockStageNode.opponentsByFinish
-      ? Object.values(lockStageNode.opponentsByFinish)
-          .flat()
-          .find((o): o is RichOpponent => o.team?.id === lockedOpponentId)
-      : undefined)
-  );
+  if (lockStageNode.opponentsByFinish) {
+    let best: RichOpponent | undefined;
+    for (const opps of Object.values(lockStageNode.opponentsByFinish)) {
+      const found = opps.find((o) => o.team.id === lockedOpponentId);
+      if (found && (!best || found.encounterProbability > best.encounterProbability)) {
+        best = found;
+      }
+    }
+    if (best) return best;
+  }
+  return lockStageNode.topOpponents.find((o) => o.team.id === lockedOpponentId);
+}
+
+/** Remove teams already faced on a locked path so they cannot reappear later. */
+function applyLockedPathChain(
+  stages: RichStageNode[],
+  lockIdx: number,
+  lockedOpponentId: string,
+): RichStageNode[] {
+  const eliminatedOnPath = new Set<string>([lockedOpponentId]);
+
+  return stages.map((stage, stageIdx) => {
+    if (stageIdx <= lockIdx) return stage;
+
+    const opps = stage.topOpponents.filter((o) => !eliminatedOnPath.has(o.team.id));
+    const topOpponents = opps.length > 0 ? opps : stage.topOpponents;
+    if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
+
+    return { ...stage, topOpponents };
+  });
 }
 function topKey(map: Record<string, number>): string | null {
   const entries = Object.entries(map)
@@ -649,8 +671,6 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
       ? (bracketData.path.find((s) => s.stage === lockedStage) as RichStageNode | undefined)
       : undefined;
     const lockOpp = resolveLockedOpponent(lockStageNode, lockedOpponentId, lockedFinishPos);
-    const eliminatedOnPath = new Set<string>();
-    if (lockedOpponentId) eliminatedOnPath.add(lockedOpponentId);
 
     const stages = bracketData.path.map((stage) => {
       const stageIdx = KNOCKOUT_STAGES.indexOf(stage.stage);
@@ -684,17 +704,9 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
       return { ...stage, isConditional: true };
     }) as RichStageNode[];
 
-    if (!lockedStage || lockIdx < 0) return stages;
+    if (!lockedStage || lockIdx < 0 || !lockedOpponentId) return stages;
 
-    return stages.map((stage, stageIdx) => {
-      if (stageIdx <= lockIdx) return stage;
-
-      const opps = stage.topOpponents.filter((o) => !eliminatedOnPath.has(o.team.id));
-      const topOpponents = opps.length > 0 ? opps : stage.topOpponents;
-      if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
-
-      return { ...stage, topOpponents };
-    });
+    return applyLockedPathChain(stages, lockIdx, lockedOpponentId);
   }, [bracketData?.path, lockedStage, lockedOpponentId, lockedFinishPos]);
 
   // Compute conditional win probability when lock is active

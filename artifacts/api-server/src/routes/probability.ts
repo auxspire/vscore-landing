@@ -175,6 +175,8 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
         opponentFinishCounts: Record<string, number>;
       },
     ) {
+      const eliminatedOnPath = new Set<string>();
+
       return KNOCKOUT_STAGES.filter((s) => KNOCKOUT_STAGES.indexOf(s) > KNOCKOUT_STAGES.indexOf(fromStage))
         .map((nextStage) => {
           const cp = conditionalSource[nextStage];
@@ -182,6 +184,7 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
 
           const cpOpponents = Object.values(cp.opponents)
             .filter((co) => {
+              if (eliminatedOnPath.has(co.team.id)) return false;
               if (!scenario) return true;
               return canTeamFaceGroupAtStage(
                 scenario.teamGroup,
@@ -199,6 +202,10 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
             }));
 
           if (cpOpponents.length === 0) return null;
+
+          if (cpOpponents[0]?.team?.id) {
+            eliminatedOnPath.add(cpOpponents[0].team.id);
+          }
 
           return {
             stage: nextStage,
