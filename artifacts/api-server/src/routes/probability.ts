@@ -6,9 +6,10 @@ import {
   simulateAllTeamsRankings,
   type StageProbability,
 } from "../services/simulator";
-import { simulateBracketExplorer, type BracketOpponentData } from "../services/bracketExplorer";
+import { simulateBracketExplorer, type BracketOpponentData, type BracketStageData } from "../services/bracketExplorer";
 import {
   canGroupFinishesMeetAtStage,
+  canTeamFaceGroupAtStage,
   topFinishKey,
   type GroupFinish,
   type KnockoutStage,
@@ -146,6 +147,23 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
       );
     }
 
+    function teamFinishForOpponent(
+      sd: BracketStageData,
+      o: BracketOpponentData,
+    ): GroupFinish | null {
+      return topFinishKey(o.encountersByTeamFinish) ?? topFinishKey(sd.teamGroupFinish);
+    }
+
+    function conditionalSourceForOpponent(
+      o: BracketOpponentData,
+      teamFinish: GroupFinish | null,
+    ): BracketOpponentData["conditionalPath"] {
+      if (teamFinish && o.conditionalPathByTeamFinish[teamFinish]) {
+        return o.conditionalPathByTeamFinish[teamFinish];
+      }
+      return o.conditionalPath;
+    }
+
     function buildConditionalPathResponse(
       fromStage: string,
       o: BracketOpponentData,
@@ -165,15 +183,10 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
           const cpOpponents = Object.values(cp.opponents)
             .filter((co) => {
               if (!scenario) return true;
-              const oppFinish =
-                topFinishKey(scenario.opponentFinishCounts) ??
-                topFinishKey(o.opponentGroupFinishByTeamFinish[scenario.teamFinish] ?? o.opponentGroupFinish);
-              if (!oppFinish) return true;
-              return canGroupFinishesMeetAtStage(
+              return canTeamFaceGroupAtStage(
                 scenario.teamGroup,
                 scenario.teamFinish,
                 co.team.group,
-                oppFinish,
                 nextStage as KnockoutStage,
               );
             })
@@ -223,20 +236,24 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
           const encounterProb = sd.reachCount > 0 ? o.encounterCount / sd.reachCount : 0;
           const winProb       = o.encounterCount > 0 ? o.winsIfFacing / o.encounterCount : 0;
 
+          const teamFinishForO = teamFinishForOpponent(sd, o);
+          const winsDenominator = teamFinishForO
+            ? (o.winsIfFacingByTeamFinish[teamFinishForO] ?? o.winsIfFacing)
+            : o.winsIfFacing;
+
           const conditionalPath = buildConditionalPathResponse(
             stage,
             o,
-            o.winsIfFacing,
-            o.conditionalPath,
-            (() => {
-              const likelyFinish = topFinishKey(sd.teamGroupFinish);
-              if (!likelyFinish) return undefined;
-              return {
-                teamGroup: team.group,
-                teamFinish: likelyFinish,
-                opponentFinishCounts: o.opponentGroupFinish,
-              };
-            })(),
+            winsDenominator,
+            conditionalSourceForOpponent(o, teamFinishForO),
+            teamFinishForO
+              ? {
+                  teamGroup: team.group,
+                  teamFinish: teamFinishForO,
+                  opponentFinishCounts:
+                    o.opponentGroupFinishByTeamFinish[teamFinishForO] ?? o.opponentGroupFinish,
+                }
+              : undefined,
           );
 
           return {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
@@ -522,7 +522,7 @@ function StageCard({
                         return (
                           <button
                             key={opp.team.id}
-                            onClick={() => onLockOpponent(isSelected ? null : opp.team.id)}
+                            onClick={() => onLockOpponent(isSelected ? null : opp.team.id, isSelected ? null : topKey(stage.teamGroupFinish))}
                             className={cn(
                               "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors border text-left",
                               isSelected
@@ -641,45 +641,61 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
   }) | undefined
 
   // Build display stages: inject conditional data for stages after the locked one
-  const displayStages: RichStageNode[] = (bracketData?.path
-    ? bracketData.path.map(stage => {
-        const stageIdx  = KNOCKOUT_STAGES.indexOf(stage.stage)
-        const lockIdx   = lockedStage ? KNOCKOUT_STAGES.indexOf(lockedStage) : -1
+  const displayStages: RichStageNode[] = useMemo(() => {
+    if (!bracketData?.path) return [];
 
-        if (!lockedStage || stageIdx < lockIdx) {
-          // Normal, before the lock
-          return stage
-        }
+    const lockIdx = lockedStage ? KNOCKOUT_STAGES.indexOf(lockedStage) : -1;
+    const lockStageNode = lockedStage
+      ? (bracketData.path.find((s) => s.stage === lockedStage) as RichStageNode | undefined)
+      : undefined;
+    const lockOpp = resolveLockedOpponent(lockStageNode, lockedOpponentId, lockedFinishPos);
+    const eliminatedOnPath = new Set<string>();
+    if (lockedOpponentId) eliminatedOnPath.add(lockedOpponentId);
 
-        if (stageIdx === lockIdx) {
-          // This is the locked stage — reorder opponents so locked one is "primary"
-          const locked  = stage.topOpponents.find(o => o.team.id === lockedOpponentId)
-          const others  = stage.topOpponents.filter(o => o.team.id !== lockedOpponentId)
-          return {
-            ...stage,
-            topOpponents: locked ? [locked, ...others] : stage.topOpponents,
-          }
-        }
+    const stages = bracketData.path.map((stage) => {
+      const stageIdx = KNOCKOUT_STAGES.indexOf(stage.stage);
 
-        // Stages after the lock: use conditional path data from the locked opponent
-        const lockStageNode = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
-        const lockOpp = resolveLockedOpponent(lockStageNode, lockedOpponentId, lockedFinishPos)
-        const cpEntry = lockOpp?.conditionalPath?.find(cp => cp.stage === stage.stage)
+      if (!lockedStage || stageIdx < lockIdx) {
+        return stage;
+      }
 
-        if (cpEntry) {
-          return {
-            ...stage,
-            reachProbability: cpEntry.reachProbability,
-            topOpponents: cpEntry.topOpponents as RichOpponent[],
-            teamGroupFinish: (stage as RichStageNode).teamGroupFinish,
-            isConditional: true,
-            sampleCount: cpEntry.sampleCount,
-          }
-        }
+      if (stageIdx === lockIdx) {
+        const locked = stage.topOpponents.find((o) => o.team.id === lockedOpponentId);
+        const others = stage.topOpponents.filter((o) => o.team.id !== lockedOpponentId);
+        return {
+          ...stage,
+          topOpponents: locked ? [locked, ...others] : stage.topOpponents,
+        };
+      }
 
-        return { ...stage, isConditional: true }
-      }) as RichStageNode[]
-    : []) as RichStageNode[]
+      const cpEntry = lockOpp?.conditionalPath?.find((cp) => cp.stage === stage.stage);
+
+      if (cpEntry) {
+        return {
+          ...stage,
+          reachProbability: cpEntry.reachProbability,
+          topOpponents: cpEntry.topOpponents as RichOpponent[],
+          teamGroupFinish: (stage as RichStageNode).teamGroupFinish,
+          isConditional: true,
+          sampleCount: cpEntry.sampleCount,
+        };
+      }
+
+      return { ...stage, isConditional: true };
+    }) as RichStageNode[];
+
+    if (!lockedStage || lockIdx < 0) return stages;
+
+    return stages.map((stage, stageIdx) => {
+      if (stageIdx <= lockIdx) return stage;
+
+      const opps = stage.topOpponents.filter((o) => !eliminatedOnPath.has(o.team.id));
+      const topOpponents = opps.length > 0 ? opps : stage.topOpponents;
+      if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
+
+      return { ...stage, topOpponents };
+    });
+  }, [bracketData?.path, lockedStage, lockedOpponentId, lockedFinishPos]);
 
   // Compute conditional win probability when lock is active
   const displayWinProb = (() => {

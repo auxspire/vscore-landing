@@ -126,3 +126,35 @@ export function topFinishKey(counts: Record<string, number>): GroupFinish | null
   if (top === "1st" || top === "2nd" || top === "3rd") return top;
   return null;
 }
+
+const ALL_GROUP_FINISHES: GroupFinish[] = ["1st", "2nd", "3rd"];
+
+/**
+ * Whether two teams can meet at a stage for some valid group-stage finishes.
+ * Use when filtering probable opponents — each candidate's group finish is unknown.
+ */
+export function canGroupsMeetAtStage(
+  teamGroup: string,
+  oppGroup: string,
+  stage: KnockoutStage,
+): boolean {
+  if (teamGroup === oppGroup) return false;
+  return ALL_GROUP_FINISHES.some((teamFinish) =>
+    ALL_GROUP_FINISHES.some((oppFinish) =>
+      canGroupFinishesMeetAtStage(teamGroup, teamFinish, oppGroup, oppFinish, stage),
+    ),
+  );
+}
+
+/** Whether our team (fixed finish) can face another team at a stage for some opponent finish. */
+export function canTeamFaceGroupAtStage(
+  teamGroup: string,
+  teamFinish: GroupFinish,
+  oppGroup: string,
+  stage: KnockoutStage,
+): boolean {
+  if (teamGroup === oppGroup) return false;
+  return ALL_GROUP_FINISHES.some((oppFinish) =>
+    canGroupFinishesMeetAtStage(teamGroup, teamFinish, oppGroup, oppFinish, stage),
+  );
+}
