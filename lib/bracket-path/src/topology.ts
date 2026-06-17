@@ -149,6 +149,32 @@ export function canTeamFaceGroupAtStage(
   );
 }
 
+/** Bracket slot(s) a team with this group finish can draw at a knockout stage. */
+export function opponentSlotHintsForTeamFinish(
+  teamGroup: string,
+  teamFinish: GroupFinish,
+  stage: KnockoutStage,
+): string[] {
+  const groups = "ABCDEFGHIJKL".split("");
+  const hints: string[] = [];
+
+  for (const oppGroup of groups) {
+    if (oppGroup === teamGroup) continue;
+    for (const oppFinish of ALL_GROUP_FINISHES) {
+      if (canGroupFinishesMeetAtStage(teamGroup, teamFinish, oppGroup, oppFinish, stage)) {
+        hints.push(`${oppGroup} ${oppFinish}`);
+      }
+    }
+  }
+
+  return hints;
+}
+
+export function formatOpponentSlotHints(hints: string[]): string | null {
+  if (!hints.length) return null;
+  return `Bracket slot: Grp ${hints.join(" · Grp ")}`;
+}
+
 export function knockoutStageIndex(stage: string): number {
   return KNOCKOUT_STAGES.indexOf(stage as KnockoutStage);
 }

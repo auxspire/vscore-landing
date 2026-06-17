@@ -223,11 +223,54 @@ export function buildLockedDisplayPath(input: LockedPathInput): LockedPathResult
   return { stages, lockOpponent, teamFinishScenario, winProbability };
 }
 
-/** Verify no opponent appears twice on the locked path strip (primary foe per stage). */
+function dedupeOpponents(opps: PathOpponent[]): PathOpponent[] {
+  const seen = new Set<string>();
+  return opps.filter((o) => {
+    if (seen.has(o.team.id)) return false;
+    seen.add(o.team.id);
+    return true;
+  });
+}
+
+/**
+ * Build a coherent "most likely path" for the unlocked view.
+ * Picks one primary foe per stage and removes teams already beaten earlier.
+ */
+export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string): PathStage[] {
+  const r32 = path.find((s) => s.stage === "round_of_32");
+  const teamFinish = topFinishKey(r32?.teamGroupFinish ?? {});
+  const eliminatedOnPath = new Set<string>();
+
+  return path.map((stage) => {
+    let candidates = stage.topOpponents;
+
+    if (stage.stage === "round_of_32" && stage.opponentsByFinish && teamFinish) {
+      const scenarioList = stage.opponentsByFinish[teamFinish];
+      if (scenarioList?.length) {
+        candidates = dedupeOpponents([...scenarioList, ...candidates]);
+      }
+    }
+
+    const eligible = filterEligibleOpponents(
+      candidates,
+      eliminatedOnPath,
+      teamGroup,
+      teamFinish,
+      stage.stage as KnockoutStage,
+    );
+
+    const topOpponents = eligible;
+    if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
+
+    return { ...stage, topOpponents };
+  });
+}
+
+/** Verify no opponent appears twice on the path strip (primary foe per stage). */
 export function assertNoDuplicatePathOpponents(
   stages: PathStage[],
-  lockIdx: number,
-  lockedOpponentId: string,
+  lockIdx = 0,
+  lockedOpponentId?: string,
 ): string[] {
   const errors: string[] = [];
   const seen = new Set<string>();
@@ -237,7 +280,7 @@ export function assertNoDuplicatePathOpponents(
     if (stageIdx < lockIdx) continue;
 
     const primary =
-      stageIdx === lockIdx
+      lockIdx >= 0 && stageIdx === lockIdx && lockedOpponentId
         ? (stage.topOpponents.find((o) => o.team.id === lockedOpponentId) ?? stage.topOpponents[0])
         : stage.topOpponents[0];
 

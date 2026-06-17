@@ -5,6 +5,7 @@
 import {
   assertNoDuplicatePathOpponents,
   buildLockedDisplayPath,
+  buildMostLikelyDisplayPath,
   knockoutStageIndex,
 } from "@workspace/bracket-path";
 
@@ -44,6 +45,25 @@ function findNetherlandsR32(
   if (ned) return { pos: "2nd" as const, nedId: ned.team.id };
 
   throw new Error("Netherlands not found in Brazil R32 opponents");
+}
+
+async function verifyLikelyPath(useLive: boolean) {
+  const label = useLive ? "live metrics" : "default Elo";
+  const data = await fetchBracket(useLive);
+  const likely = buildMostLikelyDisplayPath(data.path, data.team.group);
+  const dupes = assertNoDuplicatePathOpponents(likely, 0);
+
+  const pathNames = likely
+    .map((s) => s.topOpponents[0]?.team.name ?? "?")
+    .join(" → ");
+
+  console.log(`\n[${label}] likely path: ${pathNames}`);
+  if (dupes.length) {
+    console.error("  FAIL duplicate foes:", dupes.join("; "));
+    return false;
+  }
+  console.log("  OK");
+  return true;
 }
 
 async function verify(useLive: boolean) {
@@ -96,5 +116,9 @@ async function verify(useLive: boolean) {
   return allOk;
 }
 
-const ok = (await verify(false)) && (await verify(true));
+const ok =
+  (await verifyLikelyPath(false)) &&
+  (await verifyLikelyPath(true)) &&
+  (await verify(false)) &&
+  (await verify(true));
 process.exit(ok ? 0 : 1);

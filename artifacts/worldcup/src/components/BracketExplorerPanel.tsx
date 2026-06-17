@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from "react"
 import { useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
 import {
   buildLockedDisplayPath,
+  buildMostLikelyDisplayPath,
+  formatOpponentSlotHints,
   inferFinishPosForOpponent,
   knockoutStageIndex,
+  opponentSlotHintsForTeamFinish,
   resolveLockedOpponent,
+  type GroupFinish,
 } from "@workspace/bracket-path"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
@@ -163,7 +167,14 @@ function PathStrip({
               <span className={cn("text-sm font-bold font-mono", stage.stage === "final" ? "text-primary" : "text-foreground")}>
                 {(stage.reachProbability * 100).toFixed(0)}%
               </span>
-              {opp && <span className="text-base leading-none">{getFlagEmoji(opp.team.flagCode)}</span>}
+              {opp && (
+                <>
+                  <span className="text-base leading-none">{getFlagEmoji(opp.team.flagCode)}</span>
+                  <span className="text-[9px] font-mono font-bold text-foreground/80 leading-tight max-w-[64px] truncate px-0.5">
+                    {opp.team.name}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         )
@@ -204,14 +215,6 @@ function StageCard({
   const isConditional = stage.isConditional === true
   const isR32         = stage.stage === "round_of_32"
 
-  // For R32 with finish groups, primary comes from the most-likely finish section
-  const r32DefaultPrimary = isR32 && stage.opponentsByFinish
-    ? (() => {
-        const top = topKey(stage.teamGroupFinish)
-        return (top && stage.opponentsByFinish[top]?.[0]) ?? stage.topOpponents[0]
-      })()
-    : null
-
   // All opponents across all finish groups (for lock lookup)
   const allFlatOpponents: RichOpponent[] = isR32 && stage.opponentsByFinish
     ? Object.values(stage.opponentsByFinish).flat()
@@ -227,7 +230,7 @@ function StageCard({
         }
         return allFlatOpponents.find(o => o.team.id === lockedOpponentId) ?? stage.topOpponents[0]
       })()
-    : (r32DefaultPrimary ?? stage.topOpponents[0])
+    : stage.topOpponents[0]
 
   // Non-R32 secondary (flat list for R16/QF/SF/Final)
   const secondary = stage.topOpponents.filter(o => o !== primary)
@@ -396,6 +399,13 @@ function StageCard({
                     const is3rd = pos === "3rd"
                     const topFinish = topKey(stage.teamGroupFinish)
                     const isMostLikely = pos === topFinish
+                    const slotHint = formatOpponentSlotHints(
+                      opponentSlotHintsForTeamFinish(
+                        team.group,
+                        pos as GroupFinish,
+                        "round_of_32",
+                      ),
+                    )
                     return (
                       <div key={pos} className={cn(
                         "rounded-lg border p-3 space-y-2",
@@ -421,10 +431,12 @@ function StageCard({
                             {(finishProb * 100).toFixed(0)}%
                           </span>
                         </div>
+                        {slotHint && (
+                          <p className="text-[10px] font-mono text-muted-foreground/70">{slotHint}</p>
+                        )}
                         <div className="flex flex-wrap gap-1.5">
                           {opps.map(opp => {
                             const isSelected = opp.team.id === lockedOpponentId
-                            const oppTopFinish = opp.groupFinish ? topKey(opp.groupFinish) : null
                             const lowConf = (opp.sampleCount ?? Infinity) < 50
                             return (
                               <button
@@ -460,11 +472,9 @@ function StageCard({
                                     {isSelected && <Lock className="w-2.5 h-2.5 text-amber-400" />}
                                   </div>
                                   <div className="flex items-center gap-1.5 mt-0.5">
-                                    {oppTopFinish && (
-                                      <span className="text-[10px] font-mono text-muted-foreground/70">
-                                        Grp {opp.team.group} {oppTopFinish}
-                                      </span>
-                                    )}
+                                    <span className="text-[10px] font-mono text-muted-foreground/70">
+                                      #{opp.team.fifaRanking}
+                                    </span>
                                     <span
                                       className={cn("text-[10px] font-mono font-bold", winRateColor(opp.winProbabilityIfFacing))}
                                       title={lowConf ? `Based on only ${opp.sampleCount} simulations — rough estimate` : undefined}
@@ -622,8 +632,14 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
     })
   }, [bracketData?.path, bracketData?.team.group, lockedStage, lockedOpponentId, lockedFinishPos])
 
-  const displayStages: RichStageNode[] =
-    (lockedPathResult?.stages ?? bracketData?.path ?? []) as RichStageNode[]
+  const displayStages: RichStageNode[] = useMemo(() => {
+    if (!bracketData?.path) return []
+    if (lockedPathResult) return lockedPathResult.stages as RichStageNode[]
+    return buildMostLikelyDisplayPath(
+      bracketData.path,
+      bracketData.team.group,
+    ) as RichStageNode[]
+  }, [bracketData?.path, bracketData?.team.group, lockedPathResult])
 
   const displayWinProb =
     lockedPathResult?.winProbability ?? bracketData?.tournamentWinProbability ?? 0
