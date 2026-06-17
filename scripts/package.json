@@ -7,9 +7,11 @@
     "hello": "tsx ./src/hello.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "setup:worldcup-football": "node ./setup-worldcup-football.mjs",
-    "sync:football": "tsx ./run-football-sync.mjs"
+    "sync:football": "tsx ./run-football-sync.mjs",
+    "verify:bracket-path": "tsx ./src/verify-bracket-path.ts"
   },
   "dependencies": {
+    "@workspace/bracket-path": "workspace:*",
     "pg": "^8.20.0"
   },
   "devDependencies": {

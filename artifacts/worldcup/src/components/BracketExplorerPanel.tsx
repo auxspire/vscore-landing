@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
+import {
+  buildLockedDisplayPath,
+  inferFinishPosForOpponent,
+  KNOCKOUT_STAGES,
+  resolveLockedOpponent,
+} from "@workspace/bracket-path"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { getFlagEmoji, cn } from "@/lib/utils"
@@ -60,49 +66,6 @@ interface RichStageNode {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function resolveLockedOpponent(
-  lockStageNode: RichStageNode | undefined,
-  lockedOpponentId: string,
-  lockedFinishPos: string | null,
-): RichOpponent | undefined {
-  if (!lockStageNode) return undefined;
-  if (lockedFinishPos && lockStageNode.opponentsByFinish?.[lockedFinishPos]) {
-    const fromSection = lockStageNode.opponentsByFinish[lockedFinishPos].find(
-      (o) => o.team.id === lockedOpponentId,
-    );
-    if (fromSection) return fromSection;
-  }
-  if (lockStageNode.opponentsByFinish) {
-    let best: RichOpponent | undefined;
-    for (const opps of Object.values(lockStageNode.opponentsByFinish)) {
-      const found = opps.find((o) => o.team.id === lockedOpponentId);
-      if (found && (!best || found.encounterProbability > best.encounterProbability)) {
-        best = found;
-      }
-    }
-    if (best) return best;
-  }
-  return lockStageNode.topOpponents.find((o) => o.team.id === lockedOpponentId);
-}
-
-/** Remove teams already faced on a locked path so they cannot reappear later. */
-function applyLockedPathChain(
-  stages: RichStageNode[],
-  lockIdx: number,
-  lockedOpponentId: string,
-): RichStageNode[] {
-  const eliminatedOnPath = new Set<string>([lockedOpponentId]);
-
-  return stages.map((stage, stageIdx) => {
-    if (stageIdx <= lockIdx) return stage;
-
-    const opps = stage.topOpponents.filter((o) => !eliminatedOnPath.has(o.team.id));
-    const topOpponents = opps.length > 0 ? opps : stage.topOpponents;
-    if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
-
-    return { ...stage, topOpponents };
-  });
-}
 function topKey(map: Record<string, number>): string | null {
   const entries = Object.entries(map)
   if (!entries.length) return null
@@ -122,8 +85,6 @@ function winRateColor(wr: number) {
   if (wr >= 0.38) return "text-orange-400"
   return "text-destructive"
 }
-
-const KNOCKOUT_STAGES = ["round_of_32", "round_of_16", "quarterfinal", "semifinal", "final"]
 
 const SHORT_STAGE: Record<string, string> = {
   round_of_32: "R32",
@@ -631,18 +592,6 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
     setLockedFinishPos(null)
   }, [teamId])
 
-  const handleLockOpponent = (stage: string, opponentId: string | null, finishPos?: string | null) => {
-    if (opponentId === null) {
-      setLockedStage(null)
-      setLockedOpponentId(null)
-      setLockedFinishPos(null)
-    } else {
-      setLockedStage(stage)
-      setLockedOpponentId(opponentId)
-      setLockedFinishPos(finishPos ?? null)
-    }
-  }
-
   const sims = simulationCount(!!queryFlag)
 
   const { data: rawBracketData, isLoading: isLoadingBracket } = useGetBracketExplorer(
@@ -662,73 +611,36 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
     path: RichStageNode[]
   }) | undefined
 
-  // Build display stages: inject conditional data for stages after the locked one
-  const displayStages: RichStageNode[] = useMemo(() => {
-    if (!bracketData?.path) return [];
+  const lockedPathResult = useMemo(() => {
+    if (!bracketData?.path || !lockedStage || !lockedOpponentId) return null
+    return buildLockedDisplayPath({
+      path: bracketData.path,
+      teamGroup: bracketData.team.group,
+      lockedStage,
+      lockedOpponentId,
+      lockedFinishPos,
+    })
+  }, [bracketData?.path, bracketData?.team.group, lockedStage, lockedOpponentId, lockedFinishPos])
 
-    const lockIdx = lockedStage ? KNOCKOUT_STAGES.indexOf(lockedStage) : -1;
-    const lockStageNode = lockedStage
-      ? (bracketData.path.find((s) => s.stage === lockedStage) as RichStageNode | undefined)
-      : undefined;
-    const lockOpp = resolveLockedOpponent(lockStageNode, lockedOpponentId, lockedFinishPos);
+  const displayStages: RichStageNode[] = lockedPathResult?.stages ?? bracketData?.path ?? []
 
-    const stages = bracketData.path.map((stage) => {
-      const stageIdx = KNOCKOUT_STAGES.indexOf(stage.stage);
+  const displayWinProb =
+    lockedPathResult?.winProbability ?? bracketData?.tournamentWinProbability ?? 0
 
-      if (!lockedStage || stageIdx < lockIdx) {
-        return stage;
-      }
-
-      if (stageIdx === lockIdx) {
-        const locked = stage.topOpponents.find((o) => o.team.id === lockedOpponentId);
-        const others = stage.topOpponents.filter((o) => o.team.id !== lockedOpponentId);
-        return {
-          ...stage,
-          topOpponents: locked ? [locked, ...others] : stage.topOpponents,
-        };
-      }
-
-      const cpEntry = lockOpp?.conditionalPath?.find((cp) => cp.stage === stage.stage);
-
-      if (cpEntry) {
-        return {
-          ...stage,
-          reachProbability: cpEntry.reachProbability,
-          topOpponents: cpEntry.topOpponents as RichOpponent[],
-          teamGroupFinish: (stage as RichStageNode).teamGroupFinish,
-          isConditional: true,
-          sampleCount: cpEntry.sampleCount,
-        };
-      }
-
-      return { ...stage, isConditional: true };
-    }) as RichStageNode[];
-
-    if (!lockedStage || lockIdx < 0 || !lockedOpponentId) return stages;
-
-    return applyLockedPathChain(stages, lockIdx, lockedOpponentId);
-  }, [bracketData?.path, lockedStage, lockedOpponentId, lockedFinishPos]);
-
-  // Compute conditional win probability when lock is active
-  const displayWinProb = (() => {
-    if (!bracketData || !lockedStage || !lockedOpponentId) {
-      return bracketData?.tournamentWinProbability ?? 0
+  const handleLockOpponent = (stage: string, opponentId: string | null, finishPos?: string | null) => {
+    if (opponentId === null) {
+      setLockedStage(null)
+      setLockedOpponentId(null)
+      setLockedFinishPos(null)
+    } else {
+      setLockedStage(stage)
+      setLockedOpponentId(opponentId)
+      const lockStageNode = bracketData?.path.find((s) => s.stage === stage) as
+        | RichStageNode
+        | undefined
+      setLockedFinishPos(finishPos ?? inferFinishPosForOpponent(lockStageNode, opponentId))
     }
-    // Find locked opponent — search topOpponents first, then opponentsByFinish for R32
-    const lockStageNode = bracketData.path.find(s => s.stage === lockedStage) as RichStageNode | undefined
-    const lockOpp = resolveLockedOpponent(lockStageNode, lockedOpponentId, lockedFinishPos)
-    const finalCp = lockOpp?.conditionalPath?.find(cp => cp.stage === "final")
-    if (finalCp) {
-      // Conditional win = reachFinalGivenLock * winIfInFinal
-      const avgWin = finalCp.topOpponents.length > 0
-        ? finalCp.topOpponents.reduce((s, o) => s + o.winProbabilityIfFacing * o.encounterProbability, 0) /
-          finalCp.topOpponents.reduce((s, o) => s + o.encounterProbability, 0)
-        : 0.5
-      // Cap at 1.0 — low sample sizes can produce reachProbability = 1
-      return Math.min(1, finalCp.reachProbability * avgWin)
-    }
-    return bracketData.tournamentWinProbability
-  })()
+  }
 
   return (
     <div className="space-y-5">
@@ -794,7 +706,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                 teamName: bracketData.team.name,
                 winProbability: displayWinProb,
                 simulationsRun: bracketData.simulationsRun,
-                path: bracketData.path.map((s) => ({
+                path: displayStages.map((s) => ({
                   stage: s.stage,
                   reachProbability: s.reachProbability,
                 })),
@@ -827,7 +739,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                   </span>
                 </div>
                 <button
-                  onClick={() => { setLockedStage(null); setLockedOpponentId(null) }}
+                  onClick={() => { setLockedStage(null); setLockedOpponentId(null); setLockedFinishPos(null) }}
                   className="flex-shrink-0 text-amber-400 hover:text-amber-300 transition-colors"
                 >
                   <X className="w-4 h-4" />

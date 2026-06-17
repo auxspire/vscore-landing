@@ -76,6 +76,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
-    "@vercel/analytics": "^2.0.1"
+    "@vercel/analytics": "^2.0.1",
+    "@workspace/bracket-path": "workspace:*"
   }
 }

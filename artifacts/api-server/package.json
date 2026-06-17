@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/bracket-path": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/football-config": "workspace:*",
     "cookie-parser": "^1.4.7",

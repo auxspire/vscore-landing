@@ -1,7 +1,18 @@
 /**
  * FIFA 2026 knockout bracket geometry — which teams can meet at each stage.
- * Used to filter impossible conditional opponents (e.g. same SF half → not a Final foe).
  */
+
+export const KNOCKOUT_STAGES = [
+  "round_of_32",
+  "round_of_16",
+  "quarterfinal",
+  "semifinal",
+  "final",
+] as const;
+
+export type KnockoutStage = (typeof KNOCKOUT_STAGES)[number];
+
+export type GroupFinish = "1st" | "2nd" | "3rd";
 
 export const FIXED_WINNER_SLOTS: Array<{ slot: number; group: string; pos: "W" | "R" }> = [
   { slot: 0, group: "E", pos: "W" },
@@ -41,14 +52,7 @@ export const THIRD_PLACE_SLOT_POOLS: Record<number, string[]> = {
   31: ["D", "E", "I", "J", "L"],
 };
 
-export type KnockoutStage =
-  | "round_of_32"
-  | "round_of_16"
-  | "quarterfinal"
-  | "semifinal"
-  | "final";
-
-export type GroupFinish = "1st" | "2nd" | "3rd";
+const ALL_GROUP_FINISHES: GroupFinish[] = ["1st", "2nd", "3rd"];
 
 function quadrant(slot: number): number {
   return Math.floor(slot / 8);
@@ -62,13 +66,11 @@ function r16HalfWithinQuadrant(slot: number): number {
   return Math.floor((slot % 8) / 4);
 }
 
-/** Bracket slots for a team that finished 1st or 2nd in its group (fixed by FIFA matrix). */
 export function fixedSlotsForFinish(group: string, finish: "1st" | "2nd"): number[] {
   const pos = finish === "1st" ? "W" : "R";
   return FIXED_WINNER_SLOTS.filter((s) => s.group === group && s.pos === pos).map((s) => s.slot);
 }
 
-/** Possible R32 slots if the team advances as one of the eight best third-place teams. */
 export function thirdPlaceSlotsForGroup(group: string): number[] {
   return Object.entries(THIRD_PLACE_SLOT_POOLS)
     .filter(([, pool]) => pool.includes(group))
@@ -80,13 +82,10 @@ export function slotsForGroupFinish(group: string, finish: GroupFinish): number[
   return fixedSlotsForFinish(group, finish);
 }
 
-/** Whether two bracket slots can face each other at a given knockout stage. */
 export function canSlotsMeetAtStage(slotA: number, slotB: number, stage: KnockoutStage): boolean {
   if (slotA === slotB) return false;
-
   const qA = quadrant(slotA);
   const qB = quadrant(slotB);
-
   switch (stage) {
     case "round_of_32":
       return qA === qB && Math.abs(slotA - slotB) === 1;
@@ -111,11 +110,9 @@ export function canGroupFinishesMeetAtStage(
   stage: KnockoutStage,
 ): boolean {
   if (teamGroup === oppGroup) return false;
-
   const teamSlots = slotsForGroupFinish(teamGroup, teamFinish);
   const oppSlots = slotsForGroupFinish(oppGroup, oppFinish);
   if (teamSlots.length === 0 || oppSlots.length === 0) return true;
-
   return teamSlots.some((ts) => oppSlots.some((os) => canSlotsMeetAtStage(ts, os, stage)));
 }
 
@@ -127,12 +124,6 @@ export function topFinishKey(counts: Record<string, number>): GroupFinish | null
   return null;
 }
 
-const ALL_GROUP_FINISHES: GroupFinish[] = ["1st", "2nd", "3rd"];
-
-/**
- * Whether two teams can meet at a stage for some valid group-stage finishes.
- * Use when filtering probable opponents — each candidate's group finish is unknown.
- */
 export function canGroupsMeetAtStage(
   teamGroup: string,
   oppGroup: string,
@@ -146,7 +137,6 @@ export function canGroupsMeetAtStage(
   );
 }
 
-/** Whether our team (fixed finish) can face another team at a stage for some opponent finish. */
 export function canTeamFaceGroupAtStage(
   teamGroup: string,
   teamFinish: GroupFinish,
@@ -157,4 +147,8 @@ export function canTeamFaceGroupAtStage(
   return ALL_GROUP_FINISHES.some((oppFinish) =>
     canGroupFinishesMeetAtStage(teamGroup, teamFinish, oppGroup, oppFinish, stage),
   );
+}
+
+export function knockoutStageIndex(stage: string): number {
+  return KNOCKOUT_STAGES.indexOf(stage as KnockoutStage);
 }

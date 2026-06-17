@@ -8,12 +8,12 @@ import {
 } from "../services/simulator";
 import { simulateBracketExplorer, type BracketOpponentData, type BracketStageData } from "../services/bracketExplorer";
 import {
+  buildConditionalPathResponse,
   canGroupFinishesMeetAtStage,
-  canTeamFaceGroupAtStage,
   topFinishKey,
   type GroupFinish,
   type KnockoutStage,
-} from "../services/bracketTopology";
+} from "@workspace/bracket-path";
 import { getLiveEloAdjustments, parseUseLiveMetrics } from "../services/liveMetrics";
 
 const router = Router();
@@ -164,59 +164,6 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
       return o.conditionalPath;
     }
 
-    function buildConditionalPathResponse(
-      fromStage: string,
-      o: BracketOpponentData,
-      winsDenominator: number,
-      conditionalSource: BracketOpponentData["conditionalPath"],
-      scenario?: {
-        teamGroup: string;
-        teamFinish: GroupFinish;
-        opponentFinishCounts: Record<string, number>;
-      },
-    ) {
-      const eliminatedOnPath = new Set<string>();
-
-      return KNOCKOUT_STAGES.filter((s) => KNOCKOUT_STAGES.indexOf(s) > KNOCKOUT_STAGES.indexOf(fromStage))
-        .map((nextStage) => {
-          const cp = conditionalSource[nextStage];
-          if (!cp || cp.reachCount === 0) return null;
-
-          const cpOpponents = Object.values(cp.opponents)
-            .filter((co) => {
-              if (eliminatedOnPath.has(co.team.id)) return false;
-              if (!scenario) return true;
-              return canTeamFaceGroupAtStage(
-                scenario.teamGroup,
-                scenario.teamFinish,
-                co.team.group,
-                nextStage as KnockoutStage,
-              );
-            })
-            .sort((a, b) => b.encounterCount - a.encounterCount)
-            .slice(0, 5)
-            .map((co) => ({
-              team: co.team,
-              encounterProbability: cp.reachCount > 0 ? co.encounterCount / cp.reachCount : 0,
-              winProbabilityIfFacing: co.encounterCount > 0 ? co.winsIfFacing / co.encounterCount : 0,
-            }));
-
-          if (cpOpponents.length === 0) return null;
-
-          if (cpOpponents[0]?.team?.id) {
-            eliminatedOnPath.add(cpOpponents[0].team.id);
-          }
-
-          return {
-            stage: nextStage,
-            reachProbability: winsDenominator > 0 ? Math.min(1, cp.reachCount / winsDenominator) : 0,
-            sampleCount: cp.reachCount,
-            topOpponents: cpOpponents,
-          };
-        })
-        .filter(Boolean);
-    }
-
     const path = KNOCKOUT_STAGES.map((stage) => {
       const sd = data.stageData[stage];
       const reachProb = sd.reachCount / numSims;
@@ -250,15 +197,12 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
 
           const conditionalPath = buildConditionalPathResponse(
             stage,
-            o,
             winsDenominator,
             conditionalSourceForOpponent(o, teamFinishForO),
             teamFinishForO
               ? {
                   teamGroup: team.group,
                   teamFinish: teamFinishForO,
-                  opponentFinishCounts:
-                    o.opponentGroupFinishByTeamFinish[teamFinishForO] ?? o.opponentGroupFinish,
                 }
               : undefined,
           );
@@ -314,13 +258,11 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
                 o.conditionalPathByTeamFinish[pos] ?? o.conditionalPath;
               const conditionalPath = buildConditionalPathResponse(
                 stage,
-                o,
                 wins,
                 scenarioConditionalSource,
                 {
                   teamGroup: team.group,
                   teamFinish: pos as GroupFinish,
-                  opponentFinishCounts: o.opponentGroupFinishByTeamFinish[pos] ?? o.opponentGroupFinish,
                 },
               );
               return {
