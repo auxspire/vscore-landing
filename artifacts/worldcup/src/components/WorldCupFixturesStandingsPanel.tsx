@@ -213,50 +213,57 @@ function TopScorersList({ scorers, teams }: { scorers: ScorerEntry[]; teams: Foo
   const teamByName = Object.fromEntries(teams.map((t) => [t.name_en.toLowerCase(), t]));
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
-      <div className="grid grid-cols-[2.5rem,1fr,auto] gap-2 px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 bg-secondary/20">
-        <span>#</span>
-        <span>Player</span>
-        <span className="text-right">Goals</span>
-      </div>
-      <div className="divide-y divide-border/15">
-        {scorers.map((s, i) => {
-          const team = s.teamName ? teamByName[s.teamName.toLowerCase()] : undefined;
-          const rank = i + 1;
-          return (
-            <div
-              key={`${s.name}-${s.teamName ?? ""}-${i}`}
-              className="grid grid-cols-[2.5rem,1fr,auto] gap-2 items-center px-4 py-3 hover:bg-secondary/30"
-            >
-              <span
-                className={cn(
-                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold",
-                  rank === 1 && "bg-primary/20 text-primary",
-                  rank === 2 && "bg-secondary text-foreground",
-                  rank === 3 && "bg-secondary text-amber-400/90",
-                  rank > 3 && "text-muted-foreground",
-                )}
+    <div className="rounded-lg border border-border overflow-hidden text-sm">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground bg-secondary/25 border-b border-border/40">
+            <th className="py-2 pl-3 pr-1 text-left w-8">#</th>
+            <th className="py-2 px-2 text-left">Player</th>
+            <th className="py-2 px-2 text-left hidden sm:table-cell">Team</th>
+            <th className="py-2 pr-3 pl-2 text-right w-10">G</th>
+          </tr>
+        </thead>
+        <tbody>
+          {scorers.map((s, i) => {
+            const team = s.teamName ? teamByName[s.teamName.toLowerCase()] : undefined;
+            const rank = i + 1;
+            return (
+              <tr
+                key={`${s.name}-${s.teamName ?? ""}-${i}`}
+                className="border-b border-border/10 last:border-0 hover:bg-secondary/25"
               >
-                {rank}
-              </span>
-              <div className="min-w-0">
-                <p className="font-semibold text-sm truncate">{s.name}</p>
-                {s.teamName && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5 truncate">
-                    {team?.fifa_code ? (
-                      <span className="text-base leading-none shrink-0">{getFlagEmoji(team.fifa_code)}</span>
-                    ) : null}
-                    <span className="truncate">{s.teamName}</span>
-                  </p>
-                )}
-              </div>
-              <span className="inline-flex min-w-[2rem] justify-center px-2.5 py-1 rounded-full bg-primary/10 text-primary font-mono font-bold text-sm tabular-nums">
-                {s.goals}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+                <td className="py-1.5 pl-3 pr-1 font-mono text-xs text-muted-foreground tabular-nums">
+                  {rank}
+                </td>
+                <td className="py-1.5 px-2 min-w-0">
+                  <div className="truncate font-medium leading-tight">{s.name}</div>
+                  {s.teamName && (
+                    <div className="sm:hidden text-[10px] text-muted-foreground truncate mt-0.5">
+                      {team?.fifa_code ? `${getFlagEmoji(team.fifa_code)} ` : ""}
+                      {s.teamName}
+                    </div>
+                  )}
+                </td>
+                <td className="py-1.5 px-2 hidden sm:table-cell min-w-0">
+                  {s.teamName ? (
+                    <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                      {team?.fifa_code ? (
+                        <span className="text-sm leading-none shrink-0">{getFlagEmoji(team.fifa_code)}</span>
+                      ) : null}
+                      <span className="truncate text-xs text-muted-foreground">{s.teamName}</span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/40">—</span>
+                  )}
+                </td>
+                <td className="py-1.5 pr-3 pl-2 text-right font-mono font-bold text-primary tabular-nums">
+                  {s.goals}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -960,13 +967,15 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
               {/* ── Top scorers ── */}
               {dataSection === "scorers" && (
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   {topScorers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
+                    <p className="text-sm text-muted-foreground text-center py-6">
                       Scorer data appears after matches finish.
                     </p>
                   ) : (
-                    <TopScorersList scorers={topScorers} teams={teams} />
+                    <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
+                      <TopScorersList scorers={topScorers} teams={teams} />
+                    </div>
                   )}
                 </div>
               )}

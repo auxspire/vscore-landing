@@ -170,9 +170,14 @@ export function parseScorers(raw: string | null): unknown[] {
   if (!raw || raw === "null" || raw.trim() === "") return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [{ raw }];
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === "object") return [parsed];
+    if (typeof parsed === "string") return parseScorers(parsed);
+    return [];
   } catch {
-    return [{ raw }];
+    const trimmed = raw.trim();
+    if (/^\d+['′]/.test(trimmed)) return [trimmed];
+    return [];
   }
 }
 
