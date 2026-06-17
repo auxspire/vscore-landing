@@ -1,4 +1,4 @@
-import { Link, useLocation, useSearch } from "wouter";
+import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { publicAsset } from "@/lib/assets";
 import type { HomeTab } from "@/hooks/useHomeTab";
@@ -53,12 +53,11 @@ interface WorldCupHubTabsProps {
 }
 
 export function resolveHubTab(pathname: string, search: string): HubTab | null {
-  if (pathname.startsWith("/rankings")) return null;
-  if (pathname.startsWith("/bracket")) return "path";
   if (pathname.startsWith("/matchup")) return "predictor";
   const qs = search.startsWith("?") ? search.slice(1) : search;
   const raw = new URLSearchParams(qs).get("tab");
   if (raw === "path" || raw === "fixtures") return raw;
+  if (pathname.startsWith("/bracket") || pathname.startsWith("/rankings")) return "path";
   return "predictor";
 }
 
@@ -68,11 +67,6 @@ export function WorldCupHubTabs({
   onTabChange,
   className,
 }: WorldCupHubTabsProps) {
-  const [location] = useLocation();
-  const search = useSearch();
-  const qs = search.startsWith("?") ? search.slice(1) : search;
-  const hasBracketTeam = Boolean(new URLSearchParams(qs).get("team"));
-
   return (
     <div
       className={cn(
@@ -109,15 +103,8 @@ export function WorldCupHubTabs({
           );
         }
 
-        // Route mode — path tab on bracket stays on bracket if team selected
-        const searchPart = search ? (search.startsWith("?") ? search : `?${search}`) : "";
-        const currentBracketHref = `${location}${searchPart}`;
-        const href =
-          tab.id === "path" && location.startsWith("/bracket")
-            ? hasBracketTeam
-              ? currentBracketHref
-              : "/?tab=path"
-            : tab.href;
+        // Route mode — deep links redirect into hub tabs
+        const href = tab.href;
 
         return (
           <Link key={tab.id} href={href} role="tab" aria-selected={isActive} className={pillClass}>

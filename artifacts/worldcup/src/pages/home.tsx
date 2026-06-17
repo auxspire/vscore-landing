@@ -41,7 +41,7 @@ export default function Home() {
       activeTab={tab}
       hubMode="controlled"
       onHubTabChange={(t) => setTab(t as HomeTab)}
-      wide={tab === "fixtures"}
+      wide={tab === "fixtures" || tab === "path"}
       showHubTabs
     >
       <header className="mb-8 text-center md:text-left">
@@ -59,7 +59,7 @@ export default function Home() {
             </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-0.5">
               {tab === "predictor" && "Predict where any two teams will meet"}
-              {tab === "path" && "Trace each nation's route to the final"}
+              {tab === "path" && "Bracket explorer and power rankings — all in one place"}
               {tab === "fixtures" && "Today's matches, results, and group tables"}
             </p>
           </div>

@@ -105,7 +105,7 @@ export default function Matchup() {
             <div className="absolute inset-0 bg-primary/5 blur-[100px] -z-10 rounded-full" />
             <div className="flex justify-center items-center gap-4 md:gap-12 mb-6">
               <div className="flex flex-col items-center">
-                <Link href={`/bracket?team=${matchResult.teamA.id}`} title="View bracket path">
+                <Link href={`/?tab=path&section=bracket&team=${matchResult.teamA.id}${queryFlag ? "&useLiveMetrics=1" : ""}`} title="View bracket path">
                   <span className="text-6xl md:text-8xl drop-shadow-lg cursor-pointer hover:scale-110 transition-transform inline-block">{getFlagEmoji(matchResult.teamA.flagCode)}</span>
                 </Link>
                 <h2 className="text-xl md:text-3xl font-bold mt-4 tracking-tight">{matchResult.teamA.name}</h2>
@@ -115,7 +115,7 @@ export default function Matchup() {
                 VS
               </div>
               <div className="flex flex-col items-center">
-                <Link href={`/bracket?team=${matchResult.teamB.id}`} title="View bracket path">
+                <Link href={`/?tab=path&section=bracket&team=${matchResult.teamB.id}${queryFlag ? "&useLiveMetrics=1" : ""}`} title="View bracket path">
                   <span className="text-6xl md:text-8xl drop-shadow-lg cursor-pointer hover:scale-110 transition-transform inline-block">{getFlagEmoji(matchResult.teamB.flagCode)}</span>
                 </Link>
                 <h2 className="text-xl md:text-3xl font-bold mt-4 tracking-tight">{matchResult.teamB.name}</h2>
@@ -205,7 +205,7 @@ export default function Matchup() {
                           </div>
                         ))}
                         <Link
-                          href={`/bracket?team=${breakdown.team.id}`}
+                          href={`/?tab=path&section=bracket&team=${breakdown.team.id}${queryFlag ? "&useLiveMetrics=1" : ""}`}
                           className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
                         >
                           <GitBranch className="w-3 h-3" /> View Bracket Path
