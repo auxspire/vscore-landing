@@ -8,6 +8,7 @@ import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, PAGE_SEO } from "@/lib/seo"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetrics } from "@/hooks/useLiveMetrics"
+import { simulationCount } from "@/lib/simulation-config"
 import { Trophy, Medal, Activity, ChevronRight } from "lucide-react"
 
 const STAGES = [
@@ -50,7 +51,7 @@ export default function Rankings() {
   usePageSeo(PAGE_SEO.rankings)
 
   const { queryFlag } = useLiveMetrics()
-  const rankParams = { simulations: 10000, useLiveMetrics: queryFlag }
+  const rankParams = { simulations: simulationCount(!!queryFlag), useLiveMetrics: queryFlag }
 
   const { data, isLoading } = useGetTournamentRankings(
     rankParams,

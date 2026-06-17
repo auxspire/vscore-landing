@@ -13,15 +13,54 @@ export function formatStage(stage: string): string {
   return STAGE_LABELS[stage] ?? stage.replace(/_/g, " ");
 }
 
-const MATCH_PREDICTOR_CTA = `Try VScor's free World Cup Match Predictor to check your team's chances → ${WORLDCUP_BASE}`;
+function formatPct(probability: number): string {
+  return `${(probability * 100).toFixed(1)}%`;
+}
 
-const BRACKET_PREDICTOR_CTA = `Explore every team's path to the final with VScor's free Bracket Predictor → ${WORLDCUP_BASE}`;
+function formatTopStages(
+  stages: { stage: string; probability: number }[],
+  limit = 3,
+): string | null {
+  const top = [...stages]
+    .filter((s) => s.probability > 0.001)
+    .sort((a, b) => b.probability - a.probability)
+    .slice(0, limit);
+
+  if (top.length === 0) return null;
+  return top.map((s) => `${formatStage(s.stage)} ${formatPct(s.probability)}`).join(" · ");
+}
+
+function simulationDetail(simulationsRun: number, useLiveMetrics?: boolean): string {
+  const sims = simulationsRun.toLocaleString();
+  if (useLiveMetrics) {
+    return `${sims} Monte Carlo simulations · live standings & recent form blended into Elo`;
+  }
+  return `${sims} Monte Carlo simulations · full tournament Elo model`;
+}
 
 export interface SharePayload {
-  title: string;
-  /** Details + promo — URL is appended separately when copying */
-  text: string;
-  url: string;
+  /** Short headline for share title / first line */
+  headline: string;
+  /** Direct link to this prediction or bracket view */
+  predictionUrl: string;
+  /** Detail bullets — no URLs */
+  details: string[];
+  /** Generic VScor landing */
+  siteUrl: string;
+}
+
+/** Clipboard / WhatsApp — prediction link first, site link last */
+export function formatShareClipboard(payload: SharePayload): string {
+  const lines = [
+    payload.headline,
+    "",
+    `View prediction: ${payload.predictionUrl}`,
+    "",
+    ...payload.details,
+    "",
+    `More World Cup predictions → ${payload.siteUrl}`,
+  ];
+  return lines.join("\n");
 }
 
 export function buildMatchupShareMessage(params: {
@@ -45,28 +84,21 @@ export function buildMatchupShareMessage(params: {
     shareUrl,
   } = params;
 
-  const pct = (totalProbability * 100).toFixed(1);
-  const sims = simulationsRun.toLocaleString();
-  const mostLikely = [...stages].sort((a, b) => b.probability - a.probability)[0];
-  const liveNote = useLiveMetrics ? " · live metrics included" : "";
+  const pct = formatPct(totalProbability);
+  const stageBreakdown = formatTopStages(stages, 4);
 
-  const lines = [
-    `${teamA} vs ${teamB} — VScor World Cup 2026 Match Predictor`,
-    "",
-    `Overall meeting probability: ${pct}%`,
-    mostLikely
-      ? `Most likely stage: ${formatStage(mostLikely.stage)} (${(mostLikely.probability * 100).toFixed(1)}%)`
-      : null,
-    sameGroup ? "Same group — guaranteed group stage meeting" : null,
-    `Simulation: ${sims} Monte Carlo runs${liveNote}`,
-    "",
-    MATCH_PREDICTOR_CTA,
+  const details = [
+    `Overall meeting probability: ${pct}`,
+    stageBreakdown ? `Most likely stages: ${stageBreakdown}` : null,
+    sameGroup ? "Same group — guaranteed group-stage meeting" : null,
+    simulationDetail(simulationsRun, useLiveMetrics),
   ].filter((line): line is string => line != null);
 
   return {
-    title: `${teamA} vs ${teamB} — ${pct}% meeting chance | VScor`,
-    text: lines.join("\n"),
-    url: shareUrl,
+    headline: `${teamA} vs ${teamB} — ${pct} meeting chance | VScor`,
+    predictionUrl: shareUrl,
+    details,
+    siteUrl: WORLDCUP_BASE,
   };
 }
 
@@ -74,6 +106,7 @@ export function buildBracketShareMessage(params: {
   teamName: string;
   winProbability: number;
   simulationsRun: number;
+  path?: { stage: string; reachProbability: number }[];
   lockedStage?: string | null;
   lockedOpponentName?: string | null;
   useLiveMetrics?: boolean;
@@ -83,37 +116,39 @@ export function buildBracketShareMessage(params: {
     teamName,
     winProbability,
     simulationsRun,
+    path,
     lockedStage,
     lockedOpponentName,
     useLiveMetrics,
     shareUrl,
   } = params;
 
-  const pct = (winProbability * 100).toFixed(1);
-  const sims = simulationsRun.toLocaleString();
-  const liveNote = useLiveMetrics ? " · live metrics included" : "";
+  const pct = formatPct(winProbability);
   const isLocked = lockedStage && lockedOpponentName;
 
-  const lines = [
-    `${teamName} — VScor World Cup 2026 Path to Final`,
-    "",
+  const pathHighlights =
+    path && path.length > 0
+      ? formatTopStages(
+          path.map((s) => ({ stage: s.stage, probability: s.reachProbability })),
+          3,
+        )
+      : null;
+
+  const details = [
     isLocked
-      ? `Win probability (locked path vs ${lockedOpponentName}): ${pct}%`
-      : `Tournament win probability: ${pct}%`,
-    !isLocked ? "Based on full bracket simulation across all paths" : null,
-    `Simulation: ${sims} Monte Carlo runs${liveNote}`,
-    "",
-    BRACKET_PREDICTOR_CTA,
+      ? `Win probability (locked path vs ${lockedOpponentName}): ${pct}`
+      : `Tournament win probability: ${pct}`,
+    pathHighlights ? `Reach odds: ${pathHighlights}` : null,
+    !isLocked ? "Full bracket simulation across all knockout paths" : null,
+    simulationDetail(simulationsRun, useLiveMetrics),
   ].filter((line): line is string => line != null);
 
   return {
-    title: `${teamName} — ${pct}% to win World Cup 2026 | VScor`,
-    text: lines.join("\n"),
-    url: shareUrl,
+    headline: isLocked
+      ? `${teamName} vs ${lockedOpponentName} — ${pct} win chance | VScor`
+      : `${teamName} — ${pct} to win World Cup 2026 | VScor`,
+    predictionUrl: shareUrl,
+    details,
+    siteUrl: WORLDCUP_BASE,
   };
-}
-
-/** Full clipboard / WhatsApp message with link at the end */
-export function formatShareClipboard(payload: SharePayload): string {
-  return `${payload.text}\n\n${payload.url}`;
 }

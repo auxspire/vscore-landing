@@ -11,6 +11,7 @@ import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, matchupSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
 import { buildMatchupShareMessage } from "@/lib/share-messages"
+import { simulationCount } from "@/lib/simulation-config"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { ArrowLeft, AlertTriangle, RefreshCcw, Activity, GitBranch } from "lucide-react"
@@ -32,8 +33,10 @@ export default function Matchup() {
     }
   }, [teamA, teamB, setLocation])
 
+  const sims = simulationCount(!!queryFlag)
+
   const { data: matchResult, isLoading: isLoadingMatch } = useGetMatchProbability(
-    { teamA: teamA ?? "", teamB: teamB ?? "", useLiveMetrics: queryFlag },
+    { teamA: teamA ?? "", teamB: teamB ?? "", useLiveMetrics: queryFlag, simulations: sims },
     {
       query: {
         enabled: !!teamA && !!teamB,
@@ -41,6 +44,7 @@ export default function Matchup() {
           teamA: teamA ?? "",
           teamB: teamB ?? "",
           useLiveMetrics: queryFlag,
+          simulations: sims,
         }),
       },
     },
@@ -147,11 +151,7 @@ export default function Matchup() {
             <div className="mt-8 flex flex-col items-center gap-4 max-w-md mx-auto">
               <LiveMetricsToggle className="w-full text-left" />
               {matchupShare && (
-                <SharePredictionButton
-                  title={matchupShare.title}
-                  text={matchupShare.text}
-                  url={matchupShare.url}
-                />
+                <SharePredictionButton payload={matchupShare} />
               )}
             </div>
           </div>

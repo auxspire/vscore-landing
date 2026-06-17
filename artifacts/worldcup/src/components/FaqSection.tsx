@@ -60,7 +60,7 @@ export const HOME_FAQ: FaqItem[] = [
   {
     question: "How many simulations does VScor run?",
     answer:
-      "Match predictions use 10,000 simulations by default. Popular matchups use 3,000 for faster loading. You can optionally factor in live group standings and recent form when synced data is available.",
+      "Match, bracket, and rankings predictions use 10,000 Monte Carlo simulations by default — 15,000 when live tournament form is enabled for tighter blended estimates. The API supports up to 20,000 runs.",
   },
   {
     question: "Does VScor use live World Cup results?",

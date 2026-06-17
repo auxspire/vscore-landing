@@ -9,6 +9,7 @@ import { getFlagEmoji, cn } from "@/lib/utils"
 import { usePageSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
 import { buildBracketShareMessage } from "@/lib/share-messages"
+import { simulationCount } from "@/lib/simulation-config"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { ArrowLeft, Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap, Lock, X } from "lucide-react"
@@ -601,13 +602,15 @@ export default function Bracket() {
   }
 
   const { data: teams = [], isLoading: isLoadingTeams } = useGetTeams()
+  const sims = simulationCount(!!queryFlag)
+
   const { data: rawBracketData, isLoading: isLoadingBracket } = useGetBracketExplorer(
     teamId,
-    { useLiveMetrics: queryFlag },
+    { useLiveMetrics: queryFlag, simulations: sims },
     {
       query: {
         enabled: !!teamId,
-        queryKey: getGetBracketExplorerQueryKey(teamId, { useLiveMetrics: queryFlag }),
+        queryKey: getGetBracketExplorerQueryKey(teamId, { useLiveMetrics: queryFlag, simulations: sims }),
       },
     },
   )
@@ -790,6 +793,10 @@ export default function Bracket() {
                 teamName: bracketData.team.name,
                 winProbability: displayWinProb,
                 simulationsRun: bracketData.simulationsRun,
+                path: bracketData.path.map((s) => ({
+                  stage: s.stage,
+                  reachProbability: s.reachProbability,
+                })),
                 lockedStage,
                 lockedOpponentName,
                 useLiveMetrics: !!queryFlag,
@@ -797,11 +804,7 @@ export default function Bracket() {
               });
 
               return (
-                <SharePredictionButton
-                  title={share.title}
-                  text={share.text}
-                  url={share.url}
-                />
+                <SharePredictionButton payload={share} />
               );
             })()}
           </div>

@@ -89,8 +89,8 @@ router.get("/popular-matchups", (_req, res) => {
     const teamB = TEAMS_BY_ID[bId];
     if (!teamA || !teamB) return null;
 
-    // Use fewer simulations for popular matchups (speed)
-    const result = simulateMatchProbability(aId, bId, 3000);
+    // Use fewer simulations for popular matchups (speed) but enough for stable previews
+    const result = simulateMatchProbability(aId, bId, 5000);
 
     const bestStage = result.stages.reduce(
       (best, s) => (s.probability > best.probability ? s : best),
@@ -297,7 +297,7 @@ router.get("/stage-breakdown/:teamId", async (req, res) => {
     const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
       ? await getLiveEloAdjustments()
       : undefined;
-    const reachProbs = simulateTeamStageReach(req.params.teamId, 5000, adjustments);
+    const reachProbs = simulateTeamStageReach(req.params.teamId, 10000, adjustments);
 
     const stages = Object.entries(reachProbs).map(([stage, probability]) => ({
       stage,
