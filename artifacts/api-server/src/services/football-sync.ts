@@ -4,7 +4,7 @@ import { logger } from "../lib/logger";
 import {
   fetchGames,
   fetchGroups,
-  fetchTeams,
+  fetchTeamsResilient,
   parseLocalDate,
   parseScorers,
   type WorldCup26Game,
@@ -218,6 +218,21 @@ async function upsertGroups(groups: WorldCup26Group[]): Promise<number> {
   return rows.length;
 }
 
+async function countCachedTeams(): Promise<number> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return 0;
+  const { count, error } = await sb
+    .from("football_teams")
+    .select("id", { count: "exact", head: true })
+    .eq("competition_key", WORLD_CUP26_CONFIG.competitionKey);
+  if (error) return 0;
+  return count ?? 0;
+}
+
+function errorRetryAt(): string {
+  return new Date(Date.now() + WORLD_CUP26_CONFIG.syncRetryIntervalMs).toISOString();
+}
+
 async function upsertTeams(teams: WorldCup26Team[]): Promise<number> {
   const sb = getSupabaseAdmin();
   if (!sb) throw new Error("Supabase not configured");
@@ -262,6 +277,7 @@ export async function runSyncJob(job: SyncJobName, force = false): Promise<SyncJ
     await updateJobState(job, { status: "running", error_message: null });
 
     let count = 0;
+    let syncMessage: string | undefined;
     if (job === "games") {
       await incrementCallCount(job);
       const games = await fetchGames();
@@ -272,23 +288,44 @@ export async function runSyncJob(job: SyncJobName, force = false): Promise<SyncJ
       count = await upsertGroups(groups);
     } else {
       await incrementCallCount(job);
-      const teams = await fetchTeams();
+      const { teams, source } = await fetchTeamsResilient();
       count = await upsertTeams(teams);
+      if (source === "games") {
+        syncMessage = "Derived from fixtures (/get/teams unavailable)";
+      }
     }
 
     const now = new Date();
     await updateJobState(job, {
       status: "success",
-      error_message: null,
+      error_message: syncMessage ?? null,
       last_synced_at: now.toISOString(),
       next_sync_at: new Date(now.getTime() + interval).toISOString(),
     });
 
-    return { job, status: "success", recordsUpserted: count };
+    return { job, status: "success", recordsUpserted: count, message: syncMessage };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed";
     logger.error({ err, job }, "football sync error");
-    await updateJobState(job, { status: "error", error_message: message }).catch(() => {});
+
+    if (job === "teams") {
+      const cached = await countCachedTeams();
+      if (cached > 0) {
+        const note = `Teams API unavailable; using ${cached} cached teams`;
+        await updateJobState(job, {
+          status: "skipped",
+          error_message: note,
+          next_sync_at: errorRetryAt(),
+        }).catch(() => {});
+        return { job, status: "skipped", message: note };
+      }
+    }
+
+    await updateJobState(job, {
+      status: "error",
+      error_message: message,
+      next_sync_at: errorRetryAt(),
+    }).catch(() => {});
     return { job, status: "error", message };
   }
 }

@@ -12,6 +12,8 @@ export const WORLD_CUP26_CONFIG = {
     groups: 15 * 60 * 1000,
     teams: 24 * 60 * 60 * 1000,
   },
+  /** Retry failed jobs after this interval (teams API is intermittently 500). */
+  syncRetryIntervalMs: 15 * 60 * 1000,
   endpoints: {
     games: "/get/games",
     groups: "/get/groups",

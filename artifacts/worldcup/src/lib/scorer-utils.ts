@@ -3,7 +3,45 @@
 const NAME_KEYS = ["name", "name_en", "player_name", "player_name_en", "scorer", "player"] as const;
 
 function stripMinutePrefix(text: string): string {
-  return text.replace(/^\d+(?:\+\d+)?['′]\s*/, "").trim();
+  return text.replace(/^\d+(?:\+\d+)?['′]\s*/i, "").trim();
+}
+
+/** Strip minute markers and penalty/OG suffixes for display and deduplication. */
+export function prettifyScorerName(name: string): string {
+  let s = name.trim();
+  s = s.replace(/^\d+(?:\+\d+)?['′]\s*/i, "").trim();
+  s = s.replace(/\s+\d+(?:\+\d+)?['′]?(?:\s*\([pP]\))?$/i, "").trim();
+  s = s.replace(/\s*\([pP]\)\s*$/i, "").trim();
+  s = s.replace(/\s*['′]?\s*\([oO][gG]\)\s*$/i, "").trim();
+  return s;
+}
+
+function foldAccents(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "");
+}
+
+/** Stable key for one player on one team across matches and goal events. */
+export function canonicalScorerKey(name: string): string {
+  return foldAccents(prettifyScorerName(name).toLowerCase()).replace(/\s+/g, " ").trim();
+}
+
+function teamAggregationKey(teamId: string | null, teamName: string | null): string {
+  if (teamId?.trim()) return teamId.trim().toLowerCase();
+  return (teamName ?? "").trim().toLowerCase();
+}
+
+function displayNameQuality(name: string): number {
+  const pretty = prettifyScorerName(name);
+  let score = pretty.length;
+  if (/\d/.test(pretty)) score -= 50;
+  if (/['′]/.test(pretty)) score -= 30;
+  return score;
+}
+
+function pickBetterDisplayName(current: string, candidate: string): string {
+  const curPretty = prettifyScorerName(current);
+  const candPretty = prettifyScorerName(candidate);
+  return displayNameQuality(candPretty) > displayNameQuality(curPretty) ? candPretty : curPretty;
 }
 
 function extractNameFromJsonish(text: string): string | null {
@@ -15,7 +53,7 @@ function extractNameFromJsonish(text: string): string | null {
     return fromParsed === "Unknown" ? null : fromParsed;
   } catch {
     const quoted = trimmed.match(/"(?:name|name_en|player_name|player_name_en|scorer|player)"\s*:\s*"([^"]+)"/i);
-    if (quoted?.[1]) return stripMinutePrefix(quoted[1]);
+    if (quoted?.[1]) return prettifyScorerName(stripMinutePrefix(quoted[1]));
     return null;
   }
 }
@@ -35,10 +73,10 @@ export function scorerDisplayName(entry: unknown): string {
     const fromJson = extractNameFromJsonish(trimmed);
     if (fromJson) return fromJson;
 
-    const tick = trimmed.match(/^\d+(?:\+\d+)?['′]\s*(.+)$/);
-    if (tick?.[1]) return stripMinutePrefix(tick[1]);
+    const tick = trimmed.match(/^\d+(?:\+\d+)?['′]\s*(.+)$/i);
+    if (tick?.[1]) return prettifyScorerName(stripMinutePrefix(tick[1]));
 
-    return stripMinutePrefix(trimmed);
+    return prettifyScorerName(stripMinutePrefix(trimmed));
   }
 
   if (typeof entry === "object") {
@@ -52,7 +90,7 @@ export function scorerDisplayName(entry: unknown): string {
     for (const key of NAME_KEYS) {
       const val = o[key];
       if (typeof val === "string" && val.trim()) {
-        return stripMinutePrefix(val.trim());
+        return prettifyScorerName(stripMinutePrefix(val.trim()));
       }
     }
 
@@ -151,13 +189,18 @@ export function normalizeScorerList(raw: unknown[] | null): unknown[] {
 }
 
 export interface ScorerEntry {
+  id: string;
   name: string;
   goals: number;
   teamName?: string;
+  matches: number;
 }
+
+type ScorerAccumulator = ScorerEntry & { matchIds: Set<string> };
 
 export function aggregateTopScorers(
   fixtures: Array<{
+    api_fixture_id?: string;
     is_finished: boolean;
     home_scorers: unknown[] | null;
     away_scorers: unknown[] | null;
@@ -168,30 +211,49 @@ export function aggregateTopScorers(
   }>,
   limit = 20,
 ): ScorerEntry[] {
-  const counts = new Map<string, ScorerEntry>();
+  const counts = new Map<string, ScorerAccumulator>();
 
   for (const f of fixtures.filter((x) => x.is_finished)) {
+    const matchId = f.api_fixture_id ?? `${f.home_team_id ?? f.home_team_name}-${f.away_team_id ?? f.away_team_name}-${f.is_finished}`;
+
     for (const side of [
       { scorers: f.home_scorers, team: f.home_team_name, teamId: f.home_team_id },
       { scorers: f.away_scorers, team: f.away_team_name, teamId: f.away_team_id },
     ]) {
-      for (const raw of normalizeScorerList(side.scorers)) {
-        let name = scorerDisplayName(raw);
-        if (name === "Unknown" || looksMalformed(name)) continue;
+      const teamKey = teamAggregationKey(side.teamId, side.team);
 
-        const key = `${name.toLowerCase()}|${side.teamId ?? side.team ?? ""}`;
-        const cur = counts.get(key) ?? {
-          name,
-          goals: 0,
-          teamName: side.team ?? undefined,
-        };
+      for (const raw of normalizeScorerList(side.scorers)) {
+        const name = prettifyScorerName(scorerDisplayName(raw));
+        if (!name || name === "Unknown" || looksMalformed(name)) continue;
+
+        const playerKey = canonicalScorerKey(name);
+        if (!playerKey) continue;
+
+        const key = `${playerKey}|${teamKey}`;
+        const cur =
+          counts.get(key) ??
+          ({
+            id: key,
+            name,
+            goals: 0,
+            teamName: side.team ?? undefined,
+            matches: 0,
+            matchIds: new Set<string>(),
+          } satisfies ScorerAccumulator);
+
         cur.goals += 1;
+        cur.name = pickBetterDisplayName(cur.name, name);
+        cur.matchIds.add(matchId);
         counts.set(key, cur);
       }
     }
   }
 
   return [...counts.values()]
+    .map(({ matchIds, ...entry }) => ({
+      ...entry,
+      matches: matchIds.size,
+    }))
     .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
     .slice(0, limit);
 }

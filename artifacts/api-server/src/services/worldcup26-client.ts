@@ -49,6 +49,10 @@ export interface WorldCup26Team {
 
 let cachedToken: string | undefined = WORLD_CUP26_CONFIG.jwtToken;
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function authenticate(): Promise<string | null> {
   const { authEmail, authPassword, baseUrl, endpoints } = WORLD_CUP26_CONFIG;
   if (!authEmail || !authPassword) return null;
@@ -66,19 +70,36 @@ async function authenticate(): Promise<string | null> {
   return null;
 }
 
-async function apiFetch<T>(path: string, retry = true): Promise<T> {
+async function apiFetch<T>(path: string, retryAuth = true, attempt = 0): Promise<T> {
   const token = cachedToken ?? (await authenticate());
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${WORLD_CUP26_CONFIG.baseUrl}${path}`, {
-    headers,
-    cache: "no-store",
-  });
-  if (res.status === 401 && retry && token) {
-    const fresh = await authenticate();
-    if (fresh) return apiFetch<T>(path, false);
+  let res: Response;
+  try {
+    res = await fetch(`${WORLD_CUP26_CONFIG.baseUrl}${path}`, {
+      headers,
+      cache: "no-store",
+    });
+  } catch (err) {
+    if (attempt < 2) {
+      await sleep(400 * 2 ** attempt);
+      return apiFetch<T>(path, retryAuth, attempt + 1);
+    }
+    const message = err instanceof Error ? err.message : "fetch failed";
+    throw new Error(`worldcup26 ${path}: ${message}`);
   }
+
+  if (res.status === 401 && retryAuth && token) {
+    const fresh = await authenticate();
+    if (fresh) return apiFetch<T>(path, false, attempt);
+  }
+
+  if (res.status >= 500 && attempt < 2) {
+    await sleep(500 * 2 ** attempt);
+    return apiFetch<T>(path, retryAuth, attempt + 1);
+  }
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`worldcup26 ${path}: ${res.status} ${text.slice(0, 200)}`);
@@ -108,6 +129,74 @@ export async function fetchTeams(): Promise<WorldCup26Team[]> {
   );
   if (Array.isArray(data)) return data;
   return data.teams ?? [];
+}
+
+/** Build team rows from fixture data when /get/teams is down. */
+export function deriveTeamsFromGames(games: WorldCup26Game[]): WorldCup26Team[] {
+  const byId = new Map<string, WorldCup26Team>();
+
+  for (const g of games) {
+    for (const side of [
+      {
+        id: g.home_team_id,
+        name: g.home_team_name_en ?? g.home_team_label,
+        group: g.group,
+      },
+      {
+        id: g.away_team_id,
+        name: g.away_team_name_en ?? g.away_team_label,
+        group: g.group,
+      },
+    ]) {
+      if (!side.id) continue;
+      const name = (side.name ?? "").trim();
+      if (!name) continue;
+      const prev = byId.get(side.id);
+      byId.set(side.id, {
+        id: side.id,
+        name_en: name,
+        groups: side.group || prev?.groups || "",
+        fifa_code: prev?.fifa_code,
+        name_fa: prev?.name_fa,
+        flag: prev?.flag,
+      });
+    }
+  }
+
+  return [...byId.values()];
+}
+
+export type TeamsFetchSource = "teams" | "games";
+
+/** Retry /get/teams; fall back to names from /get/games when the teams endpoint errors. */
+export async function fetchTeamsResilient(): Promise<{
+  teams: WorldCup26Team[];
+  source: TeamsFetchSource;
+}> {
+  const errors: string[] = [];
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const teams = await fetchTeams();
+      if (teams.length > 0) return { teams, source: "teams" };
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : String(err));
+      if (attempt < 2) await sleep(600 * 2 ** attempt);
+    }
+  }
+
+  try {
+    const games = await fetchGames();
+    const teams = deriveTeamsFromGames(games);
+    if (teams.length > 0) {
+      return { teams, source: "games" };
+    }
+    errors.push("No teams derivable from games");
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err));
+  }
+
+  throw new Error(errors.join(" | "));
 }
 
 /** IANA timezone per worldcup26 stadium id (venue local wall-clock for local_date). */

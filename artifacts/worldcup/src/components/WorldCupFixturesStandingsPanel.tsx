@@ -8,12 +8,14 @@ import {
   LayoutGrid,
   List,
   Clock,
+  Search,
 } from "lucide-react";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
 import { FootballTeamSelect } from "@/components/FootballTeamSelect";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn, getFlagEmoji } from "@/lib/utils";
 import {
   formatKickoffTime,
@@ -208,62 +210,123 @@ function RecentResultsBlock({
 }
 
 function TopScorersList({ scorers, teams }: { scorers: ScorerEntry[]; teams: FootballTeam[] }) {
+  const [query, setQuery] = useState("");
+
+  const teamByName = useMemo(
+    () => Object.fromEntries(teams.map((t) => [t.name_en.toLowerCase(), t])),
+    [teams],
+  );
+
+  const sorted = useMemo(
+    () => [...scorers].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name)),
+    [scorers],
+  );
+
+  const rankById = useMemo(() => {
+    const ranks = new Map<string, number>();
+    sorted.forEach((s, i) => ranks.set(s.id, i + 1));
+    return ranks;
+  }, [sorted]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter((s) => {
+      if (s.name.toLowerCase().includes(q)) return true;
+      if (s.teamName?.toLowerCase().includes(q)) return true;
+      const team = s.teamName ? teamByName[s.teamName.toLowerCase()] : undefined;
+      if (team?.fifa_code?.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }, [sorted, query, teamByName]);
+
   if (scorers.length === 0) return null;
 
-  const teamByName = Object.fromEntries(teams.map((t) => [t.name_en.toLowerCase(), t]));
-
   return (
-    <div className="rounded-lg border border-border overflow-hidden text-sm">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground bg-secondary/25 border-b border-border/40">
-            <th className="py-2 pl-3 pr-1 text-left w-8">#</th>
-            <th className="py-2 px-2 text-left">Player</th>
-            <th className="py-2 px-2 text-left hidden sm:table-cell">Team</th>
-            <th className="py-2 pr-3 pl-2 text-right w-10">G</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scorers.map((s, i) => {
-            const team = s.teamName ? teamByName[s.teamName.toLowerCase()] : undefined;
-            const rank = i + 1;
-            return (
-              <tr
-                key={`${s.name}-${s.teamName ?? ""}-${i}`}
-                className="border-b border-border/10 last:border-0 hover:bg-secondary/25"
-              >
-                <td className="py-1.5 pl-3 pr-1 font-mono text-xs text-muted-foreground tabular-nums">
-                  {rank}
-                </td>
-                <td className="py-1.5 px-2 min-w-0">
-                  <div className="truncate font-medium leading-tight">{s.name}</div>
-                  {s.teamName && (
-                    <div className="sm:hidden text-[10px] text-muted-foreground truncate mt-0.5">
-                      {team?.fifa_code ? `${getFlagEmoji(team.fifa_code)} ` : ""}
-                      {s.teamName}
-                    </div>
-                  )}
-                </td>
-                <td className="py-1.5 px-2 hidden sm:table-cell min-w-0">
-                  {s.teamName ? (
-                    <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                      {team?.fifa_code ? (
-                        <span className="text-sm leading-none shrink-0">{getFlagEmoji(team.fifa_code)}</span>
-                      ) : null}
-                      <span className="truncate text-xs text-muted-foreground">{s.teamName}</span>
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground/40">—</span>
-                  )}
-                </td>
-                <td className="py-1.5 pr-3 pl-2 text-right font-mono font-bold text-primary tabular-nums">
-                  {s.goals}
-                </td>
+    <div className="space-y-3 max-h-[min(28rem,60vh)] flex flex-col">
+      <div className="relative shrink-0">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search player or team…"
+          className="pl-9 h-9 text-sm bg-secondary/30 border-border/60"
+          aria-label="Search scorers by player or team"
+        />
+      </div>
+
+      {query.trim() && (
+        <p className="text-[10px] font-mono text-muted-foreground">
+          {filtered.length} of {sorted.length} scorer{sorted.length === 1 ? "" : "s"}
+        </p>
+      )}
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          No scorers match &ldquo;{query.trim()}&rdquo;.
+        </p>
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden text-sm overflow-y-auto min-h-0 flex-1">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground bg-secondary/25 border-b border-border/40">
+                <th className="py-2 pl-3 pr-1 text-left w-8">#</th>
+                <th className="py-2 px-2 text-left">Player</th>
+                <th className="py-2 px-2 text-left hidden sm:table-cell">Team</th>
+                <th className="py-2 pr-3 pl-2 text-right w-10" title="Goals (high to low)">
+                  G ↓
+                </th>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {filtered.map((s) => {
+                const team = s.teamName ? teamByName[s.teamName.toLowerCase()] : undefined;
+                const rank = rankById.get(s.id) ?? 0;
+                return (
+                  <tr
+                    key={s.id}
+                    className="border-b border-border/10 last:border-0 hover:bg-secondary/25"
+                  >
+                    <td className="py-1.5 pl-3 pr-1 font-mono text-xs text-muted-foreground tabular-nums">
+                      {rank}
+                    </td>
+                    <td className="py-1.5 px-2 min-w-0">
+                      <div className="truncate font-medium leading-tight">{s.name}</div>
+                      {s.matches > 1 && (
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {s.matches} matches
+                        </div>
+                      )}
+                      {s.teamName && (
+                        <div className="sm:hidden text-[10px] text-muted-foreground truncate mt-0.5">
+                          {team?.fifa_code ? `${getFlagEmoji(team.fifa_code)} ` : ""}
+                          {s.teamName}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2 hidden sm:table-cell min-w-0">
+                      {s.teamName ? (
+                        <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                          {team?.fifa_code ? (
+                            <span className="text-sm leading-none shrink-0">{getFlagEmoji(team.fifa_code)}</span>
+                          ) : null}
+                          <span className="truncate text-xs text-muted-foreground">{s.teamName}</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 pr-3 pl-2 text-right font-mono font-bold text-primary tabular-nums">
+                      {s.goals}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -536,7 +599,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   }, [fixtures, teamFilter]);
 
   const topScorers = useMemo(
-    () => (dataSection === "scorers" ? aggregateTopScorers(fixtures) : []),
+    () => (dataSection === "scorers" ? aggregateTopScorers(fixtures, 500) : []),
     [fixtures, dataSection],
   );
 
@@ -987,9 +1050,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                         : "Scorer data appears after matches finish."}
                     </p>
                   ) : (
-                    <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
-                      <TopScorersList scorers={topScorers} teams={teams} />
-                    </div>
+                    <TopScorersList scorers={topScorers} teams={teams} />
                   )}
                 </div>
               )}

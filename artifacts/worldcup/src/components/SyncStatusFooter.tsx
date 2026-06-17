@@ -22,8 +22,14 @@ function formatSyncTime(iso: string | null): string {
 function statusClass(status: string) {
   if (status === "success") return "text-primary";
   if (status === "running") return "text-amber-400";
+  if (status === "skipped") return "text-muted-foreground";
   if (status === "error") return "text-destructive";
   return "text-muted-foreground";
+}
+
+function statusLabel(job: FootballSyncJobState) {
+  if (job.status === "skipped" && job.error_message?.includes("cached teams")) return "cached";
+  return job.status;
 }
 
 interface SyncStatusFooterProps {
@@ -85,7 +91,7 @@ export function SyncStatusFooter({
                   {JOB_LABELS[job.job_name] ?? job.job_name}
                 </span>
                 <span className={cn("font-mono uppercase text-[10px]", statusClass(job.status))}>
-                  {job.status}
+                  {statusLabel(job)}
                 </span>
               </div>
               <div className="mt-0.5 font-mono text-[10px]">
@@ -98,7 +104,14 @@ export function SyncStatusFooter({
                 )}
               </div>
               {job.error_message && (
-                <p className="mt-1 text-[10px] text-destructive line-clamp-2">{job.error_message}</p>
+                <p
+                  className={cn(
+                    "mt-1 text-[10px] line-clamp-2",
+                    job.status === "error" ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {job.error_message}
+                </p>
               )}
             </div>
           ))}

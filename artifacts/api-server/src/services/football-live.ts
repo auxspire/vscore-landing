@@ -1,7 +1,7 @@
 import {
   fetchGames,
   fetchGroups,
-  fetchTeams,
+  fetchTeamsResilient,
   parseLocalDate,
   parseScorers,
   type WorldCup26Game,
@@ -142,8 +142,13 @@ export async function fetchLatestFixtures(): Promise<FootballFixtureDto[]> {
 
 /** Parallel fetch from worldcup26.ir — fixtures, standings, and teams in one round trip. */
 export async function fetchLatestFootballLive(): Promise<FootballLivePayload> {
-  const [games, groups, teams] = await Promise.all([fetchGames(), fetchGroups(), fetchTeams()]);
+  const [games, groups, teamsResult] = await Promise.all([
+    fetchGames(),
+    fetchGroups(),
+    fetchTeamsResilient(),
+  ]);
 
+  const { teams } = teamsResult;
   const nameById = Object.fromEntries(teams.map((t) => [t.id, t.name_en]));
   const teamDtos = teams.map(mapTeamToDto).sort((a, b) => a.name_en.localeCompare(b.name_en));
 
