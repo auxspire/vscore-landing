@@ -12,7 +12,8 @@ import {
 } from "@workspace/bracket-path"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
-import { getFlagEmoji, cn } from "@/lib/utils"
+import { TeamFlag } from "@/components/TeamFlag"
+import { cn } from "@/lib/utils"
 import { WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
 import { buildBracketShareMessage } from "@/lib/share-messages"
@@ -141,7 +142,7 @@ function PathStrip({
   return (
     <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
       <div className="flex-shrink-0 flex flex-col items-center gap-1 bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5 min-w-[60px] text-center">
-        <span className="text-xl">{getFlagEmoji(team.flagCode)}</span>
+        <TeamFlag flagCode={team.flagCode} size={28} />
         <span className="text-[10px] font-mono font-bold text-primary">GRP {team.group}</span>
       </div>
 
@@ -171,7 +172,7 @@ function PathStrip({
               </span>
               {opp && (
                 <>
-                  <span className="text-base leading-none">{getFlagEmoji(opp.team.flagCode)}</span>
+                  <TeamFlag flagCode={opp.team.flagCode} size={22} />
                   <span className="text-[9px] font-mono font-bold text-foreground/80 leading-tight max-w-[64px] truncate px-0.5">
                     {opp.team.name}
                   </span>
@@ -327,7 +328,7 @@ function StageCard({
                 {/* Team side */}
                 <div className="flex-1 flex flex-col gap-1.5 min-w-0">
                   <div className="flex items-center gap-3">
-                    <span className="text-4xl flex-shrink-0">{getFlagEmoji(team.flagCode)}</span>
+                    <TeamFlag flagCode={team.flagCode} size={36} className="flex-shrink-0" />
                     <div className="min-w-0">
                       <div className="font-bold text-sm truncate text-foreground">{team.name}</div>
                       <div className="text-[10px] font-mono text-primary uppercase tracking-wider">YOUR TEAM</div>
@@ -357,7 +358,7 @@ function StageCard({
                         #{primary.team.fifaRanking}
                       </div>
                     </div>
-                    <span className="text-4xl flex-shrink-0 group-hover/opplink:scale-110 transition-transform">{getFlagEmoji(primary.team.flagCode)}</span>
+                    <TeamFlag flagCode={primary.team.flagCode} size={36} className="flex-shrink-0 group-hover/opplink:scale-110 transition-transform" />
                   </button>
                   {isR32 && primary.groupFinish && Object.keys(primary.groupFinish).length > 0 && (
                     <GroupFinishBadge finishMap={primary.groupFinish} group={primary.team.group} side="opponent" />
@@ -467,9 +468,9 @@ function StageCard({
                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onViewTeam(opp.team.id) } }}
                                     className="text-base hover:scale-125 transition-transform inline-block cursor-pointer"
                                     title={`View ${opp.team.name}'s bracket path`}
-                                  >{getFlagEmoji(opp.team.flagCode)}</span>
+                                  ><TeamFlag flagCode={opp.team.flagCode} size={20} className="hover:scale-125 transition-transform cursor-pointer" /></span>
                                 ) : (
-                                  <span className="text-base inline-block">{getFlagEmoji(opp.team.flagCode)}</span>
+                                  <TeamFlag flagCode={opp.team.flagCode} size={20} />
                                 )}
                                 <div>
                                   <div className={cn(
@@ -539,9 +540,9 @@ function StageCard({
                                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onViewTeam(opp.team.id) } }}
                                 className="text-lg hover:scale-125 transition-transform inline-block cursor-pointer"
                                 title={`View ${opp.team.name}'s bracket path`}
-                              >{getFlagEmoji(opp.team.flagCode)}</span>
+                              ><TeamFlag flagCode={opp.team.flagCode} size={22} className="hover:scale-125 transition-transform cursor-pointer" /></span>
                             ) : (
-                              <span className="text-lg inline-block">{getFlagEmoji(opp.team.flagCode)}</span>
+                              <TeamFlag flagCode={opp.team.flagCode} size={22} />
                             )}
                             <div>
                               <div className="text-xs font-bold leading-none flex items-center gap-1">
@@ -689,7 +690,8 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
             <div className="absolute top-0 right-0 w-72 h-72 bg-primary/5 blur-[80px] -z-10 rounded-full" />
             <CardContent className="p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-5">
-                <span className="text-6xl md:text-7xl filter drop-shadow-lg">{getFlagEmoji(bracketData.team.flagCode)}</span>
+                <TeamFlag flagCode={bracketData.team.flagCode} size={56} className="md:hidden filter drop-shadow-lg" />
+                <TeamFlag flagCode={bracketData.team.flagCode} size={64} className="hidden md:block filter drop-shadow-lg" />
                 <div>
                   <h2 className="text-2xl md:text-4xl font-bold tracking-tight">{bracketData.team.name}</h2>
                   <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -762,7 +764,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                   <Lock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                   <span className="font-mono text-amber-300 font-bold text-xs uppercase tracking-wider">Path locked:</span>
                   <span className="text-foreground text-xs">
-                    Facing {getFlagEmoji(lockOpp.team.flagCode)} <strong>{lockOpp.team.name}</strong> in the {
+                    Facing <TeamFlag flagCode={lockOpp.team.flagCode} size={18} className="inline-block align-middle mx-0.5" /> <strong>{lockOpp.team.name}</strong> in the {
                       bracketData.path.find(s => s.stage === lockedStage)?.description
                     }. Future stages updated.
                   </span>

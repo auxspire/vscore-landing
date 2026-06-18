@@ -8,7 +8,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "setup:worldcup-football": "node ./setup-worldcup-football.mjs",
     "sync:football": "tsx ./run-football-sync.mjs",
-    "verify:bracket-path": "tsx ./src/verify-bracket-path.ts"
+    "verify:bracket-path": "tsx ./src/verify-bracket-path.ts",
+    "verify:path-coherence": "tsx ./src/verify-path-coherence.ts"
   },
   "dependencies": {
     "@workspace/bracket-path": "workspace:*",

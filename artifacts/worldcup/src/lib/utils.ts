@@ -18,3 +18,13 @@ export function getFlagEmoji(countryCode: string): string {
   const codePoints = code.split("").map((char) => 127397 + char.charCodeAt(0));
   return String.fromCodePoint(...codePoints);
 }
+
+/** PNG flag URL (works on Windows/desktop where emoji flags often fail). */
+export function getFlagImageUrl(flagCode: string, width = 40): string | null {
+  if (!flagCode) return null;
+  const normalized = flagCode.trim().toLowerCase();
+  if (/^[a-z]{2}(-[a-z]{3})?$/.test(normalized)) {
+    return `https://flagcdn.com/w${width}/${normalized}.png`;
+  }
+  return null;
+}

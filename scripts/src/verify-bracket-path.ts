@@ -7,6 +7,7 @@ import {
   buildLockedDisplayPath,
   buildMostLikelyDisplayPath,
   knockoutStageIndex,
+  type PathStage,
 } from "@workspace/bracket-path";
 
 const baseUrl = process.argv[2] ?? "https://www.vscor.in";
@@ -52,6 +53,7 @@ async function verifyLikelyPath(useLive: boolean) {
   const data = await fetchBracket(useLive);
   const likely = buildMostLikelyDisplayPath(data.path, data.team.group);
   const dupes = assertNoDuplicatePathOpponents(likely, 0);
+  const coherenceErrors = assertPathCoherence(likely);
 
   const pathNames = likely
     .map((s) => s.topOpponents[0]?.team.name ?? "?")
@@ -60,6 +62,10 @@ async function verifyLikelyPath(useLive: boolean) {
   console.log(`\n[${label}] likely path: ${pathNames}`);
   if (dupes.length) {
     console.error("  FAIL duplicate foes:", dupes.join("; "));
+    return false;
+  }
+  if (coherenceErrors.length) {
+    console.error("  FAIL coherence:", coherenceErrors.join("; "));
     return false;
   }
   console.log("  OK");
@@ -168,11 +174,80 @@ async function verifyEnglandLockedPath(useLive: boolean) {
   return true;
 }
 
+function assertPathCoherence(stages: PathStage[]): string[] {
+  const errors: string[] = [];
+  let prevReach = 1;
+  let pathBroken = false;
+
+  for (const stage of stages) {
+    const hasOpp = stage.topOpponents.length > 0;
+
+    if (pathBroken && hasOpp) {
+      errors.push(`${stage.stage} has opponent after earlier gap`);
+    }
+    if (!hasOpp) pathBroken = true;
+
+    if (hasOpp) {
+      if (stage.reachProbability > prevReach + 0.001) {
+        errors.push(
+          `${stage.stage} reach ${(stage.reachProbability * 100).toFixed(1)}% exceeds prior ${(prevReach * 100).toFixed(1)}%`,
+        );
+      }
+      prevReach = stage.reachProbability;
+    }
+  }
+
+  return errors;
+}
+
+async function verifyMexicoLikelyPath(useLive: boolean) {
+  const label = useLive ? "live metrics" : "default Elo";
+  const q = new URLSearchParams({ simulations: String(sims) });
+  if (useLive) q.set("useLiveMetrics", "1");
+  const url = `${baseUrl}/api/bracket-explorer/mexico?${q}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.log(`\n[${label}] Mexico skipped: ${res.status}`);
+    return true;
+  }
+
+  const data = (await res.json()) as Awaited<ReturnType<typeof fetchBracket>>;
+  const likely = buildMostLikelyDisplayPath(data.path, data.team.group);
+  const coherenceErrors = assertPathCoherence(likely);
+
+  const summary = likely
+    .map((s) => {
+      const opp = s.topOpponents[0]?.team.name ?? "—";
+      return `${SHORT[s.stage] ?? s.stage} ${(s.reachProbability * 100).toFixed(0)}% ${opp}`;
+    })
+    .join(" → ");
+
+  console.log(`\n[${label}] Mexico likely: ${summary}`);
+
+  if (coherenceErrors.length) {
+    console.error("  FAIL", coherenceErrors.join("; "));
+    return false;
+  }
+
+  console.log("  OK");
+  return true;
+}
+
+const SHORT: Record<string, string> = {
+  round_of_32: "R32",
+  round_of_16: "R16",
+  quarterfinal: "QF",
+  semifinal: "SF",
+  final: "Final",
+};
+
 const ok =
   (await verifyLikelyPath(false)) &&
   (await verifyLikelyPath(true)) &&
   (await verify(false)) &&
   (await verify(true)) &&
   (await verifyEnglandLockedPath(false)) &&
-  (await verifyEnglandLockedPath(true));
+  (await verifyEnglandLockedPath(true)) &&
+  (await verifyMexicoLikelyPath(false)) &&
+  (await verifyMexicoLikelyPath(true));
 process.exit(ok ? 0 : 1);
