@@ -79,7 +79,7 @@ export default function Home() {
             <p className="text-sm md:text-base text-muted-foreground mt-0.5">
               {tab === "predictor" && "Predict where any two teams will meet"}
               {tab === "path" && "Bracket explorer and power rankings — all in one place"}
-              {tab === "fixtures" && "Today's matches, results, and group tables"}
+              {tab === "fixtures" && "Today's matches, results, and group tables — with VScor win outlook"}
             </p>
           </div>
         </div>

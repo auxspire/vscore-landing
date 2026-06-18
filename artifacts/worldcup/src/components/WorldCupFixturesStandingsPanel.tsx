@@ -36,6 +36,9 @@ import {
   type FootballTeam,
   type ScorerEntry,
 } from "@/hooks/useFootballData";
+import { useFixturePredictions, type FixturePrediction } from "@/hooks/useFixturePredictions";
+import { useLiveMetrics } from "@/hooks/useLiveMetrics";
+import { Activity, Check, TrendingUp } from "lucide-react";
 
 const QUALIFYING_SPOTS = 2;
 
@@ -59,14 +62,82 @@ function teamFlag(teamId: string | null, teams: FootballTeam[], size = "text-xl"
   return <span className={cn(size, "opacity-40")}>🏳️</span>;
 }
 
+function VscorMatchOdds({
+  prediction,
+  finished,
+}: {
+  prediction?: FixturePrediction;
+  finished: boolean;
+}) {
+  if (!prediction?.available) return null;
+
+  if (finished) {
+    if (prediction.predictionCorrect) {
+      const label =
+        prediction.favoredSide === "draw"
+          ? `Draw ${(prediction.draw * 100).toFixed(0)}%`
+          : `${prediction.favoredTeamName ?? "Favorite"} ${(prediction.favoredWinProbability * 100).toFixed(0)}%`;
+      return (
+        <div className="flex items-center justify-center gap-1 mt-1">
+          <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+          <span className="text-[10px] font-mono text-emerald-400/90 truncate max-w-[7rem]">
+            {label}
+          </span>
+        </div>
+      );
+    }
+
+    if (prediction.isUpset) {
+      return (
+        <div className="flex items-center justify-center gap-1 mt-1">
+          <TrendingUp className="w-3 h-3 text-amber-400 shrink-0" />
+          <span className="text-[10px] font-mono text-amber-400/90 truncate max-w-[8rem]">
+            Upset · had {prediction.favoredTeamName} {(prediction.favoredWinProbability * 100).toFixed(0)}%
+          </span>
+        </div>
+      );
+    }
+
+    if (prediction.actualOutcome === "draw") {
+      return (
+        <span className="text-[10px] font-mono text-muted-foreground mt-1 block text-center">
+          Draw · had {prediction.favoredTeamName} {(prediction.favoredWinProbability * 100).toFixed(0)}%
+        </span>
+      );
+    }
+
+    return null;
+  }
+
+  const pct = (prediction.favoredWinProbability * 100).toFixed(0);
+  const label =
+    prediction.favoredSide === "draw"
+      ? `Draw ${pct}%`
+      : `${prediction.favoredTeamName?.split(" ").pop() ?? "Fav"} ${pct}%`;
+
+  return (
+    <div className="flex flex-col items-center mt-1 gap-0.5">
+      <span className="text-[10px] font-mono font-bold text-primary tabular-nums">{label}</span>
+      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/70 flex items-center gap-0.5">
+        <Activity className="w-2.5 h-2.5" />
+        VScor
+      </span>
+    </div>
+  );
+}
+
 function MatchCard({
   f,
   teams,
   timeZone,
+  prediction,
+  showVscorOdds = false,
 }: {
   f: FootballFixture;
   teams: FootballTeam[];
   timeZone: string;
+  prediction?: FixturePrediction;
+  showVscorOdds?: boolean;
 }) {
   const finished = f.is_finished;
   const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone, { withTimezone: true });
@@ -107,17 +178,26 @@ function MatchCard({
 
         <div className="flex flex-col items-center justify-center min-w-[3.5rem] sm:min-w-[4.5rem] px-1 sm:px-2">
           {finished ? (
-            <span className="text-xl md:text-2xl font-mono font-bold tabular-nums">
-              {f.home_goals ?? 0}
-              <span className="text-muted-foreground mx-1.5 font-normal">–</span>
-              {f.away_goals ?? 0}
-            </span>
+            <>
+              <span className="text-xl md:text-2xl font-mono font-bold tabular-nums">
+                {f.home_goals ?? 0}
+                <span className="text-muted-foreground mx-1.5 font-normal">–</span>
+                {f.away_goals ?? 0}
+              </span>
+              {showVscorOdds && (
+                <VscorMatchOdds prediction={prediction} finished />
+              )}
+            </>
           ) : (
             <>
               <span className="text-lg font-mono font-bold text-muted-foreground">{kickoffTimeShort}</span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                Kickoff · {getTimezoneLabel(timeZone)}
-              </span>
+              {showVscorOdds ? (
+                <VscorMatchOdds prediction={prediction} finished={false} />
+              ) : (
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                  Kickoff · {getTimezoneLabel(timeZone)}
+                </span>
+              )}
             </>
           )}
         </div>
@@ -141,6 +221,8 @@ function RecentResultsBlock({
   limit = 5,
   defaultCollapsed = false,
   collapsible = true,
+  predictions,
+  showVscorOdds = false,
 }: {
   results: FootballFixture[];
   teams: FootballTeam[];
@@ -149,6 +231,8 @@ function RecentResultsBlock({
   limit?: number;
   defaultCollapsed?: boolean;
   collapsible?: boolean;
+  predictions?: Map<string, FixturePrediction>;
+  showVscorOdds?: boolean;
 }) {
   const [open, setOpen] = useState(collapsible ? !defaultCollapsed : true);
   const slice = results.slice(0, limit);
@@ -175,7 +259,14 @@ function RecentResultsBlock({
         </div>
         <div>
           {slice.map((f) => (
-            <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+            <MatchCard
+              key={f.api_fixture_id}
+              f={f}
+              teams={teams}
+              timeZone={timeZone}
+              prediction={predictions?.get(f.api_fixture_id)}
+              showVscorOdds={showVscorOdds}
+            />
           ))}
         </div>
       </div>
@@ -201,7 +292,14 @@ function RecentResultsBlock({
       {open && (
         <div>
           {slice.map((f) => (
-            <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+            <MatchCard
+              key={f.api_fixture_id}
+              f={f}
+              teams={teams}
+              timeZone={timeZone}
+              prediction={predictions?.get(f.api_fixture_id)}
+              showVscorOdds={showVscorOdds}
+            />
           ))}
         </div>
       )}
@@ -624,13 +722,45 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     [teams],
   );
 
-  const loading = liveLoading || (!hasLiveContent && liveFetching);
-
   /** Finished matches for Today view — exclude those still listed in the upcoming window */
   const todayCollapsedResults = useMemo(() => {
     const shown = new Set(upcomingWindow.map((f) => f.api_fixture_id));
     return recentResults.filter((f) => !shown.has(f.api_fixture_id)).slice(0, 8);
   }, [recentResults, upcomingWindow]);
+
+  const { queryFlag } = useLiveMetrics();
+
+  const fixturesForVscorToday = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: FootballFixture[] = [];
+    for (const f of [...upcomingWindow, ...todayCollapsedResults]) {
+      if (!seen.has(f.api_fixture_id)) {
+        seen.add(f.api_fixture_id);
+        merged.push(f);
+      }
+    }
+    return merged;
+  }, [upcomingWindow, todayCollapsedResults]);
+
+  const fixturesForVscorResults = useMemo(
+    () => recentResults.slice(0, 30),
+    [recentResults],
+  );
+
+  const showVscorToday = variant === "full" && dataSection === "matches" && scheduleView === "today";
+  const showVscorResults = variant === "full" && dataSection === "matches" && scheduleView === "results";
+
+  const { predictions: todayPredictions } = useFixturePredictions(fixturesForVscorToday, teams, {
+    enabled: showVscorToday && hasLiveContent,
+    useLiveMetrics: !!queryFlag,
+  });
+
+  const { predictions: resultsPredictions } = useFixturePredictions(fixturesForVscorResults, teams, {
+    enabled: showVscorResults && hasLiveContent,
+    useLiveMetrics: !!queryFlag,
+  });
+
+  const loading = liveLoading || (!hasLiveContent && liveFetching);
 
   if (variant === "teaser") {
     const preview =
@@ -815,10 +945,15 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                   {scheduleView === "today" && (
                     <div className="grid lg:grid-cols-2 lg:divide-x divide-border/30">
                       <div className="min-w-0">
-                        <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
-                            Today &amp; tomorrow
+                        <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                              Today &amp; tomorrow
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-mono text-primary/70 shrink-0 hidden sm:inline">
+                            VScor win outlook
                           </span>
                         </div>
                         {upcomingWindow.length === 0 ? (
@@ -836,7 +971,14 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                           </p>
                         ) : (
                           upcomingWindow.map((f) => (
-                            <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                            <MatchCard
+                              key={f.api_fixture_id}
+                              f={f}
+                              teams={teams}
+                              timeZone={timeZone}
+                              prediction={todayPredictions.get(f.api_fixture_id)}
+                              showVscorOdds
+                            />
                           ))
                         )}
                       </div>
@@ -850,6 +992,8 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                             title="Recent results"
                             limit={8}
                             collapsible={false}
+                            predictions={todayPredictions}
+                            showVscorOdds
                           />
                         ) : (
                           <div>
@@ -880,11 +1024,26 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
                   {scheduleView === "results" && (
                     <div>
+                      <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center justify-between gap-2">
+                        <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                          Model vs result
+                        </span>
+                        <span className="text-[10px] font-mono text-primary/70">
+                          ✓ favored · ↑ upset
+                        </span>
+                      </div>
                       {recentResults.length === 0 ? (
                         <p className="text-sm text-muted-foreground p-8 text-center">No finished matches yet.</p>
                       ) : (
                         recentResults.slice(0, 30).map((f) => (
-                          <MatchCard key={f.api_fixture_id} f={f} teams={teams} timeZone={timeZone} />
+                          <MatchCard
+                            key={f.api_fixture_id}
+                            f={f}
+                            teams={teams}
+                            timeZone={timeZone}
+                            prediction={resultsPredictions.get(f.api_fixture_id)}
+                            showVscorOdds
+                          />
                         ))
                       )}
                     </div>

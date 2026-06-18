@@ -15,6 +15,7 @@ import {
   type KnockoutStage,
 } from "@workspace/bracket-path";
 import { getLiveEloAdjustments, parseUseLiveMetrics } from "../services/liveMetrics";
+import { predictFixtures } from "../services/fixturePredictions";
 
 const router = Router();
 
@@ -355,6 +356,44 @@ router.get("/stage-breakdown/:teamId", async (req, res) => {
     res.json({ team, stages });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Simulation failed";
+    res.status(500).json({ error: message });
+  }
+});
+
+router.post("/fixture-predictions", async (req, res) => {
+  const body = req.body as {
+    fixtures?: Array<{
+      fixtureId: string;
+      homeFifaCode?: string | null;
+      homeName?: string | null;
+      awayFifaCode?: string | null;
+      awayName?: string | null;
+      matchType?: string | null;
+      isFinished?: boolean;
+      homeGoals?: number | null;
+      awayGoals?: number | null;
+    }>;
+    useLiveMetrics?: string;
+  };
+
+  if (!Array.isArray(body.fixtures) || body.fixtures.length === 0) {
+    res.status(400).json({ error: "fixtures array is required" });
+    return;
+  }
+
+  if (body.fixtures.length > 50) {
+    res.status(400).json({ error: "Maximum 50 fixtures per request" });
+    return;
+  }
+
+  try {
+    const adjustments = parseUseLiveMetrics(body.useLiveMetrics)
+      ? await getLiveEloAdjustments()
+      : undefined;
+    const predictions = predictFixtures(body.fixtures, adjustments);
+    res.json({ predictions });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Prediction failed";
     res.status(500).json({ error: message });
   }
 });
