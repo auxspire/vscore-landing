@@ -116,9 +116,63 @@ async function verify(useLive: boolean) {
   return allOk;
 }
 
+async function verifyEnglandLockedPath(useLive: boolean) {
+  const label = useLive ? "live metrics" : "default Elo";
+  const q = new URLSearchParams({ simulations: String(sims) });
+  if (useLive) q.set("useLiveMetrics", "1");
+  const url = `${baseUrl}/api/bracket-explorer/england?${q}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.log(`\n[${label}] England skipped: ${res.status}`);
+    return true;
+  }
+
+  const data = (await res.json()) as Awaited<ReturnType<typeof fetchBracket>>;
+  const r32 = data.path.find((s) => s.stage === "round_of_32");
+  const lockOpp = r32?.topOpponents[0];
+  if (!lockOpp) {
+    console.log(`\n[${label}] England skipped: no R32 opponent`);
+    return true;
+  }
+
+  const result = buildLockedDisplayPath({
+    path: data.path,
+    teamGroup: data.team.group,
+    lockedStage: "round_of_32",
+    lockedOpponentId: lockOpp.team.id,
+    lockedFinishPos: null,
+  });
+
+  const r16 = result.stages.find((s) => s.stage === "round_of_16");
+  const qf = result.stages.find((s) => s.stage === "quarterfinal");
+
+  const r16Reach = r16?.reachProbability ?? 0;
+  const r16HasOpp = (r16?.topOpponents.length ?? 0) > 0;
+  const qfHasOpp = (qf?.topOpponents.length ?? 0) > 0;
+
+  console.log(
+    `\n[${label}] England lock=${lockOpp.team.name} R16 reach=${(r16Reach * 100).toFixed(1)}% opp=${r16?.topOpponents[0]?.team.name ?? "none"}`,
+  );
+
+  if (r16Reach > 0.01 && !r16HasOpp && qfHasOpp) {
+    console.error("  FAIL R16 has reach but no opponent while QF has opponent");
+    return false;
+  }
+
+  if (r16Reach > 0.01 && !r16HasOpp) {
+    console.error("  FAIL R16 has reach but no opponent");
+    return false;
+  }
+
+  console.log("  OK");
+  return true;
+}
+
 const ok =
   (await verifyLikelyPath(false)) &&
   (await verifyLikelyPath(true)) &&
   (await verify(false)) &&
-  (await verify(true));
+  (await verify(true)) &&
+  (await verifyEnglandLockedPath(false)) &&
+  (await verifyEnglandLockedPath(true));
 process.exit(ok ? 0 : 1);

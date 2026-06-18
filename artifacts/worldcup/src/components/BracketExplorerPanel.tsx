@@ -64,6 +64,8 @@ interface RichStageNode {
   opponentsByFinish?: Record<string, RichOpponent[]>
   /** Set to true when data is from a conditional (locked-opponent) path */
   isConditional?: boolean
+  /** Opponents from overall sims when conditional/path-filter data was unavailable */
+  opponentsFromAggregate?: boolean
   /** Number of simulations this conditional stage estimate is based on — low = unreliable */
   sampleCount?: number
 }
@@ -213,6 +215,7 @@ function StageCard({
 }) {
   const isFinal       = stage.stage === "final"
   const isConditional = stage.isConditional === true
+  const isAggregateFallback = stage.opponentsFromAggregate === true
   const isR32         = stage.stage === "round_of_32"
 
   // All opponents across all finish groups (for lock lookup)
@@ -280,6 +283,11 @@ function StageCard({
               {isConditional && (
                 <span className="text-[10px] font-mono font-bold text-primary/60 uppercase tracking-widest">
                   · IF SELECTED PATH
+                </span>
+              )}
+              {isAggregateFallback && (
+                <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest">
+                  · OVERALL OUTLOOK
                 </span>
               )}
               {isConditional && stage.sampleCount !== undefined && stage.sampleCount < 100 && (
@@ -565,7 +573,9 @@ function StageCard({
             </div>
           ) : (
             <div className="p-6 text-center text-muted-foreground text-sm italic">
-              No likely opponents — team unlikely to reach this stage.
+              {stage.reachProbability > 0.01
+                ? "No bracket-valid opponent on this path — reach reflects overall simulations."
+                : "No likely opponents — team unlikely to reach this stage."}
             </div>
           )}
         </CardContent>

@@ -25,6 +25,8 @@ export interface PathStage {
   opponentsByFinish?: Record<string, PathOpponent[]>;
   isConditional?: boolean;
   sampleCount?: number;
+  /** Opponents shown from aggregate sims when conditional/path-filter data was empty */
+  opponentsFromAggregate?: boolean;
 }
 
 export interface LockedPathInput {
@@ -108,6 +110,47 @@ function filterEligibleOpponents(
   });
 }
 
+function filterPathDuplicatesOnly(
+  opps: PathOpponent[],
+  eliminated: Set<string>,
+): PathOpponent[] {
+  return opps.filter((o) => !eliminated.has(o.team.id));
+}
+
+function resolveEligibleOpponents(
+  stageOpponents: PathOpponent[],
+  eliminated: Set<string>,
+  teamGroup: string,
+  teamFinish: GroupFinish | null,
+  stage: KnockoutStage,
+  originalOpponents?: PathOpponent[],
+): { topOpponents: PathOpponent[]; opponentsFromAggregate: boolean } {
+  const eligible = filterEligibleOpponents(
+    stageOpponents,
+    eliminated,
+    teamGroup,
+    teamFinish,
+    stage,
+  );
+
+  if (eligible.length > 0) {
+    return { topOpponents: eligible, opponentsFromAggregate: false };
+  }
+
+  const fallbackPool =
+    stageOpponents.length > 0 ? stageOpponents : (originalOpponents ?? []);
+
+  if (fallbackPool.length === 0) {
+    return { topOpponents: [], opponentsFromAggregate: false };
+  }
+
+  const deduped = filterPathDuplicatesOnly(fallbackPool, eliminated);
+  return {
+    topOpponents: deduped,
+    opponentsFromAggregate: deduped.length > 0,
+  };
+}
+
 /**
  * Enforce a single coherent knockout path: no team appears twice after the lock,
  * and each foe must be bracket-valid for the team's finish scenario.
@@ -118,25 +161,44 @@ export function applyPathChainFilter(
   lockedOpponentId: string,
   teamGroup: string,
   teamFinish: GroupFinish | null,
+  originalPath?: PathStage[],
 ): PathStage[] {
   const eliminatedOnPath = new Set<string>([lockedOpponentId]);
+  const originalsByStage = new Map(originalPath?.map((s) => [s.stage, s]));
 
   return stages.map((stage) => {
     const stageIdx = knockoutStageIndex(stage.stage);
     if (stageIdx <= lockIdx) return stage;
 
-    const eligible = filterEligibleOpponents(
+    const original = originalsByStage.get(stage.stage);
+    const { topOpponents, opponentsFromAggregate } = resolveEligibleOpponents(
       stage.topOpponents,
       eliminatedOnPath,
       teamGroup,
       teamFinish,
       stage.stage as KnockoutStage,
+      original?.topOpponents,
     );
 
-    const topOpponents = eligible;
     if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
 
-    return { ...stage, topOpponents };
+    let reachProbability = stage.reachProbability;
+    let isConditional = stage.isConditional;
+
+    if (topOpponents.length === 0) {
+      reachProbability = 0;
+    } else if (opponentsFromAggregate && original) {
+      reachProbability = original.reachProbability;
+      isConditional = false;
+    }
+
+    return {
+      ...stage,
+      topOpponents,
+      reachProbability,
+      isConditional,
+      opponentsFromAggregate: opponentsFromAggregate || undefined,
+    };
   });
 }
 
@@ -206,7 +268,7 @@ export function buildLockedDisplayPath(input: LockedPathInput): LockedPathResult
       };
     }
 
-    return { ...stage, isConditional: true, topOpponents: [] };
+    return stage;
   });
 
   const stages = applyPathChainFilter(
@@ -215,6 +277,7 @@ export function buildLockedDisplayPath(input: LockedPathInput): LockedPathResult
     lockedOpponentId,
     teamGroup,
     teamFinishScenario,
+    path,
   );
 
   const lockWin = lockOpponent?.winProbabilityIfFacing ?? 0;
@@ -251,7 +314,7 @@ export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string)
       }
     }
 
-    const eligible = filterEligibleOpponents(
+    const { topOpponents, opponentsFromAggregate } = resolveEligibleOpponents(
       candidates,
       eliminatedOnPath,
       teamGroup,
@@ -259,10 +322,16 @@ export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string)
       stage.stage as KnockoutStage,
     );
 
-    const topOpponents = eligible;
     if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
 
-    return { ...stage, topOpponents };
+    const reachProbability = topOpponents.length > 0 ? stage.reachProbability : 0;
+
+    return {
+      ...stage,
+      topOpponents,
+      reachProbability,
+      opponentsFromAggregate: opponentsFromAggregate || undefined,
+    };
   });
 }
 
