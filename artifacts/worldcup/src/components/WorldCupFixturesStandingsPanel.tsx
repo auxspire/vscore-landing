@@ -68,18 +68,20 @@ function favoredPickLabel(
   awayTeamId: string | null,
   teams: FootballTeam[],
 ): string {
-  if (prediction.favoredSide === "draw") return "Draw";
+  const side =
+    prediction.pickSide ??
+    (prediction.homeWin >= prediction.awayWin ? "home" : "away");
 
-  const apiId = prediction.favoredSide === "home" ? homeTeamId : awayTeamId;
+  const apiId = side === "home" ? homeTeamId : awayTeamId;
   const team = apiId ? teams.find((t) => t.api_team_id === apiId) : undefined;
   if (team?.fifa_code) return team.fifa_code;
 
-  const name = prediction.favoredTeamName;
+  const name = prediction.pickTeamName ?? prediction.favoredTeamName;
   if (name) {
     const last = name.split(/\s+/).pop() ?? name;
     return last.length <= 4 ? last.toUpperCase() : last.slice(0, 3).toUpperCase();
   }
-  return prediction.favoredSide === "home" ? "Home" : "Away";
+  return side === "home" ? "Home" : "Away";
 }
 
 function VscorMatchOdds({
@@ -98,15 +100,24 @@ function VscorMatchOdds({
   if (!prediction?.available) return null;
 
   const pick = favoredPickLabel(prediction, homeTeamId, awayTeamId, teams);
-  const pct = `${(prediction.favoredWinProbability * 100).toFixed(0)}%`;
-  const isDrawPick = prediction.favoredSide === "draw";
+  const winProb = prediction.pickWinProbability ?? prediction.favoredWinProbability;
+  const pct = `${(winProb * 100).toFixed(0)}%`;
+  const teamName = prediction.pickTeamName ?? prediction.favoredTeamName ?? pick;
 
   const colorClass = (() => {
     if (finished) {
-      if (!prediction.predictionCorrect) return "text-red-400";
-      return isDrawPick ? "text-amber-400" : "text-emerald-400";
+      const tone =
+        prediction.resultTone ??
+        (prediction.pickCorrect || prediction.predictionCorrect
+          ? "hit"
+          : prediction.actualOutcome === "draw"
+            ? "draw"
+            : "miss");
+      if (tone === "hit") return "text-emerald-400";
+      if (tone === "draw") return "text-amber-400";
+      return "text-red-400";
     }
-    return isDrawPick ? "text-amber-400" : "text-primary";
+    return "text-primary";
   })();
 
   return (
@@ -116,7 +127,7 @@ function VscorMatchOdds({
           "text-[10px] font-mono font-bold uppercase tracking-wide truncate w-full text-center",
           colorClass,
         )}
-        title={isDrawPick ? "Draw favored" : `${prediction.favoredTeamName ?? pick} favored`}
+        title={`${teamName} to win`}
       >
         {pick}
       </span>
@@ -970,7 +981,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                             </span>
                           </div>
                           <span className="text-[10px] font-mono text-primary/70 shrink-0 hidden sm:inline">
-                            VScor win outlook
+                            Team to win
                           </span>
                         </div>
                         {upcomingWindow.length === 0 ? (
@@ -1046,9 +1057,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                           Model vs result
                         </span>
                         <span className="text-[10px] font-mono text-muted-foreground/80">
-                          <span className="text-emerald-400">●</span> hit
+                          <span className="text-emerald-400">●</span> pick won
                           <span className="mx-1.5 text-amber-400">●</span> draw
-                          <span className="mx-1.5 text-red-400">●</span> miss
+                          <span className="mx-1.5 text-red-400">●</span> pick lost
                         </span>
                       </div>
                       {recentResults.length === 0 ? (

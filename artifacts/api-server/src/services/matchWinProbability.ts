@@ -106,6 +106,51 @@ export function assessPredictionAccuracy(
   return { actualOutcome, predictionCorrect, isUpset };
 }
 
+/** Team with the higher win probability — always used for schedule display. */
+export interface TeamPick {
+  pickSide: "home" | "away";
+  pickWinProbability: number;
+  pickTeamId: string;
+  pickTeamName: string;
+}
+
+export function getTeamPick(
+  probs: MatchOutcomeProbabilities,
+  home: Team,
+  away: Team,
+): TeamPick {
+  const pickSide = probs.homeWin >= probs.awayWin ? "home" : "away";
+  return {
+    pickSide,
+    pickWinProbability: pickSide === "home" ? probs.homeWin : probs.awayWin,
+    pickTeamId: pickSide === "home" ? home.id : away.id,
+    pickTeamName: pickSide === "home" ? home.name : away.name,
+  };
+}
+
+export type PickResultTone = "hit" | "draw" | "miss";
+
+export function assessTeamPickResult(
+  pickSide: "home" | "away",
+  homeGoals: number,
+  awayGoals: number,
+): {
+  actualOutcome: ActualOutcome;
+  pickCorrect: boolean;
+  resultTone: PickResultTone;
+} {
+  const actualOutcome = actualOutcomeFromScore(homeGoals, awayGoals);
+  if (actualOutcome === "draw") {
+    return { actualOutcome, pickCorrect: false, resultTone: "draw" };
+  }
+  const pickCorrect = actualOutcome === pickSide;
+  return {
+    actualOutcome,
+    pickCorrect,
+    resultTone: pickCorrect ? "hit" : "miss",
+  };
+}
+
 export function getAdjustedTeam(
   teamId: string,
   adjustments?: EloAdjustments,

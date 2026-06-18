@@ -17,7 +17,13 @@ export interface FixturePrediction {
   favoredWinProbability: number;
   favoredTeamName?: string;
   isKnockout: boolean;
+  pickSide: "home" | "away";
+  pickWinProbability: number;
+  pickTeamId: string;
+  pickTeamName: string;
   actualOutcome?: "home" | "away" | "draw";
+  pickCorrect?: boolean;
+  resultTone?: "hit" | "draw" | "miss";
   predictionCorrect?: boolean;
   isUpset?: boolean;
 }

@@ -1,7 +1,8 @@
 import {
-  assessPredictionAccuracy,
+  assessTeamPickResult,
   computeMatchOutcomeProbabilities,
   getAdjustedTeam,
+  getTeamPick,
   type MatchOutcomeProbabilities,
 } from "./matchWinProbability";
 import { resolveSimulatorTeam } from "./simulatorTeamResolver";
@@ -34,7 +35,15 @@ export interface FixturePredictionResult {
   favoredWinProbability: number;
   favoredTeamName?: string;
   isKnockout: boolean;
+  /** Team pick shown on schedule (higher win prob; never draw). */
+  pickSide: "home" | "away";
+  pickWinProbability: number;
+  pickTeamId: string;
+  pickTeamName: string;
   actualOutcome?: "home" | "away" | "draw";
+  pickCorrect?: boolean;
+  resultTone?: "hit" | "draw" | "miss";
+  /** @deprecated use pickCorrect / resultTone */
   predictionCorrect?: boolean;
   isUpset?: boolean;
 }
@@ -76,6 +85,10 @@ export function predictFixtures(
         favoredTeamId: "",
         favoredSide: "home",
         favoredWinProbability: 0,
+        pickSide: "home",
+        pickWinProbability: 0,
+        pickTeamId: "",
+        pickTeamName: "",
         isKnockout: isKnockoutMatch(fixture.matchType),
       };
     }
@@ -84,6 +97,7 @@ export function predictFixtures(
     const away = getAdjustedTeam(awayResolved.id, adjustments) ?? awayResolved;
     const knockout = isKnockoutMatch(fixture.matchType);
     const probs = computeMatchOutcomeProbabilities(home, away, knockout);
+    const pick = getTeamPick(probs, home, away);
 
     const base: FixturePredictionResult = {
       fixtureId: fixture.fixtureId,
@@ -100,6 +114,10 @@ export function predictFixtures(
       favoredWinProbability: probs.favoredWinProbability,
       favoredTeamName: favoredTeamName(probs, home.name, away.name),
       isKnockout: knockout,
+      pickSide: pick.pickSide,
+      pickWinProbability: pick.pickWinProbability,
+      pickTeamId: pick.pickTeamId,
+      pickTeamName: pick.pickTeamName,
     };
 
     if (
@@ -107,16 +125,18 @@ export function predictFixtures(
       fixture.homeGoals != null &&
       fixture.awayGoals != null
     ) {
-      const accuracy = assessPredictionAccuracy(
-        probs,
+      const result = assessTeamPickResult(
+        pick.pickSide,
         fixture.homeGoals,
         fixture.awayGoals,
       );
       return {
         ...base,
-        actualOutcome: accuracy.actualOutcome,
-        predictionCorrect: accuracy.predictionCorrect,
-        isUpset: accuracy.isUpset,
+        actualOutcome: result.actualOutcome,
+        pickCorrect: result.pickCorrect,
+        resultTone: result.resultTone,
+        predictionCorrect: result.pickCorrect,
+        isUpset: result.resultTone === "miss",
       };
     }
 
