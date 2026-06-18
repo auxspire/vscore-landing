@@ -38,7 +38,7 @@ import {
 } from "@/hooks/useFootballData";
 import { useFixturePredictions, type FixturePrediction } from "@/hooks/useFixturePredictions";
 import { useLiveMetrics } from "@/hooks/useLiveMetrics";
-import { Activity, Check, TrendingUp } from "lucide-react";
+import { Activity } from "lucide-react";
 
 const QUALIFYING_SPOTS = 2;
 
@@ -71,57 +71,26 @@ function VscorMatchOdds({
 }) {
   if (!prediction?.available) return null;
 
-  if (finished) {
-    if (prediction.predictionCorrect) {
-      const label =
-        prediction.favoredSide === "draw"
-          ? `Draw ${(prediction.draw * 100).toFixed(0)}%`
-          : `${prediction.favoredTeamName ?? "Favorite"} ${(prediction.favoredWinProbability * 100).toFixed(0)}%`;
-      return (
-        <div className="flex items-center justify-center gap-1 mt-1">
-          <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-          <span className="text-[10px] font-mono text-emerald-400/90 truncate max-w-[7rem]">
-            {label}
-          </span>
-        </div>
-      );
+  const pct = `${(prediction.favoredWinProbability * 100).toFixed(0)}%`;
+  const isDrawPick = prediction.favoredSide === "draw";
+
+  const colorClass = (() => {
+    if (finished) {
+      if (!prediction.predictionCorrect) return "text-red-400";
+      return isDrawPick ? "text-amber-400" : "text-emerald-400";
     }
-
-    if (prediction.isUpset) {
-      return (
-        <div className="flex items-center justify-center gap-1 mt-1">
-          <TrendingUp className="w-3 h-3 text-amber-400 shrink-0" />
-          <span className="text-[10px] font-mono text-amber-400/90 truncate max-w-[8rem]">
-            Upset · had {prediction.favoredTeamName} {(prediction.favoredWinProbability * 100).toFixed(0)}%
-          </span>
-        </div>
-      );
-    }
-
-    if (prediction.actualOutcome === "draw") {
-      return (
-        <span className="text-[10px] font-mono text-muted-foreground mt-1 block text-center">
-          Draw · had {prediction.favoredTeamName} {(prediction.favoredWinProbability * 100).toFixed(0)}%
-        </span>
-      );
-    }
-
-    return null;
-  }
-
-  const pct = (prediction.favoredWinProbability * 100).toFixed(0);
-  const label =
-    prediction.favoredSide === "draw"
-      ? `Draw ${pct}%`
-      : `${prediction.favoredTeamName?.split(" ").pop() ?? "Fav"} ${pct}%`;
+    return isDrawPick ? "text-amber-400" : "text-primary";
+  })();
 
   return (
     <div className="flex flex-col items-center mt-1 gap-0.5">
-      <span className="text-[10px] font-mono font-bold text-primary tabular-nums">{label}</span>
-      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/70 flex items-center gap-0.5">
-        <Activity className="w-2.5 h-2.5" />
-        VScor
-      </span>
+      <span className={cn("text-xs font-mono font-bold tabular-nums", colorClass)}>{pct}</span>
+      {!finished && (
+        <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/70 flex items-center gap-0.5">
+          <Activity className="w-2.5 h-2.5" />
+          VScor
+        </span>
+      )}
     </div>
   );
 }
@@ -1028,8 +997,10 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                         <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
                           Model vs result
                         </span>
-                        <span className="text-[10px] font-mono text-primary/70">
-                          ✓ favored · ↑ upset
+                        <span className="text-[10px] font-mono text-muted-foreground/80">
+                          <span className="text-emerald-400">●</span> hit
+                          <span className="mx-1.5 text-amber-400">●</span> draw
+                          <span className="mx-1.5 text-red-400">●</span> miss
                         </span>
                       </div>
                       {recentResults.length === 0 ? (
