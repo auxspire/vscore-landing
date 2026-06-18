@@ -62,15 +62,42 @@ function teamFlag(teamId: string | null, teams: FootballTeam[], size = "text-xl"
   return <span className={cn(size, "opacity-40")}>🏳️</span>;
 }
 
+function favoredPickLabel(
+  prediction: FixturePrediction,
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+  teams: FootballTeam[],
+): string {
+  if (prediction.favoredSide === "draw") return "Draw";
+
+  const apiId = prediction.favoredSide === "home" ? homeTeamId : awayTeamId;
+  const team = apiId ? teams.find((t) => t.api_team_id === apiId) : undefined;
+  if (team?.fifa_code) return team.fifa_code;
+
+  const name = prediction.favoredTeamName;
+  if (name) {
+    const last = name.split(/\s+/).pop() ?? name;
+    return last.length <= 4 ? last.toUpperCase() : last.slice(0, 3).toUpperCase();
+  }
+  return prediction.favoredSide === "home" ? "Home" : "Away";
+}
+
 function VscorMatchOdds({
   prediction,
   finished,
+  homeTeamId,
+  awayTeamId,
+  teams,
 }: {
   prediction?: FixturePrediction;
   finished: boolean;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  teams: FootballTeam[];
 }) {
   if (!prediction?.available) return null;
 
+  const pick = favoredPickLabel(prediction, homeTeamId, awayTeamId, teams);
   const pct = `${(prediction.favoredWinProbability * 100).toFixed(0)}%`;
   const isDrawPick = prediction.favoredSide === "draw";
 
@@ -83,7 +110,16 @@ function VscorMatchOdds({
   })();
 
   return (
-    <div className="flex flex-col items-center mt-1 gap-0.5">
+    <div className="flex flex-col items-center mt-1 gap-0.5 max-w-[5rem]">
+      <span
+        className={cn(
+          "text-[10px] font-mono font-bold uppercase tracking-wide truncate w-full text-center",
+          colorClass,
+        )}
+        title={isDrawPick ? "Draw favored" : `${prediction.favoredTeamName ?? pick} favored`}
+      >
+        {pick}
+      </span>
       <span className={cn("text-xs font-mono font-bold tabular-nums", colorClass)}>{pct}</span>
       {!finished && (
         <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/70 flex items-center gap-0.5">
@@ -154,14 +190,26 @@ function MatchCard({
                 {f.away_goals ?? 0}
               </span>
               {showVscorOdds && (
-                <VscorMatchOdds prediction={prediction} finished />
+                <VscorMatchOdds
+                  prediction={prediction}
+                  finished
+                  homeTeamId={f.home_team_id}
+                  awayTeamId={f.away_team_id}
+                  teams={teams}
+                />
               )}
             </>
           ) : (
             <>
               <span className="text-lg font-mono font-bold text-muted-foreground">{kickoffTimeShort}</span>
               {showVscorOdds ? (
-                <VscorMatchOdds prediction={prediction} finished={false} />
+                <VscorMatchOdds
+                  prediction={prediction}
+                  finished={false}
+                  homeTeamId={f.home_team_id}
+                  awayTeamId={f.away_team_id}
+                  teams={teams}
+                />
               ) : (
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
                   Kickoff · {getTimezoneLabel(timeZone)}
