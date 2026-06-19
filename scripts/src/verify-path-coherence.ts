@@ -98,6 +98,67 @@ function testGapClearsLaterStages() {
   assert(qf.reachProbability === 0, "QF reach zero after gap");
 }
 
+function testGermanyConditionalPath() {
+  const path: PathStage[] = [
+    {
+      stage: "round_of_32",
+      reachProbability: 0.978,
+      teamGroupFinish: { "1st": 0.36, "2nd": 0.35, "3rd": 0.29 },
+      topOpponents: [mockOpponent("czechia", "Czechia", "A", 0.2)],
+      opponentsByFinish: {
+        "1st": [mockOpponent("czechia", "Czechia", "A", 0.2)],
+      },
+    },
+    {
+      stage: "round_of_16",
+      reachProbability: 0.65,
+      topOpponents: [mockOpponent("czechia", "Czechia", "A", 0.3)],
+    },
+    {
+      stage: "quarterfinal",
+      reachProbability: 0.4,
+      topOpponents: [mockOpponent("spain", "Spain", "H", 0.25)],
+    },
+    {
+      stage: "semifinal",
+      reachProbability: 0.15,
+      topOpponents: [mockOpponent("france", "France", "I", 0.2)],
+    },
+    {
+      stage: "final",
+      reachProbability: 0.06,
+      topOpponents: [mockOpponent("brazil", "Brazil", "C", 0.15)],
+    },
+  ];
+
+  path[0].topOpponents[0].conditionalPath = [
+    {
+      stage: "round_of_16",
+      reachProbability: 0.72,
+      topOpponents: [mockOpponent("netherlands", "Netherlands", "F", 0.35)],
+    },
+    {
+      stage: "quarterfinal",
+      reachProbability: 0.38,
+      topOpponents: [mockOpponent("spain", "Spain", "H", 0.25)],
+    },
+  ];
+  if (path[0].opponentsByFinish?.["1st"]?.[0]) {
+    path[0].opponentsByFinish["1st"][0].conditionalPath = path[0].topOpponents[0].conditionalPath;
+  }
+
+  const result = buildMostLikelyDisplayPath(path, "E");
+  const r16 = result.find((s) => s.stage === "round_of_16")!;
+  const qf = result.find((s) => s.stage === "quarterfinal")!;
+
+  assert(r16.topOpponents.length > 0, "R16 must have opponent via conditional path");
+  assert(r16.topOpponents[0]?.team.id !== "czechia", "R16 must not repeat R32 foe");
+  assert(r16.reachProbability > 0, "R16 reach must be > 0");
+  assert(qf.topOpponents.length > 0, "QF must have opponent");
+  assert(qf.reachProbability <= r16.reachProbability + 1e-9, "QF reach must not exceed R16");
+}
+
 testEliminatedFoeSkipsToNext();
 testGapClearsLaterStages();
+testGermanyConditionalPath();
 console.log("path-coherence unit checks OK");

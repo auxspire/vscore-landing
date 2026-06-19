@@ -326,7 +326,7 @@ function dedupeOpponents(opps: PathOpponent[]): PathOpponent[] {
  * Build a coherent "most likely path" for the unlocked view.
  * Picks one primary foe per stage and removes teams already beaten earlier.
  */
-export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string): PathStage[] {
+function buildAggregateDisplayPath(path: PathStage[], teamGroup: string): PathStage[] {
   const r32 = path.find((s) => s.stage === "round_of_32");
   const teamFinish = topFinishKey(r32?.teamGroupFinish ?? {});
   const eliminatedOnPath = new Set<string>();
@@ -367,6 +367,54 @@ export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string)
   });
 
   return finalizeSequentialPath(built);
+}
+
+export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string): PathStage[] {
+  const r32 = path.find((s) => s.stage === "round_of_32");
+  if (!r32) return finalizeSequentialPath(path);
+
+  const teamFinish = topFinishKey(r32.teamGroupFinish ?? {});
+  const pools: PathOpponent[][] = [r32.topOpponents];
+  if (r32.opponentsByFinish && teamFinish) {
+    const scenarioList = r32.opponentsByFinish[teamFinish];
+    if (scenarioList?.length) pools.unshift(scenarioList);
+  }
+
+  const r32Pick = pickStageOpponents(
+    pools,
+    new Set(),
+    teamGroup,
+    teamFinish,
+    "round_of_32",
+  );
+
+  const anchor = r32Pick.topOpponents[0];
+  if (!anchor) {
+    return buildAggregateDisplayPath(path, teamGroup);
+  }
+
+  const locked = buildLockedDisplayPath({
+    path,
+    teamGroup,
+    lockedStage: "round_of_32",
+    lockedOpponentId: anchor.team.id,
+    lockedFinishPos: teamFinish,
+  });
+
+  const hasLaterOpponents = locked.stages.some(
+    (s) =>
+      knockoutStageIndex(s.stage) > knockoutStageIndex("round_of_32") &&
+      s.topOpponents.length > 0,
+  );
+
+  if (!hasLaterOpponents) {
+    return buildAggregateDisplayPath(path, teamGroup);
+  }
+
+  return locked.stages.map((stage) => ({
+    ...stage,
+    isConditional: false,
+  }));
 }
 
 /** Verify no opponent appears twice on the path strip (primary foe per stage). */
