@@ -98,6 +98,23 @@ export interface BracketExplorerResult {
   /** Overall probability that this team wins the tournament */
   tournamentWinProbability: number;
   simulationsRun: number;
+  standingPathMode?: boolean;
+  liveStanding?: {
+    rank: number;
+    points: number;
+    goalDifference: number;
+    finish: "1st" | "2nd" | "3rd" | "eliminated";
+    source: "standings";
+    asOf?: string;
+  };
+  standingR32Opponent?: {
+    teamId: string;
+    name: string;
+    group: string;
+    finish: string;
+    pairingType: "third_place" | "runner_up" | "winner";
+    slotLabel: string;
+  };
 }
 
 export type TeamStageBreakdownStagesItem = {
@@ -162,13 +179,35 @@ export const GetMatchProbabilityUseLiveMetrics = {
 
 export type GetBracketExplorerParams = {
 simulations?: number;
+/** @deprecated Elo is on by default — use pureElo=1 to disable */
 useLiveMetrics?: GetBracketExplorerUseLiveMetrics;
+/** When 1/true, pin R32 path to live group standings */
+useGroupStandings?: GetBracketExplorerUseGroupStandings;
+pureElo?: GetBracketExplorerPureElo;
 };
 
 export type GetBracketExplorerUseLiveMetrics = typeof GetBracketExplorerUseLiveMetrics[keyof typeof GetBracketExplorerUseLiveMetrics];
 
 
 export const GetBracketExplorerUseLiveMetrics = {
+  NUMBER_0: '0',
+  NUMBER_1: '1',
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type GetBracketExplorerUseGroupStandings = typeof GetBracketExplorerUseGroupStandings[keyof typeof GetBracketExplorerUseGroupStandings];
+
+export const GetBracketExplorerUseGroupStandings = {
+  NUMBER_0: '0',
+  NUMBER_1: '1',
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type GetBracketExplorerPureElo = typeof GetBracketExplorerPureElo[keyof typeof GetBracketExplorerPureElo];
+
+export const GetBracketExplorerPureElo = {
   NUMBER_0: '0',
   NUMBER_1: '1',
   true: 'true',

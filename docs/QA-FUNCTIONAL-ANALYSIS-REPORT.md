@@ -177,21 +177,37 @@ Loading states (`LoadingAnimation`, `FixturesLoadingState`) unchanged; CLS on sc
 
 ---
 
-## 7. Recommended Next Steps
+## 7. Group Standings Path (June 2025)
+
+| Control | Default | Scope |
+|---------|---------|--------|
+| Elo / recent form | **ON** (no toggle) | All Monte Carlo routes unless `pureElo=1` |
+| Group standings | **OFF** | Path tab only — `useGroupStandings=1` |
+
+**Server:** [`liveStandings.ts`](../artifacts/api-server/src/services/liveStandings.ts) reads Supabase `football_standings` (incl. `goals_for`), builds live `buildBracket`, resolves `standingR32Opponent`.
+
+**Display:** [`resolveR32Anchor`](../lib/bracket-path/src/locked-path.ts) accepts standing finish + forced R32 foe; eliminated teams get zeroed path (GS-7).
+
+**Manual QA:** Schedule rank = Path badge; Germany 2nd → 2E–2I pairing; toggle off → projected path; lock wins over standings.
+
+---
+
+## 8. Recommended Next Steps
 
 1. Import official FIFA Annex C lookup table; diff against backtracking output per scenario row.
-2. Wire `useLiveMetrics` into popular matchups API + React Query key.
-3. Sync URL live-metrics on initial render (avoid double-fetch).
+2. Wire live Elo into popular matchups API + React Query key.
+3. Schedule row click → Path with standings pre-enabled.
 4. Add Playwright viewport tests for flags + error states.
 5. Optional UI copy: "Path is a statistical projection, not the official bracket tree."
 
 ---
 
-## 8. How to Re-Run Verification
+## 9. How to Re-Run Verification
 
 ```bash
 cd scripts
 npx tsx ./src/verify-path-coherence.ts
+npx tsx ./src/verify-live-standings-path.ts
 npx tsx ./src/verify-bracket-builder.ts
 npx tsx ./src/verify-bracket-path.ts https://www.vscor.in
 ```
@@ -202,4 +218,4 @@ Or: `npm run verify:all` from `scripts/` (when pnpm available).
 
 ## Conclusion
 
-Core tournament logic is **production-trustworthy** for the 2026 format at the simulation layer. Display paths are **stricter and more honest** after removing relaxed fallback. Hub reliability improved via lock hygiene, single panel mount, and error UI. Remaining gaps are primarily **product clarity** (cross-tab independence, Annex C exactness, live-metrics parity) rather than silent data corruption.
+Core tournament logic is **production-trustworthy** for the 2026 format at the simulation layer. Display paths are **stricter and more honest** after removing relaxed fallback. **Group standings toggle** aligns Path R32 with Schedule tables when enabled. Hub reliability improved via lock hygiene, single panel mount, and error UI. Remaining gaps are primarily **product clarity** (cross-tab independence, Annex C exactness) rather than silent data corruption.

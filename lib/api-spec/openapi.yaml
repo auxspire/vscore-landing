@@ -153,6 +153,22 @@ paths:
         - name: useLiveMetrics
           in: query
           required: false
+          deprecated: true
+          description: Deprecated — Elo/form blending is on by default. Use pureElo=1 to disable.
+          schema:
+            type: string
+            enum: ["0", "1", "true", "false"]
+        - name: useGroupStandings
+          in: query
+          required: false
+          description: When 1/true, pin Round of 32 to live group standings (Path tab)
+          schema:
+            type: string
+            enum: ["0", "1", "true", "false"]
+        - name: pureElo
+          in: query
+          required: false
+          description: When 1/true, disable live Elo adjustments (tests/debug)
           schema:
             type: string
             enum: ["0", "1", "true", "false"]
@@ -403,6 +419,42 @@ components:
           description: Overall probability that this team wins the tournament
         simulationsRun:
           type: integer
+        standingPathMode:
+          type: boolean
+        liveStanding:
+          type: object
+          properties:
+            rank:
+              type: integer
+            points:
+              type: integer
+            goalDifference:
+              type: number
+            finish:
+              type: string
+              enum: ["1st", "2nd", "3rd", "eliminated"]
+            source:
+              type: string
+              enum: ["standings"]
+            asOf:
+              type: string
+              format: date-time
+        standingR32Opponent:
+          type: object
+          properties:
+            teamId:
+              type: string
+            name:
+              type: string
+            group:
+              type: string
+            finish:
+              type: string
+            pairingType:
+              type: string
+              enum: ["third_place", "runner_up", "winner"]
+            slotLabel:
+              type: string
 
     TeamStageBreakdown:
       type: object

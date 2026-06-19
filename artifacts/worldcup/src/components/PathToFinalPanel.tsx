@@ -1,6 +1,6 @@
 import { useGetTeams } from "@workspace/api-client-react";
 import { TeamCombobox } from "@/components/TeamCombobox";
-import { LiveMetricsToggle } from "@/components/LiveMetricsToggle";
+import { GroupStandingsToggle } from "@/components/LiveMetricsToggle";
 import { BracketExplorerPanel } from "@/components/BracketExplorerPanel";
 import { PowerRankingsPanel } from "@/components/PowerRankingsPanel";
 import { useHomeTab, type PathSection } from "@/hooks/useHomeTab";
@@ -41,7 +41,7 @@ export function PathToFinalPanel() {
         </div>
 
         <div className="mt-5 max-w-xl">
-          <LiveMetricsToggle />
+          <GroupStandingsToggle />
         </div>
       </div>
 

@@ -616,23 +616,28 @@ export interface BracketExplorerPanelProps {
 }
 
 export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPanelProps) {
-  const { queryFlag } = useLiveMetrics()
+  const { groupStandingsEnabled, groupStandingsQueryFlag } = useLiveMetrics()
   const { bracketLock, setBracketLock } = useHomeTab()
-  const liveSuffix = queryFlag ? "&useLiveMetrics=1" : ""
+  const standingsSuffix = groupStandingsQueryFlag ? "&useGroupStandings=1" : ""
 
   const lockedStage = bracketLock.lockStage
   const lockedOpponentId = bracketLock.lockOpp
   const lockedFinishPos = bracketLock.lockFinish
 
-  const sims = simulationCount(!!queryFlag)
+  const sims = simulationCount()
+
+  const bracketQueryParams = {
+    simulations: sims,
+    useGroupStandings: groupStandingsQueryFlag,
+  }
 
   const { data: rawBracketData, isLoading: isLoadingBracket, isError: isBracketError, refetch: refetchBracket } = useGetBracketExplorer(
     teamId,
-    { useLiveMetrics: queryFlag, simulations: sims },
+    bracketQueryParams,
     {
       query: {
         enabled: !!teamId,
-        queryKey: getGetBracketExplorerQueryKey(teamId, { useLiveMetrics: queryFlag, simulations: sims }),
+        queryKey: getGetBracketExplorerQueryKey(teamId, bracketQueryParams),
       },
     },
   )
@@ -641,7 +646,42 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
   const bracketData = rawBracketData as (typeof rawBracketData & {
     team: RichTeam
     path: RichStageNode[]
+    standingPathMode?: boolean
+    liveStanding?: {
+      rank: number
+      points: number
+      goalDifference: number
+      finish: GroupFinish | "eliminated"
+      source: "standings"
+      asOf?: string
+    }
+    standingR32Opponent?: {
+      teamId: string
+      name: string
+      group: string
+      finish: string
+      pairingType: string
+      slotLabel: string
+    }
   }) | undefined
+
+  const standingPathOptions = useMemo(() => {
+    if (!bracketData?.standingPathMode || !bracketData.liveStanding) return undefined
+    const finish = bracketData.liveStanding.finish
+    return {
+      standing: {
+        finish: finish === "eliminated" ? null : (finish as GroupFinish),
+        eliminated: finish === "eliminated",
+      },
+      standingR32Opponent: bracketData.standingR32Opponent
+        ? {
+            teamId: bracketData.standingR32Opponent.teamId,
+            name: bracketData.standingR32Opponent.name,
+            group: bracketData.standingR32Opponent.group,
+          }
+        : null,
+    }
+  }, [bracketData?.standingPathMode, bracketData?.liveStanding, bracketData?.standingR32Opponent])
 
   const lockedPathResult = useMemo(() => {
     if (!bracketData?.path || !lockedStage || !lockedOpponentId) return null
@@ -656,8 +696,12 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
 
   const mostLikelyPathResult = useMemo(() => {
     if (!bracketData?.path || lockedStage) return null
-    return buildMostLikelyPathResult(bracketData.path, bracketData.team.group)
-  }, [bracketData?.path, bracketData?.team.group, lockedStage])
+    return buildMostLikelyPathResult(
+      bracketData.path,
+      bracketData.team.group,
+      standingPathOptions,
+    )
+  }, [bracketData?.path, bracketData?.team.group, lockedStage, standingPathOptions])
 
   const displayStages: RichStageNode[] = useMemo(() => {
     if (!bracketData?.path) return []
@@ -694,11 +738,16 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
     }
   }
 
+  const isStandingView =
+    !lockedStage && !!bracketData?.standingPathMode && !!bracketData.liveStanding
+
   const pathStripTitle = lockedStage
     ? "Selected Path"
-    : isProjectedView
-      ? "Projected Path"
-      : "Most Likely Path"
+    : isStandingView
+      ? "Standing-based path"
+      : isProjectedView
+        ? "Projected path"
+        : "Most Likely Path"
 
   const lockShareQs =
     lockedStage && lockedOpponentId
@@ -739,9 +788,36 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                   <h2 className="text-2xl md:text-4xl font-bold tracking-tight">{bracketData.team.name}</h2>
                   <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     <span className="bg-secondary px-2.5 py-0.5 rounded-full text-xs font-medium border border-border">Group {bracketData.team.group}</span>
+                    {isStandingView && bracketData.liveStanding && (
+                      <span className="bg-primary/15 text-primary px-2.5 py-0.5 rounded-full text-xs font-medium border border-primary/30">
+                        Table: Group {bracketData.team.group} · {bracketData.liveStanding.finish === "eliminated" ? "4th" : bracketData.liveStanding.finish}
+                      </span>
+                    )}
                     <span className="bg-secondary px-2.5 py-0.5 rounded-full text-xs font-medium border border-border">FIFA #{bracketData.team.fifaRanking}</span>
                     <span className="bg-secondary px-2.5 py-0.5 rounded-full text-xs font-medium border border-border">{bracketData.team.confederation}</span>
                   </div>
+                  {isStandingView && (() => {
+                    const r32Node = bracketData.path.find((s) => s.stage === "round_of_32") as
+                      | RichStageNode
+                      | undefined
+                    const r32Finish = r32Node?.teamGroupFinish
+                    if (!r32Finish) return null
+                    return (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Sim outlook:{" "}
+                        {Object.entries(r32Finish)
+                          .filter(([, v]) => (v as number) > 0.01)
+                          .sort((a, b) => (b[1] as number) - (a[1] as number))
+                          .map(([k, v]) => `${((v as number) * 100).toFixed(0)}% ${k}`)
+                          .join(" · ")}
+                      </p>
+                    )
+                  })()}
+                  {groupStandingsEnabled && !bracketData.standingPathMode && (
+                    <p className="text-xs text-amber-400/90 mt-2">
+                      Standings unavailable — using projected path.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="text-center sm:text-right border-t sm:border-t-0 sm:border-l border-border pt-5 sm:pt-0 sm:pl-7 w-full sm:w-auto flex-shrink-0">
@@ -784,8 +860,9 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                 })),
                 lockedStage,
                 lockedOpponentName,
-                useLiveMetrics: !!queryFlag,
-                shareUrl: `${WORLDCUP_BASE}/?tab=path&section=bracket&team=${bracketData.team.id}${liveSuffix}${lockShareQs}`,
+                useLiveMetrics: true,
+                useGroupStandings: isStandingView,
+                shareUrl: `${WORLDCUP_BASE}/?tab=path&section=bracket&team=${bracketData.team.id}${standingsSuffix}${lockShareQs}`,
               });
 
               return (
@@ -828,6 +905,14 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
               <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3">
                 {pathStripTitle}
               </div>
+              {isStandingView && (
+                <p className="text-xs text-muted-foreground mb-3">
+                  Reach % assumes current table position; final group outcome may differ.
+                  {bracketData.liveStanding?.asOf
+                    ? ` Updated ${new Date(bracketData.liveStanding.asOf).toLocaleString()}.`
+                    : ""}
+                </p>
+              )}
               <PathStrip
                 team={bracketData.team as RichTeam}
                 path={displayStages}

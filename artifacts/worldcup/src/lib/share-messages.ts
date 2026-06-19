@@ -30,12 +30,20 @@ function formatTopStages(
   return top.map((s) => `${formatStage(s.stage)} ${formatPct(s.probability)}`).join(" · ");
 }
 
-function simulationDetail(simulationsRun: number, useLiveMetrics?: boolean): string {
+function simulationDetail(
+  simulationsRun: number,
+  useLiveMetrics?: boolean,
+  useGroupStandings?: boolean,
+): string {
   const sims = simulationsRun.toLocaleString();
-  if (useLiveMetrics) {
-    return `${sims} Monte Carlo simulations · live standings & recent form blended into Elo`;
+  const base = `${sims} Monte Carlo simulations · Elo blended with live standings & recent form`;
+  if (useGroupStandings) {
+    return `${base} · R32 from current group table`;
   }
-  return `${sims} Monte Carlo simulations · full tournament Elo model`;
+  if (useLiveMetrics === false) {
+    return `${sims} Monte Carlo simulations · pure Elo model`;
+  }
+  return base;
 }
 
 export interface SharePayload {
@@ -110,6 +118,7 @@ export function buildBracketShareMessage(params: {
   lockedStage?: string | null;
   lockedOpponentName?: string | null;
   useLiveMetrics?: boolean;
+  useGroupStandings?: boolean;
   shareUrl: string;
 }): SharePayload {
   const {
@@ -120,6 +129,7 @@ export function buildBracketShareMessage(params: {
     lockedStage,
     lockedOpponentName,
     useLiveMetrics,
+    useGroupStandings,
     shareUrl,
   } = params;
 
@@ -140,7 +150,7 @@ export function buildBracketShareMessage(params: {
       : `Tournament win probability: ${pct}`,
     pathHighlights ? `Reach odds: ${pathHighlights}` : null,
     !isLocked ? "Full bracket simulation across all knockout paths" : null,
-    simulationDetail(simulationsRun, useLiveMetrics),
+    simulationDetail(simulationsRun, useLiveMetrics, useGroupStandings),
   ].filter((line): line is string => line != null);
 
   return {

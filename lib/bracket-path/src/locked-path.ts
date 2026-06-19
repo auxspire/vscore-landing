@@ -14,6 +14,8 @@ export interface PathOpponent {
   groupFinish?: Record<string, number>;
   sampleCount?: number;
   conditionalPath?: ConditionalPathStage[];
+  /** Injected from live table pairing when absent from sim encounters */
+  pathSource?: "standing" | "simulation";
 }
 
 export interface PathStage {
@@ -46,6 +48,16 @@ export interface LockedPathResult {
   lockOpponent: PathOpponent | undefined;
   teamFinishScenario: GroupFinish | null;
   winProbability: number;
+}
+
+export interface StandingPathInput {
+  finish: GroupFinish | null;
+  eliminated?: boolean;
+}
+
+export interface MostLikelyPathOptions {
+  standing?: StandingPathInput | null;
+  standingR32Opponent?: { teamId: string; name: string; group: string } | null;
 }
 
 /** Pick the finish-section row that best matches this opponent (avoids wrong conditional path). */
@@ -287,11 +299,35 @@ export function computeChainedWinProbability(
   return Math.min(1, Math.max(0, prob));
 }
 
-function resolveR32Anchor(
+function injectStandingOpponent(
+  opps: PathOpponent[],
+  forced: { teamId: string; name: string; group: string },
+): PathOpponent[] {
+  const existing = opps.find((o) => o.team.id === forced.teamId);
+  if (existing) return opps;
+  return [
+    {
+      team: { id: forced.teamId, name: forced.name, group: forced.group },
+      encounterProbability: 1,
+      winProbabilityIfFacing: 0.5,
+      sampleCount: 0,
+      pathSource: "standing",
+    },
+    ...opps,
+  ];
+}
+
+export function resolveR32Anchor(
   r32: PathStage,
   teamGroup: string,
+  standing?: StandingPathInput | null,
+  forcedOpponent?: { teamId: string; name: string; group: string } | null,
 ): { anchor: PathOpponent; finishPos: GroupFinish | null } | null {
-  const teamFinish = topFinishKey(r32.teamGroupFinish ?? {});
+  if (standing?.eliminated) return null;
+
+  const simFinish = topFinishKey(r32.teamGroupFinish ?? {});
+  const teamFinish = standing?.finish ?? simFinish;
+
   const pools: PathOpponent[][] = [];
   if (r32.opponentsByFinish && teamFinish) {
     const scenarioList = r32.opponentsByFinish[teamFinish];
@@ -306,11 +342,29 @@ function resolveR32Anchor(
     teamFinish,
     "round_of_32",
   );
-  const anchor = pick.topOpponents[0];
+
+  let candidates = pick.topOpponents;
+
+  if (forcedOpponent && standing?.finish) {
+    const inList = candidates.find((o) => o.team.id === forcedOpponent.teamId);
+    const fromFinish = r32.opponentsByFinish?.[standing.finish]?.find(
+      (o) => o.team.id === forcedOpponent.teamId,
+    );
+    const resolved = inList ?? fromFinish;
+    if (resolved) {
+      candidates = [resolved, ...candidates.filter((o) => o.team.id !== forcedOpponent.teamId)];
+    } else {
+      candidates = injectStandingOpponent(candidates, forcedOpponent);
+    }
+  }
+
+  const anchor = forcedOpponent
+    ? (candidates.find((o) => o.team.id === forcedOpponent.teamId) ?? candidates[0])
+    : candidates[0];
   if (!anchor) return null;
 
   let finishPos: GroupFinish | null = teamFinish;
-  if (r32.opponentsByFinish) {
+  if (!standing?.finish && r32.opponentsByFinish) {
     for (const [pos, opps] of Object.entries(r32.opponentsByFinish)) {
       if (
         opps.some((o) => o.team.id === anchor.team.id) &&
@@ -446,7 +500,24 @@ export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string)
 }
 
 /** Unlocked projected path with chained conditional win probability. */
-export function buildMostLikelyPathResult(path: PathStage[], teamGroup: string): LockedPathResult {
+export function buildMostLikelyPathResult(
+  path: PathStage[],
+  teamGroup: string,
+  options?: MostLikelyPathOptions,
+): LockedPathResult {
+  const standing = options?.standing;
+  const forcedOpponent = options?.standingR32Opponent ?? null;
+
+  if (standing?.eliminated) {
+    const stages = finalizeSequentialPath(path.map((s) => clearUnreachableStage(s)));
+    return {
+      stages,
+      lockOpponent: undefined,
+      teamFinishScenario: null,
+      winProbability: 0,
+    };
+  }
+
   const r32 = path.find((s) => s.stage === "round_of_32");
   if (!r32) {
     return {
@@ -457,8 +528,17 @@ export function buildMostLikelyPathResult(path: PathStage[], teamGroup: string):
     };
   }
 
-  const anchorResult = resolveR32Anchor(r32, teamGroup);
+  const anchorResult = resolveR32Anchor(r32, teamGroup, standing, forcedOpponent);
   if (!anchorResult) {
+    if (standing?.finish) {
+      const stages = finalizeSequentialPath(path.map((s) => clearUnreachableStage(s)));
+      return {
+        stages,
+        lockOpponent: undefined,
+        teamFinishScenario: standing.finish,
+        winProbability: 0,
+      };
+    }
     const stages = buildAggregateDisplayPath(path, teamGroup);
     return {
       stages,

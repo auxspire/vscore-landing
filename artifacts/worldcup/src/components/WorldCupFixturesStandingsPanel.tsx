@@ -38,7 +38,6 @@ import {
   type ScorerEntry,
 } from "@/hooks/useFootballData";
 import { useFixturePredictions, type FixturePrediction } from "@/hooks/useFixturePredictions";
-import { useLiveMetrics } from "@/hooks/useLiveMetrics";
 import { Activity } from "lucide-react";
 
 const QUALIFYING_SPOTS = 2;
@@ -752,8 +751,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     return recentResults.filter((f) => !shown.has(f.api_fixture_id)).slice(0, 8);
   }, [recentResults, upcomingWindow]);
 
-  const { queryFlag } = useLiveMetrics();
-
   const fixturesForVscorToday = useMemo(() => {
     const seen = new Set<string>();
     const merged: FootballFixture[] = [];
@@ -776,12 +773,12 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
   const { predictions: todayPredictions } = useFixturePredictions(fixturesForVscorToday, teams, {
     enabled: showVscorToday && hasLiveContent,
-    useLiveMetrics: !!queryFlag,
+    useLiveMetrics: true,
   });
 
   const { predictions: resultsPredictions } = useFixturePredictions(fixturesForVscorResults, teams, {
     enabled: showVscorResults && hasLiveContent,
-    useLiveMetrics: !!queryFlag,
+    useLiveMetrics: true,
   });
 
   const loading = liveLoading || (!hasLiveContent && liveFetching);

@@ -6,7 +6,6 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { QueryErrorState } from "@/components/QueryErrorState";
 import { TeamFlag } from "@/components/TeamFlag";
 import { cn } from "@/lib/utils";
-import { useLiveMetrics } from "@/hooks/useLiveMetrics";
 import { simulationCount } from "@/lib/simulation-config";
 import {
   Trophy,
@@ -62,8 +61,7 @@ export function PowerRankingsPanel({
   const [expanded, setExpanded] = useState(!defaultCollapsed);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("rank");
-  const { queryFlag } = useLiveMetrics();
-  const rankParams = { simulations: simulationCount(!!queryFlag), useLiveMetrics: queryFlag };
+  const rankParams = { simulations: simulationCount() };
 
   const { data, isLoading, isError, refetch } = useGetTournamentRankings(rankParams, {
     query: { staleTime: 5 * 60 * 1000, queryKey: getGetTournamentRankingsQueryKey(rankParams) },

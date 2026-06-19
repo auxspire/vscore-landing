@@ -5,9 +5,8 @@ import { useGetTeams, useGetPopularMatchups, getGetTeamsQueryKey, getGetPopularM
 import { TeamCombobox } from "@/components/TeamCombobox"
 import { WorldCupLayout } from "@/components/WorldCupLayout"
 import { PathToFinalPanel } from "@/components/PathToFinalPanel"
-import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { FaqSection, HOME_FAQ } from "@/components/FaqSection"
-import { useLiveMetrics, useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
+import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { useHomeTab, type HomeTab } from "@/hooks/useHomeTab"
 import { TeamFlag } from "@/components/TeamFlag"
 import { prefetchFootballLiveCache, prefetchFootballLivePanel } from "@/hooks/useFootballData"
@@ -48,12 +47,9 @@ export default function Home() {
   const { data: popularMatchups = [], isLoading: isLoadingMatchups } = useGetPopularMatchups({
     query: { enabled: tab === "predictor", queryKey: getGetPopularMatchupsQueryKey() },
   })
-  const { queryFlag } = useLiveMetrics()
-
   const handlePredict = () => {
     if (teamA && teamB && teamA !== teamB) {
-      const live = queryFlag ? `&useLiveMetrics=1` : ""
-      setLocation(`/matchup?teamA=${teamA}&teamB=${teamB}${live}`)
+      setLocation(`/matchup?teamA=${teamA}&teamB=${teamB}`)
     }
   }
 
@@ -117,9 +113,6 @@ export default function Home() {
                 />
               </div>
             </div>
-            <div className="mb-6 max-w-xl">
-              <LiveMetricsToggle />
-            </div>
             <Button
               size="lg"
               className="h-14 px-10 text-base font-bold tracking-wide uppercase shadow-[0_0_40px_-10px_hsl(var(--primary))]"
@@ -143,8 +136,7 @@ export default function Home() {
                     key={i}
                     className="bg-card hover:bg-secondary/50 transition-colors cursor-pointer border-border hover:border-primary/50 group"
                     onClick={() => {
-                      const live = queryFlag ? "&useLiveMetrics=1" : ""
-                      setLocation(`/matchup?teamA=${matchup.teamA.id}&teamB=${matchup.teamB.id}${live}`)
+                      setLocation(`/matchup?teamA=${matchup.teamA.id}&teamB=${matchup.teamB.id}`)
                     }}
                   >
                     <CardContent className="p-5">

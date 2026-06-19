@@ -5,8 +5,10 @@ import {
   assertNoDuplicatePathOpponents,
   buildLockedDisplayPath,
   buildMostLikelyDisplayPath,
+  buildMostLikelyPathResult,
   finalizeSequentialPath,
   knockoutStageIndex,
+  resolveR32Anchor,
   type PathStage,
 } from "@workspace/bracket-path";
 
@@ -258,9 +260,66 @@ function testSparseConditionalUsesAggregateFallback() {
   }
 }
 
+function testStandingR32AnchorUsesSecondPlacePool() {
+  const path: PathStage[] = [
+    {
+      stage: "round_of_32",
+      reachProbability: 0.88,
+      teamGroupFinish: { "1st": 0.55, "2nd": 0.4 },
+      topOpponents: [mockOpponent("senegal", "Senegal", "I", 0.2)],
+      opponentsByFinish: {
+        "1st": [mockOpponent("senegal", "Senegal", "I", 0.15)],
+        "2nd": [mockOpponent("norway", "Norway", "I", 0.35)],
+      },
+    },
+    {
+      stage: "round_of_16",
+      reachProbability: 0.5,
+      topOpponents: [mockOpponent("france", "France", "I", 0.2)],
+    },
+  ];
+
+  const anchor = resolveR32Anchor(path[0], "E", { finish: "2nd" });
+  assert(anchor?.anchor.team.id === "norway", "Standing 2nd must pick from 2nd-place pool");
+  assert(anchor?.finishPos === "2nd", "Finish pos must match standing");
+
+  const result = buildMostLikelyPathResult(path, "E", {
+    standing: { finish: "2nd" },
+    standingR32Opponent: { teamId: "norway", name: "Norway", group: "I" },
+  });
+  assert(
+    result.stages.find((s) => s.stage === "round_of_32")?.topOpponents[0]?.team.id === "norway",
+    "Standing path must lock Norway at R32",
+  );
+}
+
+function testStandingEliminatedClearsPath() {
+  const path: PathStage[] = [
+    {
+      stage: "round_of_32",
+      reachProbability: 0.2,
+      topOpponents: [mockOpponent("curacao", "Curaçao", "E", 0.1)],
+    },
+    {
+      stage: "round_of_16",
+      reachProbability: 0.05,
+      topOpponents: [mockOpponent("france", "France", "I", 0.05)],
+    },
+  ];
+
+  const result = buildMostLikelyPathResult(path, "E", {
+    standing: { finish: null, eliminated: true },
+  });
+  const r32 = result.stages.find((s) => s.stage === "round_of_32")!;
+  assert(r32.topOpponents.length === 0, "Eliminated team must have no R32 foe");
+  assert(r32.reachProbability === 0, "Eliminated team R32 reach must be 0");
+}
+
 testEliminatedFoeSkipsToNext();
 testGapClearsLaterStages();
 testGermanyConditionalPath();
 testLockAtR16NoDuplicateR32();
 testSparseConditionalUsesAggregateFallback();
+testStandingR32AnchorUsesSecondPlacePool();
+testStandingEliminatedClearsPath();
 console.log("path-coherence unit checks OK");

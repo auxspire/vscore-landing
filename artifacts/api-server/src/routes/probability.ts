@@ -15,7 +15,14 @@ import {
   type GroupFinish,
   type KnockoutStage,
 } from "@workspace/bracket-path";
-import { getLiveEloAdjustments, parseUseLiveMetrics } from "../services/liveMetrics";
+import { getLiveEloAdjustments, shouldUseLiveEloAdjustments } from "../services/liveMetrics";
+import {
+  getLiveStandingsContext,
+  getLiveStandingForTeam,
+  parseUseGroupStandings,
+  resolveStandingR32Opponent,
+  type GroupFinish as StandingGroupFinish,
+} from "../services/liveStandings";
 import { predictFixtures } from "../services/fixturePredictions";
 
 const router = Router();
@@ -59,7 +66,7 @@ router.get("/match-probability", async (req, res) => {
   const numSims = parseSimulationCount(simulations);
 
   try {
-    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+    const adjustments = shouldUseLiveEloAdjustments(req.query)
       ? await getLiveEloAdjustments()
       : undefined;
     const result = simulateMatchProbability(teamAId, teamBId, numSims, adjustments);
@@ -132,10 +139,20 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
   const numSims = parseSimulationCount(req.query.simulations);
 
   try {
-    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+    const adjustments = shouldUseLiveEloAdjustments(req.query)
       ? await getLiveEloAdjustments()
       : undefined;
     const data = simulateBracketExplorer(req.params.teamId, numSims, adjustments);
+
+    const useGroupStandings = parseUseGroupStandings(req.query.useGroupStandings);
+    const standingsCtx = useGroupStandings ? await getLiveStandingsContext() : null;
+    const teamStanding =
+      standingsCtx?.available ? getLiveStandingForTeam(standingsCtx, team.id) : null;
+    const standingR32Opponent =
+      teamStanding && standingsCtx
+        ? resolveStandingR32Opponent(team, teamStanding, standingsCtx)
+        : null;
+    const standingPathMode = !!(useGroupStandings && teamStanding && standingsCtx?.available);
 
     const KNOCKOUT_STAGES = ["round_of_32", "round_of_16", "quarterfinal", "semifinal", "final"];
 
@@ -290,9 +307,19 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
       return {
         stage,
         description: sd.description,
-        reachProbability: reachProb,
+        reachProbability:
+          standingPathMode &&
+          teamStanding?.finish === "eliminated" &&
+          stage === "round_of_32"
+            ? 0
+            : reachProb,
         teamGroupFinish: normaliseCounts(sd.teamGroupFinish),
-        topOpponents: allOpponents,
+        topOpponents:
+          standingPathMode &&
+          teamStanding?.finish === "eliminated" &&
+          stage === "round_of_32"
+            ? []
+            : allOpponents,
         ...(opponentsByFinish ? { opponentsByFinish } : {}),
       };
     });
@@ -302,6 +329,31 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
       path,
       tournamentWinProbability: data.winCount / numSims,
       simulationsRun: numSims,
+      ...(standingPathMode && teamStanding
+        ? {
+            standingPathMode: true,
+            liveStanding: {
+              rank: teamStanding.rank,
+              points: teamStanding.points,
+              goalDifference: teamStanding.gd,
+              finish: teamStanding.finish as StandingGroupFinish,
+              source: "standings" as const,
+              asOf: standingsCtx!.asOf,
+            },
+            ...(standingR32Opponent
+              ? {
+                  standingR32Opponent: {
+                    teamId: standingR32Opponent.teamId,
+                    name: standingR32Opponent.name,
+                    group: standingR32Opponent.group,
+                    finish: standingR32Opponent.finish,
+                    pairingType: standingR32Opponent.pairingType,
+                    slotLabel: standingR32Opponent.slotLabel,
+                  },
+                }
+              : {}),
+          }
+        : {}),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Simulation failed";
@@ -313,7 +365,7 @@ router.get("/rankings", async (req, res) => {
   const numSims = parseSimulationCount(req.query.simulations);
 
   try {
-    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+    const adjustments = shouldUseLiveEloAdjustments(req.query)
       ? await getLiveEloAdjustments()
       : undefined;
     const raw = simulateAllTeamsRankings(numSims, adjustments);
@@ -344,7 +396,7 @@ router.get("/stage-breakdown/:teamId", async (req, res) => {
   }
 
   try {
-    const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
+    const adjustments = shouldUseLiveEloAdjustments(req.query)
       ? await getLiveEloAdjustments()
       : undefined;
     const reachProbs = simulateTeamStageReach(req.params.teamId, 10000, adjustments);
@@ -392,7 +444,10 @@ router.post("/fixture-predictions", async (req, res) => {
   }
 
   try {
-    const adjustments = parseUseLiveMetrics(body.useLiveMetrics)
+    const adjustments = shouldUseLiveEloAdjustments({
+      useLiveMetrics: body.useLiveMetrics,
+      pureElo: (body as { pureElo?: string }).pureElo,
+    })
       ? await getLiveEloAdjustments()
       : undefined;
     const predictions = predictFixtures(body.fixtures, adjustments);

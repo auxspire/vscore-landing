@@ -8,39 +8,47 @@ import {
   type ReactNode,
 } from "react";
 
-const STORAGE_KEY = "vscor_use_live_metrics";
+const GROUP_STANDINGS_KEY = "vscor_use_group_standings";
 
-function readStored(): boolean {
+function readGroupStandingsStored(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
+    return localStorage.getItem(GROUP_STANDINGS_KEY) === "1";
   } catch {
     return false;
   }
 }
 
 interface LiveMetricsContextValue {
+  /** Elo + recent form blending is always on for API simulations */
+  eloEnabled: true;
+  groupStandingsEnabled: boolean;
+  setGroupStandings: (value: boolean) => void;
+  groupStandingsQueryFlag: "1" | undefined;
+  /** @deprecated Elo is always on — kept for share URL backward compat */
   enabled: boolean;
+  /** @deprecated use setGroupStandings for Path standings toggle */
   setLiveMetrics: (value: boolean) => void;
+  /** @deprecated Elo always on — no query flag needed */
   queryFlag: "1" | undefined;
 }
 
 const LiveMetricsContext = createContext<LiveMetricsContextValue | null>(null);
 
 export function LiveMetricsProvider({ children }: { children: ReactNode }) {
-  const [enabled, setEnabled] = useState(readStored);
+  const [groupStandingsEnabled, setGroupStandingsEnabled] = useState(readGroupStandingsStored);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setEnabled(e.newValue === "1");
+      if (e.key === GROUP_STANDINGS_KEY) setGroupStandingsEnabled(e.newValue === "1");
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const setLiveMetrics = useCallback((value: boolean) => {
-    setEnabled(value);
+  const setGroupStandings = useCallback((value: boolean) => {
+    setGroupStandingsEnabled(value);
     try {
-      localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
+      localStorage.setItem(GROUP_STANDINGS_KEY, value ? "1" : "0");
     } catch {
       /* ignore */
     }
@@ -48,11 +56,15 @@ export function LiveMetricsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      enabled,
-      setLiveMetrics,
-      queryFlag: enabled ? ("1" as const) : undefined,
+      eloEnabled: true as const,
+      groupStandingsEnabled,
+      setGroupStandings,
+      groupStandingsQueryFlag: groupStandingsEnabled ? ("1" as const) : undefined,
+      enabled: true,
+      setLiveMetrics: setGroupStandings,
+      queryFlag: undefined,
     }),
-    [enabled, setLiveMetrics],
+    [groupStandingsEnabled, setGroupStandings],
   );
 
   return (
@@ -68,15 +80,18 @@ export function useLiveMetrics() {
   return ctx;
 }
 
-/** Apply ?useLiveMetrics=1 from shared URLs */
+/** Apply ?useGroupStandings=1 (and legacy ?useLiveMetrics=1) from shared URLs */
 export function useLiveMetricsFromUrl(search: string) {
-  const { enabled, setLiveMetrics } = useLiveMetrics();
+  const { setGroupStandings } = useLiveMetrics();
   useEffect(() => {
-    const param = new URLSearchParams(search).get("useLiveMetrics");
-    if (param === "1" || param === "true") {
-      setLiveMetrics(true);
+    const param = new URLSearchParams(search);
+    if (
+      param.get("useGroupStandings") === "1" ||
+      param.get("useGroupStandings") === "true"
+    ) {
+      setGroupStandings(true);
     }
-  }, [search, setLiveMetrics]);
+  }, [search, setGroupStandings]);
 
-  return { enabled, queryFlag: enabled ? ("1" as const) : undefined };
+  return useLiveMetrics();
 }

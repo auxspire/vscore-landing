@@ -21,7 +21,7 @@ function normalizeName(name: string) {
 }
 
 /** Map simulator team id → worldcup26 api_team_id */
-function buildTeamIdMap(
+export function buildTeamIdMap(
   dbTeams: Array<{ api_team_id: string; name_en: string; fifa_code: string | null }>,
 ): Map<string, string> {
   const byFifa = new Map<string, string>();
@@ -88,7 +88,7 @@ export async function getLiveEloAdjustments(): Promise<EloAdjustments> {
   try {
     const [{ data: dbTeams }, { data: standings }, { data: fixtures }] = await Promise.all([
       sb.from("football_teams").select("api_team_id, name_en, fifa_code").eq("competition_key", "worldcup"),
-      sb.from("football_standings").select("team_id, rank, points, goal_difference, group_name").eq("competition_key", "worldcup"),
+      sb.from("football_standings").select("team_id, rank, points, goal_difference, goals_for, group_name").eq("competition_key", "worldcup"),
       sb.from("football_fixtures").select("home_team_id, away_team_id, home_goals, away_goals, is_finished, kickoff_at").eq("competition_key", "worldcup"),
     ]);
 
@@ -135,4 +135,18 @@ export async function getLiveEloAdjustments(): Promise<EloAdjustments> {
 
 export function parseUseLiveMetrics(value: unknown): boolean {
   return value === "1" || value === "true" || value === true;
+}
+
+export function parsePureElo(value: unknown): boolean {
+  return value === "1" || value === "true" || value === true;
+}
+
+/** Elo/form blending is on by default; use pureElo=1 or useLiveMetrics=0 to disable. */
+export function shouldUseLiveEloAdjustments(query: {
+  useLiveMetrics?: unknown;
+  pureElo?: unknown;
+}): boolean {
+  if (parsePureElo(query.pureElo)) return false;
+  if (query.useLiveMetrics === "0" || query.useLiveMetrics === "false") return false;
+  return true;
 }

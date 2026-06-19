@@ -15,7 +15,6 @@ import { usePageSeo, matchupSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
 import { buildMatchupShareMessage } from "@/lib/share-messages"
 import { simulationCount } from "@/lib/simulation-config"
-import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { RefreshCcw, Activity, GitBranch, AlertTriangle } from "lucide-react"
 
@@ -27,7 +26,7 @@ export default function Matchup() {
   const searchParams = new URLSearchParams(search)
   const teamA = searchParams.get("teamA")
   const teamB = searchParams.get("teamB")
-  const { queryFlag } = useLiveMetricsFromUrl(search)
+  useLiveMetricsFromUrl(search)
 
   // Redirect to home if no teams provided — must be in useEffect to avoid render-time side effects
   useEffect(() => {
@@ -36,17 +35,16 @@ export default function Matchup() {
     }
   }, [teamA, teamB, setLocation])
 
-  const sims = simulationCount(!!queryFlag)
+  const sims = simulationCount()
 
   const { data: matchResult, isLoading: isLoadingMatch, isError: isMatchError, refetch: refetchMatch } = useGetMatchProbability(
-    { teamA: teamA ?? "", teamB: teamB ?? "", useLiveMetrics: queryFlag, simulations: sims },
+    { teamA: teamA ?? "", teamB: teamB ?? "", simulations: sims },
     {
       query: {
         enabled: !!teamA && !!teamB,
         queryKey: getGetMatchProbabilityQueryKey({
           teamA: teamA ?? "",
           teamB: teamB ?? "",
-          useLiveMetrics: queryFlag,
           simulations: sims,
         }),
       },
@@ -63,14 +61,14 @@ export default function Matchup() {
 
   const { data: teamABreakdown, isLoading: isLoadingBreakdownA } = useGetTeamStageBreakdown(
     teamA ?? "",
-    { useLiveMetrics: queryFlag },
-    { query: { enabled: !!teamA, queryKey: getGetTeamStageBreakdownQueryKey(teamA ?? "", { useLiveMetrics: queryFlag }) } },
+    {},
+    { query: { enabled: !!teamA, queryKey: getGetTeamStageBreakdownQueryKey(teamA ?? "", {}) } },
   )
 
   const { data: teamBBreakdown, isLoading: isLoadingBreakdownB } = useGetTeamStageBreakdown(
     teamB ?? "",
-    { useLiveMetrics: queryFlag },
-    { query: { enabled: !!teamB, queryKey: getGetTeamStageBreakdownQueryKey(teamB ?? "", { useLiveMetrics: queryFlag }) } },
+    {},
+    { query: { enabled: !!teamB, queryKey: getGetTeamStageBreakdownQueryKey(teamB ?? "", {}) } },
   )
 
   const [animated, setAnimated] = useState(false)
@@ -90,8 +88,8 @@ export default function Matchup() {
         stages: matchResult.stages,
         simulationsRun: matchResult.simulationsRun,
         sameGroup: matchResult.sameGroup,
-        useLiveMetrics: !!queryFlag,
-        shareUrl: `${WORLDCUP_BASE}/matchup?teamA=${matchResult.teamA.id}&teamB=${matchResult.teamB.id}${queryFlag ? "&useLiveMetrics=1" : ""}`,
+        useLiveMetrics: true,
+        shareUrl: `${WORLDCUP_BASE}/matchup?teamA=${matchResult.teamA.id}&teamB=${matchResult.teamB.id}`,
       })
     : null
 
@@ -113,7 +111,7 @@ export default function Matchup() {
             <div className="absolute inset-0 bg-primary/5 blur-[100px] -z-10 rounded-full" />
             <div className="flex justify-center items-center gap-4 md:gap-12 mb-6">
               <div className="flex flex-col items-center">
-                <Link href={`/?tab=path&section=bracket&team=${matchResult.teamA.id}${queryFlag ? "&useLiveMetrics=1" : ""}`} title="View bracket path">
+                <Link href={`/?tab=path&section=bracket&team=${matchResult.teamA.id}`} title="View bracket path">
                   <TeamFlag flagCode={matchResult.teamA.flagCode} size={72} className="md:hidden drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
                   <TeamFlag flagCode={matchResult.teamA.flagCode} size={96} className="hidden md:inline-block drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
                 </Link>
@@ -124,7 +122,7 @@ export default function Matchup() {
                 VS
               </div>
               <div className="flex flex-col items-center">
-                <Link href={`/?tab=path&section=bracket&team=${matchResult.teamB.id}${queryFlag ? "&useLiveMetrics=1" : ""}`} title="View bracket path">
+                <Link href={`/?tab=path&section=bracket&team=${matchResult.teamB.id}`} title="View bracket path">
                   <TeamFlag flagCode={matchResult.teamB.flagCode} size={72} className="md:hidden drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
                   <TeamFlag flagCode={matchResult.teamB.flagCode} size={96} className="hidden md:inline-block drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
                 </Link>
@@ -149,7 +147,6 @@ export default function Matchup() {
             )}
 
             <div className="mt-8 flex flex-col items-center gap-4 max-w-md mx-auto">
-              <LiveMetricsToggle className="w-full text-left" />
               {matchupShare && (
                 <SharePredictionButton payload={matchupShare} />
               )}
@@ -215,7 +212,7 @@ export default function Matchup() {
                           </div>
                         ))}
                         <Link
-                          href={`/?tab=path&section=bracket&team=${breakdown.team.id}${queryFlag ? "&useLiveMetrics=1" : ""}`}
+                          href={`/?tab=path&section=bracket&team=${breakdown.team.id}`}
                           className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
                         >
                           <GitBranch className="w-3 h-3" /> View Bracket Path
