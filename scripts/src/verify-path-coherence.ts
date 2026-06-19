@@ -2,8 +2,11 @@
  * Unit checks for bracket path coherence (no API required).
  */
 import {
+  assertNoDuplicatePathOpponents,
+  buildLockedDisplayPath,
   buildMostLikelyDisplayPath,
   finalizeSequentialPath,
+  knockoutStageIndex,
   type PathStage,
 } from "@workspace/bracket-path";
 
@@ -156,9 +159,100 @@ function testGermanyConditionalPath() {
   assert(r16.reachProbability > 0, "R16 reach must be > 0");
   assert(qf.topOpponents.length > 0, "QF must have opponent");
   assert(qf.reachProbability <= r16.reachProbability + 1e-9, "QF reach must not exceed R16");
+  assert(r16.pathProjection === "projected", "R16 should be marked projected path");
+  assert(r16.isConditional === true, "R16 should keep conditional reach semantics");
+}
+
+function testLockAtR16NoDuplicateR32() {
+  const path: PathStage[] = [
+    {
+      stage: "round_of_32",
+      reachProbability: 0.9,
+      topOpponents: [mockOpponent("portugal", "Portugal", "G", 0.4)],
+    },
+    {
+      stage: "round_of_16",
+      reachProbability: 0.6,
+      topOpponents: [
+        mockOpponent("spain", "Spain", "H", 0.35),
+        mockOpponent("portugal", "Portugal", "G", 0.1),
+      ],
+    },
+    {
+      stage: "quarterfinal",
+      reachProbability: 0.3,
+      topOpponents: [mockOpponent("brazil", "Brazil", "C", 0.2)],
+    },
+  ];
+
+  const result = buildLockedDisplayPath({
+    path,
+    teamGroup: "E",
+    lockedStage: "round_of_16",
+    lockedOpponentId: "spain",
+    lockedFinishPos: null,
+  });
+
+  const dupes = assertNoDuplicatePathOpponents(
+    result.stages,
+    knockoutStageIndex("round_of_16"),
+    "spain",
+  );
+  assert(dupes.length === 0, `R16 lock must not duplicate earlier foes: ${dupes.join("; ")}`);
+
+  const qf = result.stages.find((s) => s.stage === "quarterfinal")!;
+  assert(
+    qf.topOpponents[0]?.team.id !== "portugal",
+    "QF must not repeat R32 foe eliminated before lock",
+  );
+}
+
+function testSparseConditionalUsesAggregateFallback() {
+  const path: PathStage[] = [
+    {
+      stage: "round_of_32",
+      reachProbability: 0.95,
+      teamGroupFinish: { "1st": 0.7 },
+      topOpponents: [mockOpponent("czechia", "Czechia", "A", 0.3)],
+      opponentsByFinish: {
+        "1st": [mockOpponent("czechia", "Czechia", "A", 0.3)],
+      },
+    },
+    {
+      stage: "round_of_16",
+      reachProbability: 0.7,
+      topOpponents: [
+        mockOpponent("czechia", "Czechia", "A", 0.2),
+        mockOpponent("france", "France", "I", 0.15),
+      ],
+    },
+    {
+      stage: "quarterfinal",
+      reachProbability: 0.35,
+      topOpponents: [mockOpponent("brazil", "Brazil", "C", 0.25)],
+    },
+  ];
+
+  path[0].topOpponents[0].conditionalPath = [
+    {
+      stage: "quarterfinal",
+      reachProbability: 0.4,
+      topOpponents: [mockOpponent("spain", "Spain", "H", 0.2)],
+    },
+  ];
+  if (path[0].opponentsByFinish?.["1st"]?.[0]) {
+    path[0].opponentsByFinish["1st"][0].conditionalPath = path[0].topOpponents[0].conditionalPath;
+  }
+
+  const result = buildMostLikelyDisplayPath(path, "E");
+  const r16 = result.find((s) => s.stage === "round_of_16")!;
+  assert(r16.topOpponents.length > 0, "R16 must fall back to aggregate when conditional skips it");
+  assert(r16.topOpponents[0]?.team.id !== "czechia", "R16 must not repeat R32 foe");
 }
 
 testEliminatedFoeSkipsToNext();
 testGapClearsLaterStages();
 testGermanyConditionalPath();
+testLockAtR16NoDuplicateR32();
+testSparseConditionalUsesAggregateFallback();
 console.log("path-coherence unit checks OK");

@@ -26,6 +26,26 @@ function parsePathTeam(search: string): string {
   return parseSearch(search).get("team") ?? "";
 }
 
+export interface BracketLockParams {
+  lockStage: string | null;
+  lockOpp: string | null;
+  lockFinish: string | null;
+}
+
+function parseBracketLock(search: string): BracketLockParams {
+  const sp = parseSearch(search);
+  return {
+    lockStage: sp.get("lockStage"),
+    lockOpp: sp.get("lockOpp"),
+    lockFinish: sp.get("lockFinish"),
+  };
+}
+
+function buildLocation(sp: URLSearchParams): string {
+  const qs = sp.toString();
+  return qs ? `/?${qs}` : "/";
+}
+
 export function useHomeTab() {
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -33,16 +53,19 @@ export function useHomeTab() {
   const tab = useMemo(() => parseTab(search), [search]);
   const pathSection = useMemo(() => parsePathSection(search), [search]);
   const pathTeam = useMemo(() => parsePathTeam(search), [search]);
+  const bracketLock = useMemo(() => parseBracketLock(search), [search]);
 
   const setTab = useCallback(
     (next: HomeTab) => {
+      const sp = parseSearch(search);
       if (next === "predictor") {
-        setLocation("/");
-        return;
+        sp.delete("tab");
+      } else {
+        sp.set("tab", next);
       }
-      setLocation(`/?tab=${next}`);
+      setLocation(buildLocation(sp));
     },
-    [setLocation],
+    [search, setLocation],
   );
 
   const setPathSection = useCallback(
@@ -50,7 +73,7 @@ export function useHomeTab() {
       const sp = parseSearch(search);
       sp.set("tab", "path");
       sp.set("section", section);
-      setLocation(`/?${sp.toString()}`);
+      setLocation(buildLocation(sp));
     },
     [search, setLocation],
   );
@@ -62,7 +85,32 @@ export function useHomeTab() {
       if (!sp.get("section")) sp.set("section", "bracket");
       if (teamId) sp.set("team", teamId);
       else sp.delete("team");
-      setLocation(`/?${sp.toString()}`);
+      sp.delete("lockStage");
+      sp.delete("lockOpp");
+      sp.delete("lockFinish");
+      setLocation(buildLocation(sp));
+    },
+    [search, setLocation],
+  );
+
+  const setBracketLock = useCallback(
+    (lock: BracketLockParams) => {
+      const sp = parseSearch(search);
+      sp.set("tab", "path");
+      if (!sp.get("section")) sp.set("section", "bracket");
+
+      if (lock.lockStage && lock.lockOpp) {
+        sp.set("lockStage", lock.lockStage);
+        sp.set("lockOpp", lock.lockOpp);
+        if (lock.lockFinish) sp.set("lockFinish", lock.lockFinish);
+        else sp.delete("lockFinish");
+      } else {
+        sp.delete("lockStage");
+        sp.delete("lockOpp");
+        sp.delete("lockFinish");
+      }
+
+      setLocation(buildLocation(sp));
     },
     [search, setLocation],
   );
@@ -73,14 +121,42 @@ export function useHomeTab() {
       sp.set("tab", "path");
       sp.set("section", "bracket");
       sp.set("team", teamId);
-      setLocation(`/?${sp.toString()}`);
+      setLocation(buildLocation(sp));
     },
     [search, setLocation],
   );
 
-  return { tab, setTab, pathSection, pathTeam, setPathSection, setPathTeam, openBracketForTeam };
+  return {
+    tab,
+    setTab,
+    pathSection,
+    pathTeam,
+    bracketLock,
+    setPathSection,
+    setPathTeam,
+    setBracketLock,
+    openBracketForTeam,
+  };
 }
 
 export function homeTabFromSearch(search: string): HomeTab {
   return parseTab(search);
+}
+
+/** Merge target tab into an existing query string (preserves team, lock, etc.). */
+export function hubTabHref(currentSearch: string, tab: HomeTab): string {
+  const sp = parseSearch(currentSearch);
+  if (tab === "predictor") {
+    sp.delete("tab");
+  } else {
+    sp.set("tab", tab);
+  }
+  return buildLocation(sp);
+}
+
+export function rankingsHrefPreservingTeam(currentSearch: string): string {
+  const sp = parseSearch(currentSearch);
+  sp.set("tab", "path");
+  sp.set("section", "rankings");
+  return buildLocation(sp);
 }

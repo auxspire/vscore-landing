@@ -3,7 +3,8 @@ import { useGetTournamentRankings, getGetTournamentRankingsQueryKey } from "@wor
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { getFlagEmoji, cn } from "@/lib/utils";
+import { TeamFlag } from "@/components/TeamFlag";
+import { cn } from "@/lib/utils";
 import { useLiveMetrics } from "@/hooks/useLiveMetrics";
 import { simulationCount } from "@/lib/simulation-config";
 import {
@@ -114,7 +115,7 @@ export function PowerRankingsPanel({
             <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
               {topThree.map((e) => (
                 <span key={e.team.id} className="inline-flex items-center gap-1 whitespace-nowrap">
-                  {getFlagEmoji(e.team.flagCode)}
+                  <TeamFlag flagCode={e.team.flagCode} size={22} />
                   <span className="truncate max-w-[5rem]">{e.team.name}</span>
                   <span className={cn("font-mono font-bold", winColor(e.winProbability))}>
                     {(e.winProbability * 100).toFixed(1)}%
@@ -216,7 +217,7 @@ export function PowerRankingsPanel({
                     )}
                   >
                     <div className="w-5 flex justify-center">{rankMedal(entry.rank)}</div>
-                    <span className="text-lg leading-none shrink-0">{getFlagEmoji(entry.team.flagCode)}</span>
+                    <TeamFlag flagCode={entry.team.flagCode} size={22} className="shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div
                         className={cn(

@@ -10,6 +10,7 @@ import { simulateBracketExplorer, type BracketOpponentData, type BracketStageDat
 import {
   buildConditionalPathResponse,
   canGroupFinishesMeetAtStage,
+  canTeamFaceGroupAtStage,
   topFinishKey,
   type GroupFinish,
   type KnockoutStage,
@@ -171,15 +172,21 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
       const likelyTeamFinish = topFinishKey(sd.teamGroupFinish);
 
       const stageOpponents = Object.values(sd.opponents).filter((o) => {
-        if (!likelyTeamFinish) return true;
-        const oppFinish = topFinishKey(o.opponentGroupFinish);
-        if (!oppFinish) return true;
-        return canGroupFinishesMeetAtStage(
-          team.group,
-          likelyTeamFinish,
-          o.team.group,
-          oppFinish,
-          stage as KnockoutStage,
+        const knockoutStage = stage as KnockoutStage;
+        if (stage === "round_of_32") {
+          if (!likelyTeamFinish) return true;
+          const oppFinish = topFinishKey(o.opponentGroupFinish);
+          if (!oppFinish) return true;
+          return canGroupFinishesMeetAtStage(
+            team.group,
+            likelyTeamFinish,
+            o.team.group,
+            oppFinish,
+            knockoutStage,
+          );
+        }
+        return (["1st", "2nd", "3rd"] as GroupFinish[]).some((teamFinish) =>
+          canTeamFaceGroupAtStage(team.group, teamFinish, o.team.group, knockoutStage),
         );
       });
 

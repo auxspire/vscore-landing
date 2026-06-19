@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
 import {
   buildLockedDisplayPath,
@@ -19,6 +19,7 @@ import { SharePredictionButton } from "@/components/SharePredictionButton"
 import { buildBracketShareMessage } from "@/lib/share-messages"
 import { simulationCount } from "@/lib/simulation-config"
 import { useLiveMetrics } from "@/hooks/useLiveMetrics"
+import { useHomeTab } from "@/hooks/useHomeTab"
 import { Trophy, Swords, GitBranch, ChevronRight, Shield, Flame, Zap, Lock, X } from "lucide-react"
 
 // ─── Extended types for enriched API response ─────────────────────────────────
@@ -67,6 +68,8 @@ interface RichStageNode {
   isConditional?: boolean
   /** Opponents from overall sims when conditional/path-filter data was unavailable */
   opponentsFromAggregate?: boolean
+  /** Auto R32-anchor projection vs explicit user lock */
+  pathProjection?: "projected" | "user_locked"
   /** Number of simulations this conditional stage estimate is based on — low = unreliable */
   sampleCount?: number
 }
@@ -216,6 +219,8 @@ function StageCard({
 }) {
   const isFinal       = stage.stage === "final"
   const isConditional = stage.isConditional === true
+  const isProjected   = stage.pathProjection === "projected"
+  const isUserLockedPath = stage.pathProjection === "user_locked"
   const isAggregateFallback = stage.opponentsFromAggregate === true
   const isR32         = stage.stage === "round_of_32"
 
@@ -281,7 +286,17 @@ function StageCard({
               <span className={cn("font-bold text-sm uppercase tracking-widest font-mono", isFinal ? "text-primary" : "text-foreground")}>
                 {stage.description}
               </span>
-              {isConditional && (
+              {isConditional && isProjected && (
+                <span className="text-[10px] font-mono font-bold text-primary/60 uppercase tracking-widest">
+                  · PROJECTED PATH
+                </span>
+              )}
+              {isConditional && isUserLockedPath && (
+                <span className="text-[10px] font-mono font-bold text-primary/60 uppercase tracking-widest">
+                  · IF SELECTED PATH
+                </span>
+              )}
+              {isConditional && !isProjected && !isUserLockedPath && (
                 <span className="text-[10px] font-mono font-bold text-primary/60 uppercase tracking-widest">
                   · IF SELECTED PATH
                 </span>
@@ -600,18 +615,12 @@ export interface BracketExplorerPanelProps {
 
 export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPanelProps) {
   const { queryFlag } = useLiveMetrics()
+  const { bracketLock, setBracketLock } = useHomeTab()
   const liveSuffix = queryFlag ? "&useLiveMetrics=1" : ""
 
-  const [lockedStage, setLockedStage]           = useState<string | null>(null)
-  const [lockedOpponentId, setLockedOpponentId] = useState<string | null>(null)
-  const [lockedFinishPos, setLockedFinishPos]   = useState<string | null>(null)
-
-  // Clear locks whenever the team in the URL changes
-  useEffect(() => {
-    setLockedStage(null)
-    setLockedOpponentId(null)
-    setLockedFinishPos(null)
-  }, [teamId])
+  const lockedStage = bracketLock.lockStage
+  const lockedOpponentId = bracketLock.lockOpp
+  const lockedFinishPos = bracketLock.lockFinish
 
   const sims = simulationCount(!!queryFlag)
 
@@ -657,18 +666,36 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
 
   const handleLockOpponent = (stage: string, opponentId: string | null, finishPos?: string | null) => {
     if (opponentId === null) {
-      setLockedStage(null)
-      setLockedOpponentId(null)
-      setLockedFinishPos(null)
+      setBracketLock({ lockStage: null, lockOpp: null, lockFinish: null })
     } else {
-      setLockedStage(stage)
-      setLockedOpponentId(opponentId)
       const lockStageNode = bracketData?.path.find((s) => s.stage === stage) as
         | RichStageNode
         | undefined
-      setLockedFinishPos(finishPos ?? inferFinishPosForOpponent(lockStageNode, opponentId))
+      const finish = finishPos ?? inferFinishPosForOpponent(lockStageNode, opponentId)
+      setBracketLock({
+        lockStage: stage,
+        lockOpp: opponentId,
+        lockFinish: finish,
+      })
     }
   }
+
+  const isProjectedView =
+    !lockedStage &&
+    displayStages.some((s) => s.pathProjection === "projected")
+
+  const pathStripTitle = lockedStage
+    ? "Selected Path"
+    : isProjectedView
+      ? "Projected Path"
+      : "Most Likely Path"
+
+  const lockShareQs =
+    lockedStage && lockedOpponentId
+      ? `&lockStage=${encodeURIComponent(lockedStage)}&lockOpp=${encodeURIComponent(lockedOpponentId)}${
+          lockedFinishPos ? `&lockFinish=${encodeURIComponent(lockedFinishPos)}` : ""
+        }`
+      : ""
 
   return (
     <div className="space-y-5">
@@ -742,7 +769,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                 lockedStage,
                 lockedOpponentName,
                 useLiveMetrics: !!queryFlag,
-                shareUrl: `${WORLDCUP_BASE}/?tab=path&section=bracket&team=${bracketData.team.id}${liveSuffix}`,
+                shareUrl: `${WORLDCUP_BASE}/?tab=path&section=bracket&team=${bracketData.team.id}${liveSuffix}${lockShareQs}`,
               });
 
               return (
@@ -770,7 +797,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                   </span>
                 </div>
                 <button
-                  onClick={() => { setLockedStage(null); setLockedOpponentId(null); setLockedFinishPos(null) }}
+                  onClick={() => setBracketLock({ lockStage: null, lockOpp: null, lockFinish: null })}
                   className="flex-shrink-0 text-amber-400 hover:text-amber-300 transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -783,7 +810,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
           <Card className="bg-card border-border overflow-hidden">
             <CardContent className="p-4">
               <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3">
-                {lockedStage ? "Projected Path (with selection)" : "Most Likely Path"}
+                {pathStripTitle}
               </div>
               <PathStrip
                 team={bracketData.team as RichTeam}

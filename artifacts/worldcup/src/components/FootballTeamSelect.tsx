@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, ChevronsUpDown, X } from "lucide-react";
-import { cn, getFlagEmoji } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { TeamFlag } from "@/components/TeamFlag";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -45,7 +46,7 @@ export function FootballTeamSelect({
             {selected ? (
               <span className="flex items-center gap-2 truncate min-w-0">
                 {selected.fifa_code ? (
-                  <span className="text-xl leading-none shrink-0">{getFlagEmoji(selected.fifa_code)}</span>
+                  <TeamFlag flagCode={selected.fifa_code} flagUrl={selected.flag_url} size={24} className="shrink-0" />
                 ) : null}
                 <span className="truncate font-medium">{selected.name_en}</span>
                 {selected.group_name ? (
@@ -88,7 +89,7 @@ export function FootballTeamSelect({
                       )}
                     />
                     {team.fifa_code ? (
-                      <span className="text-xl leading-none shrink-0">{getFlagEmoji(team.fifa_code)}</span>
+                      <TeamFlag flagCode={team.fifa_code} flagUrl={team.flag_url} size={24} className="shrink-0" />
                     ) : null}
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="font-medium truncate">{team.name_en}</span>

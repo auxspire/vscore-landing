@@ -241,6 +241,51 @@ const SHORT: Record<string, string> = {
   final: "Final",
 };
 
+async function verifyGermanyLikelyPath(useLive: boolean) {
+  const label = useLive ? "live metrics" : "default Elo";
+  const q = new URLSearchParams({ simulations: String(sims) });
+  if (useLive) q.set("useLiveMetrics", "1");
+  const url = `${baseUrl}/api/bracket-explorer/germany?${q}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.log(`\n[${label}] Germany skipped: ${res.status}`);
+    return true;
+  }
+
+  const data = (await res.json()) as Awaited<ReturnType<typeof fetchBracket>>;
+  const likely = buildMostLikelyDisplayPath(data.path, data.team.group);
+  const coherenceErrors = assertPathCoherence(likely);
+  const dupes = assertNoDuplicatePathOpponents(likely, 0);
+
+  for (const stage of ["round_of_16", "quarterfinal", "semifinal", "final"]) {
+    const node = likely.find((s) => s.stage === stage);
+    if (node && node.topOpponents.length === 0) {
+      console.error(`  FAIL ${stage} has no opponent`);
+      return false;
+    }
+  }
+
+  const projected = likely.filter((s) => s.pathProjection === "projected");
+  if (projected.length === 0) {
+    console.error("  FAIL expected projected path stages");
+    return false;
+  }
+
+  console.log(`\n[${label}] Germany likely: projected stages=${projected.length}`);
+
+  if (dupes.length) {
+    console.error("  FAIL duplicate foes:", dupes.join("; "));
+    return false;
+  }
+  if (coherenceErrors.length) {
+    console.error("  FAIL coherence:", coherenceErrors.join("; "));
+    return false;
+  }
+
+  console.log("  OK");
+  return true;
+}
+
 const ok =
   (await verifyLikelyPath(false)) &&
   (await verifyLikelyPath(true)) &&
@@ -249,5 +294,7 @@ const ok =
   (await verifyEnglandLockedPath(false)) &&
   (await verifyEnglandLockedPath(true)) &&
   (await verifyMexicoLikelyPath(false)) &&
-  (await verifyMexicoLikelyPath(true));
+  (await verifyMexicoLikelyPath(true)) &&
+  (await verifyGermanyLikelyPath(false)) &&
+  (await verifyGermanyLikelyPath(true));
 process.exit(ok ? 0 : 1);

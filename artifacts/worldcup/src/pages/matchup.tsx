@@ -8,7 +8,8 @@ import { LoadingAnimation } from "@/components/LoadingAnimation"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { Navbar } from "@/components/Navbar"
 import { WorldCupLayout } from "@/components/WorldCupLayout"
-import { getFlagEmoji, cn } from "@/lib/utils"
+import { TeamFlag } from "@/components/TeamFlag"
+import { cn } from "@/lib/utils"
 import { usePageSeo, matchupSeo, PAGE_SEO, WORLDCUP_BASE } from "@/lib/seo"
 import { SharePredictionButton } from "@/components/SharePredictionButton"
 import { buildMatchupShareMessage } from "@/lib/share-messages"
@@ -106,7 +107,8 @@ export default function Matchup() {
             <div className="flex justify-center items-center gap-4 md:gap-12 mb-6">
               <div className="flex flex-col items-center">
                 <Link href={`/?tab=path&section=bracket&team=${matchResult.teamA.id}${queryFlag ? "&useLiveMetrics=1" : ""}`} title="View bracket path">
-                  <span className="text-6xl md:text-8xl drop-shadow-lg cursor-pointer hover:scale-110 transition-transform inline-block">{getFlagEmoji(matchResult.teamA.flagCode)}</span>
+                  <TeamFlag flagCode={matchResult.teamA.flagCode} size={72} className="md:hidden drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
+                  <TeamFlag flagCode={matchResult.teamA.flagCode} size={96} className="hidden md:inline-block drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
                 </Link>
                 <h2 className="text-xl md:text-3xl font-bold mt-4 tracking-tight">{matchResult.teamA.name}</h2>
                 <span className="text-sm font-mono text-muted-foreground mt-1 tracking-wider">Group {matchResult.teamA.group}</span>
@@ -116,7 +118,8 @@ export default function Matchup() {
               </div>
               <div className="flex flex-col items-center">
                 <Link href={`/?tab=path&section=bracket&team=${matchResult.teamB.id}${queryFlag ? "&useLiveMetrics=1" : ""}`} title="View bracket path">
-                  <span className="text-6xl md:text-8xl drop-shadow-lg cursor-pointer hover:scale-110 transition-transform inline-block">{getFlagEmoji(matchResult.teamB.flagCode)}</span>
+                  <TeamFlag flagCode={matchResult.teamB.flagCode} size={72} className="md:hidden drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
+                  <TeamFlag flagCode={matchResult.teamB.flagCode} size={96} className="hidden md:inline-block drop-shadow-lg cursor-pointer hover:scale-110 transition-transform" />
                 </Link>
                 <h2 className="text-xl md:text-3xl font-bold mt-4 tracking-tight">{matchResult.teamB.name}</h2>
                 <span className="text-sm font-mono text-muted-foreground mt-1 tracking-wider">Group {matchResult.teamB.group}</span>
@@ -179,7 +182,7 @@ export default function Matchup() {
                 <Card key={idx} className="bg-card border-border">
                   <CardHeader className="pb-3 border-b border-border/50 bg-secondary/20">
                     <CardTitle className="text-sm font-bold tracking-wide uppercase flex items-center gap-2">
-                      <span className="text-xl">{getFlagEmoji(breakdown.team.flagCode)}</span>
+                      <TeamFlag flagCode={breakdown.team.flagCode} size={22} />
                       {breakdown.team.name} Trajectory
                     </CardTitle>
                   </CardHeader>

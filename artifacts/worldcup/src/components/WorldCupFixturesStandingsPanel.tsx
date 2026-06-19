@@ -16,7 +16,8 @@ import { FootballTeamSelect } from "@/components/FootballTeamSelect";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, getFlagEmoji } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { TeamFlag } from "@/components/TeamFlag";
 import {
   formatKickoffTime,
   formatKickoffDateTime,
@@ -42,24 +43,17 @@ import { Activity } from "lucide-react";
 
 const QUALIFYING_SPOTS = 2;
 
-function teamFlag(teamId: string | null, teams: FootballTeam[], size = "text-xl") {
-  if (!teamId) return <span className={cn(size, "opacity-40")}>🏳️</span>;
+function teamFlag(teamId: string | null, teams: FootballTeam[], size = 24) {
+  if (!teamId) return <TeamFlag flagCode="" size={size} className="opacity-40 shrink-0" />;
   const team = teams.find((t) => t.api_team_id === teamId);
-  if (team?.flag_url) {
-    return (
-      <img
-        src={team.flag_url}
-        alt=""
-        className="h-6 w-6 rounded-sm object-cover shrink-0"
-        width={24}
-        height={24}
-      />
-    );
-  }
-  if (team?.fifa_code) {
-    return <span className={cn(size, "leading-none shrink-0")}>{getFlagEmoji(team.fifa_code)}</span>;
-  }
-  return <span className={cn(size, "opacity-40")}>🏳️</span>;
+  return (
+    <TeamFlag
+      flagCode={team?.fifa_code ?? ""}
+      flagUrl={team?.flag_url}
+      size={size}
+      className={cn("shrink-0", !team && "opacity-40")}
+    />
+  );
 }
 
 function favoredPickLabel(
@@ -425,8 +419,10 @@ function TopScorersList({ scorers, teams }: { scorers: ScorerEntry[]; teams: Foo
                         </div>
                       )}
                       {s.teamName && (
-                        <div className="sm:hidden text-[10px] text-muted-foreground truncate mt-0.5">
-                          {team?.fifa_code ? `${getFlagEmoji(team.fifa_code)} ` : ""}
+                        <div className="sm:hidden text-[10px] text-muted-foreground truncate mt-0.5 inline-flex items-center gap-1">
+                          {team?.fifa_code ? (
+                            <TeamFlag flagCode={team.fifa_code} flagUrl={team?.flag_url} size={14} />
+                          ) : null}
                           {s.teamName}
                         </div>
                       )}
@@ -435,7 +431,7 @@ function TopScorersList({ scorers, teams }: { scorers: ScorerEntry[]; teams: Foo
                       {s.teamName ? (
                         <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
                           {team?.fifa_code ? (
-                            <span className="text-sm leading-none shrink-0">{getFlagEmoji(team.fifa_code)}</span>
+                            <TeamFlag flagCode={team.fifa_code} flagUrl={team.flag_url} size={18} className="shrink-0" />
                           ) : null}
                           <span className="truncate text-xs text-muted-foreground">{s.teamName}</span>
                         </span>
@@ -504,7 +500,7 @@ function GroupStandingsCard({
               >
                 {r.rank ?? "–"}
               </span>
-              {teamFlag(r.team_id, teams, "text-lg")}
+              {teamFlag(r.team_id, teams, 24)}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{name}</p>
                 <p className="text-[11px] text-muted-foreground">
@@ -595,7 +591,7 @@ function StandingsTableView({
                 </td>
                 <td className="py-3 px-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    {teamFlag(r.team_id, teams, "text-lg")}
+                    {teamFlag(r.team_id, teams, 24)}
                     <span className="font-medium truncate">{name}</span>
                     {qualifies && (
                       <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-wider text-primary/80 shrink-0">

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react"
-import { useLocation } from "wouter"
+import { useLocation, useSearch } from "wouter"
 import { useQueryClient } from "@tanstack/react-query"
 import { useGetTeams, useGetPopularMatchups, getGetTeamsQueryKey, getGetPopularMatchupsQueryKey } from "@workspace/api-client-react"
 import { TeamCombobox } from "@/components/TeamCombobox"
@@ -7,8 +7,9 @@ import { WorldCupLayout } from "@/components/WorldCupLayout"
 import { PathToFinalPanel } from "@/components/PathToFinalPanel"
 import { LiveMetricsToggle } from "@/components/LiveMetricsToggle"
 import { FaqSection, HOME_FAQ } from "@/components/FaqSection"
-import { useLiveMetrics } from "@/hooks/useLiveMetrics"
+import { useLiveMetrics, useLiveMetricsFromUrl } from "@/hooks/useLiveMetrics"
 import { useHomeTab, type HomeTab } from "@/hooks/useHomeTab"
+import { TeamFlag } from "@/components/TeamFlag"
 import { prefetchFootballLiveCache, prefetchFootballLivePanel } from "@/hooks/useFootballData"
 import { publicAsset } from "@/lib/assets"
 import { usePageSeo, PAGE_SEO } from "@/lib/seo"
@@ -16,7 +17,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FixturesLoadingState } from "@/components/FixturesLoadingState"
-import { getFlagEmoji } from "@/lib/utils"
 import { Swords, Activity, Calendar } from "lucide-react"
 
 const WorldCupFixturesStandingsPanel = lazy(() =>
@@ -27,12 +27,14 @@ const WorldCupFixturesStandingsPanel = lazy(() =>
 
 export default function Home() {
   const [, setLocation] = useLocation()
+  const search = useSearch()
   const queryClient = useQueryClient()
   const [teamA, setTeamA] = useState<string>("")
   const [teamB, setTeamB] = useState<string>("")
   const { tab, setTab } = useHomeTab()
 
   usePageSeo(PAGE_SEO.home)
+  useLiveMetricsFromUrl(search)
 
   useEffect(() => {
     if (tab !== "fixtures") return
@@ -140,18 +142,21 @@ export default function Home() {
                   <Card
                     key={i}
                     className="bg-card hover:bg-secondary/50 transition-colors cursor-pointer border-border hover:border-primary/50 group"
-                    onClick={() => setLocation(`/matchup?teamA=${matchup.teamA.id}&teamB=${matchup.teamB.id}`)}
+                    onClick={() => {
+                      const live = queryFlag ? "&useLiveMetrics=1" : ""
+                      setLocation(`/matchup?teamA=${matchup.teamA.id}&teamB=${matchup.teamB.id}${live}`)
+                    }}
                   >
                     <CardContent className="p-5">
                       <div className="flex justify-between items-center mb-3 gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-2xl shrink-0">{getFlagEmoji(matchup.teamA.flagCode)}</span>
+                          <TeamFlag flagCode={matchup.teamA.flagCode} size={28} className="shrink-0" />
                           <span className="font-bold truncate">{matchup.teamA.name}</span>
                         </div>
                         <span className="text-muted-foreground text-xs font-bold shrink-0">vs</span>
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="font-bold truncate">{matchup.teamB.name}</span>
-                          <span className="text-2xl shrink-0">{getFlagEmoji(matchup.teamB.flagCode)}</span>
+                          <TeamFlag flagCode={matchup.teamB.flagCode} size={28} className="shrink-0" />
                         </div>
                       </div>
                       <div className="flex justify-between items-end text-sm">

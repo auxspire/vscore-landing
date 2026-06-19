@@ -1,7 +1,8 @@
 import * as React from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
 
-import { cn, getFlagEmoji } from "@/lib/utils"
+import { cn } from "@/lib/utils"
+import { TeamFlag } from "@/components/TeamFlag"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -43,7 +44,7 @@ export function TeamCombobox({ teams, value, onChange, placeholder = "Select tea
         >
           {selectedTeam ? (
             <div className="flex items-center gap-3 truncate">
-              <span className="text-2xl">{getFlagEmoji(selectedTeam.flagCode)}</span>
+              <TeamFlag flagCode={selectedTeam.flagCode} size={28} />
               <span className="font-semibold">{selectedTeam.name}</span>
             </div>
           ) : (
@@ -74,7 +75,7 @@ export function TeamCombobox({ teams, value, onChange, placeholder = "Select tea
                       value === team.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <span className="text-2xl">{getFlagEmoji(team.flagCode)}</span>
+                  <TeamFlag flagCode={team.flagCode} size={28} />
                   <div className="flex flex-col flex-1 truncate">
                     <span className="font-medium text-foreground">{team.name}</span>
                     <span className="text-xs text-muted-foreground">

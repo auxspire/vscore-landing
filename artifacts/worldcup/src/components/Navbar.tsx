@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Link, useLocation, useSearch } from "wouter"
 import { cn } from "@/lib/utils"
 import { publicAsset } from "@/lib/assets"
+import { rankingsHrefPreservingTeam } from "@/hooks/useHomeTab"
 import { Menu, X, BarChart3 } from "lucide-react"
 
 export function Navbar() {
@@ -15,7 +16,7 @@ export function Navbar() {
     location.startsWith("/rankings") ||
     (location === "/" && params.get("tab") === "path" && params.get("section") === "rankings")
 
-  const rankingsHref = "/?tab=path&section=rankings"
+  const rankingsHref = rankingsHrefPreservingTeam(search)
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">

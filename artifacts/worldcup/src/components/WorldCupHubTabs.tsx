@@ -1,8 +1,8 @@
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { publicAsset } from "@/lib/assets";
-import type { HomeTab } from "@/hooks/useHomeTab";
+import { hubTabHref, type HomeTab } from "@/hooks/useHomeTab";
 import { prefetchFootballLiveCache, prefetchFootballLivePanel } from "@/hooks/useFootballData";
 import { Swords, Calendar } from "lucide-react";
 
@@ -70,6 +70,7 @@ export function WorldCupHubTabs({
   className,
 }: WorldCupHubTabsProps) {
   const queryClient = useQueryClient();
+  const search = useSearch();
 
   const prefetchFixtures = () => {
     void prefetchFootballLiveCache(queryClient);
@@ -114,8 +115,7 @@ export function WorldCupHubTabs({
           );
         }
 
-        // Route mode — deep links redirect into hub tabs
-        const href = tab.href;
+        const href = hubTabHref(search, tab.id);
 
         return (
           <Link
