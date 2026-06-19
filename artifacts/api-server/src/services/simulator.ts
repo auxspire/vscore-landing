@@ -23,8 +23,8 @@ function knockoutWinner(teamA: Team, teamB: Team): Team {
 // ─── Group stage simulation ────────────────────────────────────────────────
 
 function simulateGroup(teams: Team[]): GroupResult[] {
-  const stats: Record<string, { points: number; gd: number }> = {};
-  for (const t of teams) stats[t.id] = { points: 0, gd: 0 };
+  const stats: Record<string, { points: number; gd: number; goalsFor: number }> = {};
+  for (const t of teams) stats[t.id] = { points: 0, gd: 0, goalsFor: 0 };
 
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
@@ -37,14 +37,18 @@ function simulateGroup(teams: Team[]): GroupResult[] {
       if (outcome === "A") {
         stats[a.id].points += 3;
         stats[a.id].gd += baseGd;
+        stats[a.id].goalsFor += baseGd;
         stats[b.id].gd -= baseGd;
       } else if (outcome === "B") {
         stats[b.id].points += 3;
         stats[b.id].gd += baseGd;
+        stats[b.id].goalsFor += baseGd;
         stats[a.id].gd -= baseGd;
       } else {
         stats[a.id].points += 1;
         stats[b.id].points += 1;
+        stats[a.id].goalsFor += 1;
+        stats[b.id].goalsFor += 1;
       }
     }
   }
@@ -53,6 +57,7 @@ function simulateGroup(teams: Team[]): GroupResult[] {
     const sa = stats[a.id], sb = stats[b.id];
     if (sb.points !== sa.points) return sb.points - sa.points;
     if (sb.gd    !== sa.gd)      return sb.gd    - sa.gd;
+    if (sb.goalsFor !== sa.goalsFor) return sb.goalsFor - sa.goalsFor;
     return b.eloRating - a.eloRating;
   });
 
@@ -60,6 +65,7 @@ function simulateGroup(teams: Team[]): GroupResult[] {
     team,
     points:   stats[team.id].points,
     gd:       stats[team.id].gd,
+    goalsFor: stats[team.id].goalsFor,
     position: i + 1,
   }));
 }
@@ -151,7 +157,7 @@ export function simulateMatchProbability(
 
     const allThirds = groupLetters.map(g => {
       const r = groupResults[g][2];
-      return { team: r.team, points: r.points, gd: r.gd };
+      return { team: r.team, points: r.points, gd: r.gd, goalsFor: r.goalsFor };
     });
 
     const bracket = buildBracket(groupResults, allThirds);
@@ -213,7 +219,7 @@ export function simulateAllTeamsRankings(
 
     const allThirds = groupLetters.map(g => {
       const r = groupResults[g][2];
-      return { team: r.team, points: r.points, gd: r.gd };
+      return { team: r.team, points: r.points, gd: r.gd, goalsFor: r.goalsFor };
     });
 
     const bracket = buildBracket(groupResults, allThirds);
@@ -272,7 +278,7 @@ export function simulateTeamStageReach(
 
     const allThirds = groupLetters.map(g => {
       const r = groupResults[g][2];
-      return { team: r.team, points: r.points, gd: r.gd };
+      return { team: r.team, points: r.points, gd: r.gd, goalsFor: r.goalsFor };
     });
 
     const bracket = buildBracket(groupResults, allThirds);

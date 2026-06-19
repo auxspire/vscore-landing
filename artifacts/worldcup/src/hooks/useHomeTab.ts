@@ -121,6 +121,9 @@ export function useHomeTab() {
       sp.set("tab", "path");
       sp.set("section", "bracket");
       sp.set("team", teamId);
+      sp.delete("lockStage");
+      sp.delete("lockOpp");
+      sp.delete("lockFinish");
       setLocation(buildLocation(sp));
     },
     [search, setLocation],

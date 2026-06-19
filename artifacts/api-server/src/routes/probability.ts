@@ -20,6 +20,13 @@ import { predictFixtures } from "../services/fixturePredictions";
 
 const router = Router();
 
+function parseSimulationCount(raw: unknown, defaultVal = 10000): number {
+  if (raw == null || raw === "") return defaultVal;
+  const n = parseInt(String(raw), 10);
+  if (!Number.isFinite(n)) return defaultVal;
+  return Math.min(20000, Math.max(1000, n));
+}
+
 const STAGE_DESCRIPTIONS: Record<string, string> = {
   group_stage: "Group Stage",
   round_of_32: "Round of 32",
@@ -49,10 +56,7 @@ router.get("/match-probability", async (req, res) => {
     return;
   }
 
-  const numSims = Math.min(
-    20000,
-    Math.max(1000, simulations ? parseInt(simulations as string, 10) : 10000)
-  );
+  const numSims = parseSimulationCount(simulations);
 
   try {
     const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
@@ -125,10 +129,7 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
     return;
   }
 
-  const numSims = Math.min(
-    20000,
-    Math.max(1000, req.query.simulations ? parseInt(req.query.simulations as string, 10) : 10000)
-  );
+  const numSims = parseSimulationCount(req.query.simulations);
 
   try {
     const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)
@@ -309,10 +310,7 @@ router.get("/bracket-explorer/:teamId", async (req, res) => {
 });
 
 router.get("/rankings", async (req, res) => {
-  const numSims = Math.min(
-    20000,
-    Math.max(1000, req.query.simulations ? parseInt(req.query.simulations as string, 10) : 10000)
-  );
+  const numSims = parseSimulationCount(req.query.simulations);
 
   try {
     const adjustments = parseUseLiveMetrics(req.query.useLiveMetrics)

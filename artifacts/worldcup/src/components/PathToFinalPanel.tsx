@@ -74,34 +74,29 @@ export function PathToFinalPanel() {
         })}
       </div>
 
-      {/* Desktop: both panels side by side */}
-      <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
-        <section className="min-w-0 space-y-3">
+      {/* Single mount per panel — visibility toggled by breakpoint / section */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+        <section
+          className={cn(
+            "min-w-0 space-y-3",
+            pathSection !== "bracket" && "hidden lg:block",
+          )}
+        >
           <h3 className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground px-1">
             <GitBranch className="w-3.5 h-3.5 text-primary" />
             Bracket Explorer
           </h3>
           <BracketExplorerPanel teamId={pathTeam} onTeamChange={setPathTeam} />
         </section>
-        <section className="min-w-0">
+        <section
+          className={cn("min-w-0", pathSection !== "rankings" && "hidden lg:block")}
+        >
           <PowerRankingsPanel
             key={`rankings-${pathSection}`}
             onTeamSelect={openBracketForTeam}
             defaultCollapsed={pathSection !== "rankings"}
           />
         </section>
-      </div>
-
-      {/* Mobile: single active panel */}
-      <div className="lg:hidden animate-in fade-in duration-300">
-        {pathSection === "bracket" ? (
-          <BracketExplorerPanel teamId={pathTeam} onTeamChange={setPathTeam} />
-        ) : (
-          <PowerRankingsPanel
-            onTeamSelect={openBracketForTeam}
-            defaultCollapsed={false}
-          />
-        )}
       </div>
     </div>
   );

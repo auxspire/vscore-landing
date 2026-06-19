@@ -127,25 +127,19 @@ function pickStageOpponents(
   const merged = sortOpponentsByEncounter(dedupeOpponents(pools.flat()));
 
   const strict: PathOpponent[] = [];
-  const relaxed: PathOpponent[] = [];
 
   for (const o of merged) {
     if (eliminated.has(o.team.id)) continue;
-    relaxed.push(o);
     if (!teamFinish || canTeamFaceGroupAtStage(teamGroup, teamFinish, o.team.group, stage)) {
       strict.push(o);
     }
   }
 
-  const pick = strict.length > 0 ? strict : relaxed;
-  if (pick.length === 0) {
+  if (strict.length === 0) {
     return { topOpponents: [], opponentsFromAggregate: false };
   }
 
-  return {
-    topOpponents: pick,
-    opponentsFromAggregate: strict.length === 0 && relaxed.length > 0,
-  };
+  return { topOpponents: strict, opponentsFromAggregate: false };
 }
 
 function clearUnreachableStage(stage: PathStage): PathStage {
@@ -185,28 +179,9 @@ export function finalizeSequentialPath(stages: PathStage[]): PathStage[] {
   return result;
 }
 
-/** Teams already beaten on the path before the lock stage. */
-function seedEliminatedBeforeLock(
-  stages: PathStage[],
-  lockIdx: number,
-  lockedOpponentId: string,
-): Set<string> {
-  const eliminated = new Set<string>([lockedOpponentId]);
-
-  for (const stage of stages) {
-    const stageIdx = knockoutStageIndex(stage.stage);
-    if (stageIdx >= lockIdx) continue;
-
-    const primary = stage.topOpponents[0];
-    if (primary) eliminated.add(primary.team.id);
-  }
-
-  return eliminated;
-}
-
 /**
- * Enforce a single coherent knockout path: no team appears twice after the lock,
- * and each foe must be bracket-valid for the team's finish scenario.
+ * Enforce a single coherent knockout path from R32 onward: no duplicate primaries,
+ * bracket-valid foes only (strict topology — no relaxed fallback).
  */
 export function applyPathChainFilter(
   stages: PathStage[],
@@ -216,12 +191,22 @@ export function applyPathChainFilter(
   teamFinish: GroupFinish | null,
   originalPath?: PathStage[],
 ): PathStage[] {
-  const eliminatedOnPath = seedEliminatedBeforeLock(stages, lockIdx, lockedOpponentId);
   const originalsByStage = new Map(originalPath?.map((s) => [s.stage, s]));
+  const eliminatedOnPath = new Set<string>();
+  const result: PathStage[] = [];
+  const r32Idx = knockoutStageIndex("round_of_32");
 
-  const mapped = stages.map((stage) => {
+  for (const stage of stages) {
     const stageIdx = knockoutStageIndex(stage.stage);
-    if (stageIdx <= lockIdx) return stage;
+    if (stageIdx < 0) {
+      result.push(stage);
+      continue;
+    }
+
+    if (stageIdx < r32Idx) {
+      result.push(stage);
+      continue;
+    }
 
     const original = originalsByStage.get(stage.stage);
     const pools: PathOpponent[][] = [stage.topOpponents];
@@ -229,36 +214,57 @@ export function applyPathChainFilter(
       pools.push(original.topOpponents);
     }
 
-    const { topOpponents, opponentsFromAggregate } = pickStageOpponents(
-      pools,
-      eliminatedOnPath,
-      teamGroup,
-      teamFinish,
-      stage.stage as KnockoutStage,
-    );
+    const finishForStage =
+      stage.stage === "round_of_32"
+        ? topFinishKey(stage.teamGroupFinish ?? original?.teamGroupFinish ?? {}) ?? teamFinish
+        : teamFinish;
 
-    if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
-
+    let topOpponents: PathOpponent[];
     let reachProbability = stage.reachProbability;
     let isConditional = stage.isConditional;
 
-    if (topOpponents.length === 0) {
-      reachProbability = 0;
-    } else if (opponentsFromAggregate && original) {
-      reachProbability = original.reachProbability;
-      isConditional = false;
+    if (stageIdx === lockIdx) {
+      const locked =
+        stage.topOpponents.find((o) => o.team.id === lockedOpponentId) ??
+        original?.topOpponents.find((o) => o.team.id === lockedOpponentId);
+      const others = stage.topOpponents.filter((o) => o.team.id !== lockedOpponentId);
+      topOpponents = locked ? [locked, ...others] : [];
+    } else {
+      const pick = pickStageOpponents(
+        pools,
+        eliminatedOnPath,
+        teamGroup,
+        finishForStage,
+        stage.stage as KnockoutStage,
+      );
+      topOpponents = pick.topOpponents;
+      if (topOpponents.length === 0) {
+        reachProbability = 0;
+      } else if (original && stage.isConditional && topOpponents[0]) {
+        const fromOriginal = original.topOpponents.find(
+          (o) => o.team.id === topOpponents[0]?.team.id,
+        );
+        if (fromOriginal && !stage.isConditional) {
+          reachProbability = original.reachProbability;
+          isConditional = false;
+        }
+      }
     }
 
-    return {
+    if (topOpponents[0]) {
+      eliminatedOnPath.add(topOpponents[0].team.id);
+    }
+
+    result.push({
       ...stage,
       topOpponents,
       reachProbability,
       isConditional,
-      opponentsFromAggregate: opponentsFromAggregate || undefined,
-    };
-  });
+      opponentsFromAggregate: undefined,
+    });
+  }
 
-  return finalizeSequentialPath(mapped);
+  return finalizeSequentialPath(result);
 }
 
 /** Win probability assuming our team beats the primary foe at every stage on the path. */
@@ -406,7 +412,7 @@ function buildAggregateDisplayPath(path: PathStage[], teamGroup: string): PathSt
       if (scenarioList?.length) pools.unshift(scenarioList);
     }
 
-    const { topOpponents, opponentsFromAggregate } = pickStageOpponents(
+    const { topOpponents } = pickStageOpponents(
       pools,
       eliminatedOnPath,
       teamGroup,
@@ -417,12 +423,10 @@ function buildAggregateDisplayPath(path: PathStage[], teamGroup: string): PathSt
     if (topOpponents[0]) eliminatedOnPath.add(topOpponents[0].team.id);
 
     let reachProbability = stage.reachProbability;
-    let isConditional = stage.isConditional;
+    const isConditional = stage.isConditional;
 
     if (topOpponents.length === 0) {
       reachProbability = 0;
-    } else if (opponentsFromAggregate) {
-      isConditional = false;
     }
 
     return {
@@ -430,7 +434,7 @@ function buildAggregateDisplayPath(path: PathStage[], teamGroup: string): PathSt
       topOpponents,
       reachProbability,
       isConditional,
-      opponentsFromAggregate: opponentsFromAggregate || undefined,
+      opponentsFromAggregate: undefined,
     };
   });
 
@@ -438,12 +442,30 @@ function buildAggregateDisplayPath(path: PathStage[], teamGroup: string): PathSt
 }
 
 export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string): PathStage[] {
+  return buildMostLikelyPathResult(path, teamGroup).stages;
+}
+
+/** Unlocked projected path with chained conditional win probability. */
+export function buildMostLikelyPathResult(path: PathStage[], teamGroup: string): LockedPathResult {
   const r32 = path.find((s) => s.stage === "round_of_32");
-  if (!r32) return finalizeSequentialPath(path);
+  if (!r32) {
+    return {
+      stages: finalizeSequentialPath(path),
+      lockOpponent: undefined,
+      teamFinishScenario: null,
+      winProbability: 0,
+    };
+  }
 
   const anchorResult = resolveR32Anchor(r32, teamGroup);
   if (!anchorResult) {
-    return buildAggregateDisplayPath(path, teamGroup);
+    const stages = buildAggregateDisplayPath(path, teamGroup);
+    return {
+      stages,
+      lockOpponent: undefined,
+      teamFinishScenario: topFinishKey(r32.teamGroupFinish ?? {}),
+      winProbability: 0,
+    };
   }
 
   const { anchor, finishPos } = anchorResult;
@@ -464,10 +486,11 @@ export function buildMostLikelyDisplayPath(path: PathStage[], teamGroup: string)
   );
 
   if (!hasLaterOpponents) {
-    return buildAggregateDisplayPath(path, teamGroup);
+    const stages = buildAggregateDisplayPath(path, teamGroup);
+    return { ...locked, stages };
   }
 
-  return locked.stages;
+  return locked;
 }
 
 /** Verify no opponent appears twice on the path strip (primary foe per stage). */

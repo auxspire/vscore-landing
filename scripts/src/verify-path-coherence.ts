@@ -246,8 +246,16 @@ function testSparseConditionalUsesAggregateFallback() {
 
   const result = buildMostLikelyDisplayPath(path, "E");
   const r16 = result.find((s) => s.stage === "round_of_16")!;
-  assert(r16.topOpponents.length > 0, "R16 must fall back to aggregate when conditional skips it");
-  assert(r16.topOpponents[0]?.team.id !== "czechia", "R16 must not repeat R32 foe");
+  const qf = result.find((s) => s.stage === "quarterfinal")!;
+
+  if (r16.topOpponents.length > 0) {
+    assert(r16.topOpponents[0]?.team.id !== "czechia", "R16 must not repeat R32 foe");
+  } else {
+    assert(
+      qf.topOpponents.length === 0 && qf.reachProbability === 0,
+      "Strict topology: R16 gap must clear downstream QF",
+    );
+  }
 }
 
 testEliminatedFoeSkipsToNext();

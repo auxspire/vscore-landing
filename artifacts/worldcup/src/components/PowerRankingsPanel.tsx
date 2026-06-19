@@ -3,6 +3,7 @@ import { useGetTournamentRankings, getGetTournamentRankingsQueryKey } from "@wor
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { QueryErrorState } from "@/components/QueryErrorState";
 import { TeamFlag } from "@/components/TeamFlag";
 import { cn } from "@/lib/utils";
 import { useLiveMetrics } from "@/hooks/useLiveMetrics";
@@ -64,7 +65,7 @@ export function PowerRankingsPanel({
   const { queryFlag } = useLiveMetrics();
   const rankParams = { simulations: simulationCount(!!queryFlag), useLiveMetrics: queryFlag };
 
-  const { data, isLoading } = useGetTournamentRankings(rankParams, {
+  const { data, isLoading, isError, refetch } = useGetTournamentRankings(rankParams, {
     query: { staleTime: 5 * 60 * 1000, queryKey: getGetTournamentRankingsQueryKey(rankParams) },
   });
 
@@ -192,6 +193,11 @@ export function PowerRankingsPanel({
 
           {isLoading ? (
             <LoadingAnimation message="Loading rankings" />
+          ) : isError ? (
+            <QueryErrorState
+              title="Could not load rankings"
+              onRetry={() => refetch()}
+            />
           ) : sorted.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10 px-4">
               No teams match &ldquo;{search}&rdquo;

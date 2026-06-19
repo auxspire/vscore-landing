@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
+import { QueryErrorState } from "@/components/QueryErrorState"
 import { ProbabilityBar } from "@/components/ProbabilityBar"
 import { Navbar } from "@/components/Navbar"
 import { WorldCupLayout } from "@/components/WorldCupLayout"
@@ -37,7 +38,7 @@ export default function Matchup() {
 
   const sims = simulationCount(!!queryFlag)
 
-  const { data: matchResult, isLoading: isLoadingMatch } = useGetMatchProbability(
+  const { data: matchResult, isLoading: isLoadingMatch, isError: isMatchError, refetch: refetchMatch } = useGetMatchProbability(
     { teamA: teamA ?? "", teamB: teamB ?? "", useLiveMetrics: queryFlag, simulations: sims },
     {
       query: {
@@ -98,6 +99,12 @@ export default function Matchup() {
     <WorldCupLayout activeTab="predictor" wide>
       {isLoadingMatch ? (
         <LoadingAnimation message="Running simulations" />
+      ) : isMatchError ? (
+        <QueryErrorState
+          title="Simulation failed"
+          message="Could not run match probability for these teams."
+          onRetry={() => refetchMatch()}
+        />
       ) : matchResult ? (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
           

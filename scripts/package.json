@@ -10,7 +10,8 @@
     "sync:football": "tsx ./run-football-sync.mjs",
     "verify:bracket-path": "tsx ./src/verify-bracket-path.ts",
     "verify:path-coherence": "tsx ./src/verify-path-coherence.ts",
-    "verify:all": "tsx ./src/verify-path-coherence.ts && tsx ./src/verify-bracket-path.ts https://www.vscor.in"
+    "verify:bracket-builder": "tsx ./src/verify-bracket-builder.ts",
+    "verify:all": "tsx ./src/verify-path-coherence.ts && tsx ./src/verify-bracket-builder.ts && tsx ./src/verify-bracket-path.ts https://www.vscor.in"
   },
   "dependencies": {
     "@workspace/bracket-path": "workspace:*",

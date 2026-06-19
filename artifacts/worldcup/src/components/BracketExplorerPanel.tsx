@@ -3,6 +3,7 @@ import { useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace
 import {
   buildLockedDisplayPath,
   buildMostLikelyDisplayPath,
+  buildMostLikelyPathResult,
   formatOpponentSlotHints,
   inferFinishPosForOpponent,
   knockoutStageIndex,
@@ -12,6 +13,7 @@ import {
 } from "@workspace/bracket-path"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoadingAnimation } from "@/components/LoadingAnimation"
+import { QueryErrorState } from "@/components/QueryErrorState"
 import { TeamFlag } from "@/components/TeamFlag"
 import { cn } from "@/lib/utils"
 import { WORLDCUP_BASE } from "@/lib/seo"
@@ -624,7 +626,7 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
 
   const sims = simulationCount(!!queryFlag)
 
-  const { data: rawBracketData, isLoading: isLoadingBracket } = useGetBracketExplorer(
+  const { data: rawBracketData, isLoading: isLoadingBracket, isError: isBracketError, refetch: refetchBracket } = useGetBracketExplorer(
     teamId,
     { useLiveMetrics: queryFlag, simulations: sims },
     {
@@ -652,17 +654,29 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
     })
   }, [bracketData?.path, bracketData?.team.group, lockedStage, lockedOpponentId, lockedFinishPos])
 
+  const mostLikelyPathResult = useMemo(() => {
+    if (!bracketData?.path || lockedStage) return null
+    return buildMostLikelyPathResult(bracketData.path, bracketData.team.group)
+  }, [bracketData?.path, bracketData?.team.group, lockedStage])
+
   const displayStages: RichStageNode[] = useMemo(() => {
     if (!bracketData?.path) return []
     if (lockedPathResult) return lockedPathResult.stages as RichStageNode[]
-    return buildMostLikelyDisplayPath(
+    return (mostLikelyPathResult?.stages ?? buildMostLikelyDisplayPath(
       bracketData.path,
       bracketData.team.group,
-    ) as RichStageNode[]
-  }, [bracketData?.path, bracketData?.team.group, lockedPathResult])
+    )) as RichStageNode[]
+  }, [bracketData?.path, bracketData?.team.group, lockedPathResult, mostLikelyPathResult])
+
+  const isProjectedView =
+    !lockedStage &&
+    displayStages.some((s) => s.pathProjection === "projected")
 
   const displayWinProb =
-    lockedPathResult?.winProbability ?? bracketData?.tournamentWinProbability ?? 0
+    lockedPathResult?.winProbability ??
+    (isProjectedView && mostLikelyPathResult
+      ? mostLikelyPathResult.winProbability
+      : bracketData?.tournamentWinProbability ?? 0)
 
   const handleLockOpponent = (stage: string, opponentId: string | null, finishPos?: string | null) => {
     if (opponentId === null) {
@@ -679,10 +693,6 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
       })
     }
   }
-
-  const isProjectedView =
-    !lockedStage &&
-    displayStages.some((s) => s.pathProjection === "projected")
 
   const pathStripTitle = lockedStage
     ? "Selected Path"
@@ -709,6 +719,12 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
         </div>
       ) : isLoadingBracket ? (
         <LoadingSkeleton />
+      ) : isBracketError ? (
+        <QueryErrorState
+          title="Could not load bracket"
+          message="Bracket simulation failed. Try again or pick a different team."
+          onRetry={() => refetchBracket()}
+        />
       ) : bracketData ? (
         <div className="space-y-5">
 

@@ -112,7 +112,7 @@ export function canGroupFinishesMeetAtStage(
   if (teamGroup === oppGroup) return false;
   const teamSlots = slotsForGroupFinish(teamGroup, teamFinish);
   const oppSlots = slotsForGroupFinish(oppGroup, oppFinish);
-  if (teamSlots.length === 0 || oppSlots.length === 0) return true;
+  if (teamSlots.length === 0 || oppSlots.length === 0) return false;
   return teamSlots.some((ts) => oppSlots.some((os) => canSlotsMeetAtStage(ts, os, stage)));
 }
 
