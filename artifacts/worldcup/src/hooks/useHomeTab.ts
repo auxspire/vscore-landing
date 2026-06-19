@@ -129,6 +129,18 @@ export function useHomeTab() {
     [search, setLocation],
   );
 
+  /** Open Schedule tab on group tables, focused on one group letter. */
+  const openStandingsForGroup = useCallback(
+    (group: string) => {
+      const sp = parseSearch(search);
+      sp.set("tab", "fixtures");
+      sp.set("section", "tables");
+      sp.set("group", group.toUpperCase());
+      setLocation(buildLocation(sp));
+    },
+    [search, setLocation],
+  );
+
   return {
     tab,
     setTab,
@@ -139,6 +151,7 @@ export function useHomeTab() {
     setPathTeam,
     setBracketLock,
     openBracketForTeam,
+    openStandingsForGroup,
   };
 }
 

@@ -108,10 +108,19 @@ const SHORT_STAGE: Record<string, string> = {
 
 // ─── GroupFinishBadge ─────────────────────────────────────────────────────────
 
-function GroupFinishBadge({ finishMap, group, side }: {
+function GroupFinishBadge({
+  finishMap,
+  group,
+  side,
+  hidePercent,
+  tableSource,
+}: {
   finishMap: Record<string, number>
   group: string
   side: "team" | "opponent"
+  /** When showing live table finish, hide Monte Carlo % */
+  hidePercent?: boolean
+  tableSource?: boolean
 }) {
   const top = topKey(finishMap)
   if (!top) return null
@@ -120,13 +129,16 @@ function GroupFinishBadge({ finishMap, group, side }: {
     <div className={cn(
       "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider",
       side === "team"
-        ? "bg-primary/10 text-primary border border-primary/20"
+        ? tableSource
+          ? "bg-primary/15 text-primary border border-primary/40"
+          : "bg-primary/10 text-primary border border-primary/20"
         : "bg-secondary/60 text-muted-foreground border border-border/50"
     )}>
       <span>Grp {group}</span>
       <span className="opacity-50">·</span>
       <span>{top}</span>
-      {pct < 95 && <span className="opacity-60">({pct}%)</span>}
+      {tableSource && <span className="opacity-70 normal-case tracking-normal">· table</span>}
+      {!hidePercent && pct < 95 && <span className="opacity-60">({pct}%)</span>}
     </div>
   )
 }
@@ -207,6 +219,8 @@ function StageCard({
   isLast,
   lockedOpponentId,
   lockedFinishPos,
+  pinnedFinishPos,
+  standingMode,
   onLockOpponent,
   onViewTeam,
 }: {
@@ -216,6 +230,9 @@ function StageCard({
   lockedOpponentId: string | null
   /** Which finish-position section the locked opponent was clicked from (R32 only) */
   lockedFinishPos: string | null
+  /** Projected path finish (standing table or sim anchor) — overrides sim modal badge */
+  pinnedFinishPos?: string | null
+  standingMode?: boolean
   onLockOpponent: (id: string | null, finishPos?: string | null) => void
   onViewTeam: (teamId: string) => void
 }) {
@@ -249,12 +266,20 @@ function StageCard({
 
   const POS_ORDER = ["1st", "2nd", "3rd"]
 
-  // Team group finish map to display — pinned when a scenario is locked, otherwise aggregate
-  const displayTeamGroupFinish: Record<string, number> = lockedFinishPos
-    ? { [lockedFinishPos]: 1 }
-    : stage.teamGroupFinish
+  const effectiveFinishPos =
+    lockedFinishPos ?? (standingMode && pinnedFinishPos ? pinnedFinishPos : null)
+
+  // Team group finish for badges — table/lock pin overrides sim aggregate on R32
+  const displayTeamGroupFinish: Record<string, number> =
+    effectiveFinishPos && isR32
+      ? { [effectiveFinishPos]: 1 }
+      : pinnedFinishPos && isR32 && standingMode
+        ? { [pinnedFinishPos]: 1 }
+        : stage.teamGroupFinish
 
   const teamTopFinish = topKey(displayTeamGroupFinish)
+  const activeFinishSection =
+    effectiveFinishPos ?? pinnedFinishPos ?? topKey(stage.teamGroupFinish)
 
   function finishLabel(pos: string): string {
     if (pos === "1st") return `As Group ${team.group} Winner`
@@ -352,7 +377,13 @@ function StageCard({
                     </div>
                   </div>
                   {teamTopFinish && isR32 && (
-                    <GroupFinishBadge finishMap={displayTeamGroupFinish} group={team.group} side="team" />
+                    <GroupFinishBadge
+                      finishMap={displayTeamGroupFinish}
+                      group={team.group}
+                      side="team"
+                      hidePercent={!!standingMode && !!pinnedFinishPos}
+                      tableSource={!!standingMode && !!pinnedFinishPos}
+                    />
                   )}
                 </div>
 
@@ -423,8 +454,7 @@ function StageCard({
                     const opps = stage.opponentsByFinish![pos]
                     const finishProb = stage.teamGroupFinish[pos] ?? 0
                     const is3rd = pos === "3rd"
-                    const topFinish = topKey(stage.teamGroupFinish)
-                    const isMostLikely = pos === topFinish
+                    const isActiveFinish = pos === activeFinishSection
                     const slotHint = formatOpponentSlotHints(
                       opponentSlotHintsForTeamFinish(
                         team.group,
@@ -437,16 +467,24 @@ function StageCard({
                         "rounded-lg border p-3 space-y-2",
                         is3rd
                           ? "border-border/30 bg-secondary/10"
-                          : isMostLikely
-                            ? "border-primary/20 bg-primary/5"
+                          : isActiveFinish
+                            ? standingMode
+                              ? "border-primary/40 bg-primary/10 ring-1 ring-primary/20"
+                              : "border-primary/20 bg-primary/5"
                             : "border-border/50 bg-secondary/20"
                       )}>
                         <div className="flex items-center gap-2">
                           <span className={cn(
                             "text-[10px] font-mono font-bold uppercase tracking-wider",
-                            is3rd ? "text-muted-foreground/60" : isMostLikely ? "text-primary" : "text-muted-foreground"
+                            is3rd ? "text-muted-foreground/60" : isActiveFinish ? "text-primary" : "text-muted-foreground"
                           )}>
-                            {finishLabel(pos)}
+                            {standingMode && isActiveFinish
+                              ? pos === "1st"
+                                ? `Table · Group ${team.group} winner`
+                                : pos === "2nd"
+                                  ? `Table · Group ${team.group} runner-up`
+                                  : `Table · Qualified as 3rd`
+                              : finishLabel(pos)}
                           </span>
                           <span className={cn(
                             "text-[10px] font-mono px-1.5 py-0.5 rounded-full",
@@ -617,7 +655,7 @@ export interface BracketExplorerPanelProps {
 
 export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPanelProps) {
   const { groupStandingsEnabled, groupStandingsQueryFlag } = useLiveMetrics()
-  const { bracketLock, setBracketLock } = useHomeTab()
+  const { bracketLock, setBracketLock, openStandingsForGroup } = useHomeTab()
   const standingsSuffix = groupStandingsQueryFlag ? "&useGroupStandings=1" : ""
 
   const lockedStage = bracketLock.lockStage
@@ -741,6 +779,21 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
   const isStandingView =
     !lockedStage && !!bracketData?.standingPathMode && !!bracketData.liveStanding
 
+  const pinnedFinishPos =
+    lockedStage || lockedOpponentId
+      ? lockedFinishPos
+      : isStandingView
+        ? (mostLikelyPathResult?.teamFinishScenario ??
+          (bracketData?.liveStanding?.finish !== "eliminated"
+            ? bracketData?.liveStanding?.finish
+            : null))
+        : mostLikelyPathResult?.teamFinishScenario ?? null
+
+  const standingFinishLabel =
+    bracketData?.liveStanding?.finish === "eliminated"
+      ? "4th"
+      : bracketData?.liveStanding?.finish
+
   const pathStripTitle = lockedStage
     ? "Selected Path"
     : isStandingView
@@ -789,9 +842,14 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                   <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     <span className="bg-secondary px-2.5 py-0.5 rounded-full text-xs font-medium border border-border">Group {bracketData.team.group}</span>
                     {isStandingView && bracketData.liveStanding && (
-                      <span className="bg-primary/15 text-primary px-2.5 py-0.5 rounded-full text-xs font-medium border border-primary/30">
-                        Table: Group {bracketData.team.group} · {bracketData.liveStanding.finish === "eliminated" ? "4th" : bracketData.liveStanding.finish}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openStandingsForGroup(bracketData.team.group)}
+                        className="bg-primary/15 text-primary px-2.5 py-0.5 rounded-full text-xs font-medium border border-primary/30 hover:bg-primary/25 hover:border-primary/50 transition-colors cursor-pointer"
+                        title={`View Group ${bracketData.team.group} standings`}
+                      >
+                        Table: Group {bracketData.team.group} · {standingFinishLabel}
+                      </button>
                     )}
                     <span className="bg-secondary px-2.5 py-0.5 rounded-full text-xs font-medium border border-border">FIFA #{bracketData.team.fifaRanking}</span>
                     <span className="bg-secondary px-2.5 py-0.5 rounded-full text-xs font-medium border border-border">{bracketData.team.confederation}</span>
@@ -940,6 +998,8 @@ export function BracketExplorerPanel({ teamId, onTeamChange }: BracketExplorerPa
                   isLast={i === displayStages.length - 1}
                   lockedOpponentId={isLockedStage ? lockedOpponentId : null}
                   lockedFinishPos={isLockedStage ? lockedFinishPos : null}
+                  pinnedFinishPos={pinnedFinishPos}
+                  standingMode={isStandingView}
                   onLockOpponent={(id, finishPos) => handleLockOpponent(stage.stage, id, finishPos)}
                   onViewTeam={onTeamChange}
                 />

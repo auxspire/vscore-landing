@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearch } from "wouter";
+import { useGetTeams } from "@workspace/api-client-react";
+import { useHomeTab } from "@/hooks/useHomeTab";
+import { buildApiToSimulatorMap } from "@/lib/team-id-map";
 import {
   Calendar,
   Trophy,
@@ -9,6 +12,7 @@ import {
   List,
   Clock,
   Search,
+  GitBranch,
 } from "lucide-react";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
 import { FixturesLoadingState, FixturesRefreshingBar, ScorersLoadingState } from "@/components/FixturesLoadingState";
@@ -457,11 +461,15 @@ function GroupStandingsCard({
   rows,
   teamNameById,
   teams,
+  onTeamPathSelect,
+  resolveSimulatorId,
 }: {
   group: string;
   rows: FootballStanding[];
   teamNameById: Record<string, string>;
   teams: FootballTeam[];
+  onTeamPathSelect?: (apiTeamId: string) => void;
+  resolveSimulatorId?: (apiTeamId: string) => string | null;
 }) {
   const groupRows = [...rows.filter((r) => r.group_name === group)].sort(
     (a, b) => (a.rank ?? 99) - (b.rank ?? 99),
@@ -482,15 +490,10 @@ function GroupStandingsCard({
           const qualifies = (r.rank ?? 99) <= QUALIFYING_SPOTS;
           const gd = r.goal_difference ?? (r.goals_for ?? 0) - (r.goals_against ?? 0);
           const name = r.team_name ?? teamNameById[r.team_id] ?? r.team_id;
+          const simId = resolveSimulatorId?.(r.team_id) ?? null;
 
-          return (
-            <div
-              key={`${r.group_name}-${r.team_id}`}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2.5",
-                qualifies && "bg-primary/[0.06] border-l-2 border-primary",
-              )}
-            >
+          const content = (
+            <>
               <span
                 className={cn(
                   "w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0",
@@ -523,6 +526,38 @@ function GroupStandingsCard({
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">GD</p>
               </div>
+              {simId && (
+                <GitBranch className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0 group-hover:text-primary transition-colors" />
+              )}
+            </>
+          );
+
+          if (simId) {
+            return (
+              <button
+                key={`${r.group_name}-${r.team_id}`}
+                type="button"
+                onClick={() => onTeamPathSelect!(r.team_id)}
+                className={cn(
+                  "group flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-secondary/50 transition-colors",
+                  qualifies && "bg-primary/[0.06] border-l-2 border-primary",
+                )}
+                title={`View ${name}'s path to the final`}
+              >
+                {content}
+              </button>
+            );
+          }
+
+          return (
+            <div
+              key={`${r.group_name}-${r.team_id}`}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2.5",
+                qualifies && "bg-primary/[0.06] border-l-2 border-primary",
+              )}
+            >
+              {content}
             </div>
           );
         })}
@@ -536,11 +571,15 @@ function StandingsTableView({
   rows,
   teamNameById,
   teams,
+  onTeamPathSelect,
+  resolveSimulatorId,
 }: {
   group: string;
   rows: FootballStanding[];
   teamNameById: Record<string, string>;
   teams: FootballTeam[];
+  onTeamPathSelect?: (apiTeamId: string) => void;
+  resolveSimulatorId?: (apiTeamId: string) => string | null;
 }) {
   const groupRows = [...rows.filter((r) => r.group_name === group)].sort(
     (a, b) => (a.rank ?? 99) - (b.rank ?? 99),
@@ -572,11 +611,33 @@ function StandingsTableView({
             const qualifies = (r.rank ?? 99) <= QUALIFYING_SPOTS;
             const gd = r.goal_difference ?? (r.goals_for ?? 0) - (r.goals_against ?? 0);
             const name = r.team_name ?? teamNameById[r.team_id] ?? r.team_id;
+            const simId = resolveSimulatorId?.(r.team_id) ?? null;
+            const teamCell = (
+              <div className="flex items-center gap-2 min-w-0">
+                {teamFlag(r.team_id, teams, 24)}
+                <span className="font-medium truncate">{name}</span>
+                {qualifies && (
+                  <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-wider text-primary/80 shrink-0">
+                    Qualifies
+                  </span>
+                )}
+                {simId && (
+                  <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground/70 shrink-0">
+                    <GitBranch className="w-3 h-3" /> Path
+                  </span>
+                )}
+              </div>
+            );
 
             return (
               <tr
                 key={`${r.group_name}-${r.team_id}`}
-                className={cn("hover:bg-secondary/30", qualifies && "bg-primary/[0.04]")}
+                className={cn(
+                  qualifies && "bg-primary/[0.04]",
+                  simId && "cursor-pointer hover:bg-secondary/40",
+                )}
+                onClick={simId && onTeamPathSelect ? () => onTeamPathSelect(r.team_id) : undefined}
+                title={simId ? `View ${name}'s path to the final` : undefined}
               >
                 <td className="py-3 pl-4 pr-2">
                   <span
@@ -588,17 +649,7 @@ function StandingsTableView({
                     {r.rank ?? "–"}
                   </span>
                 </td>
-                <td className="py-3 px-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {teamFlag(r.team_id, teams, 24)}
-                    <span className="font-medium truncate">{name}</span>
-                    {qualifies && (
-                      <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-wider text-primary/80 shrink-0">
-                        Qualifies
-                      </span>
-                    )}
-                  </div>
-                </td>
+                <td className="py-3 px-2">{teamCell}</td>
                 <td className="py-3 px-2 text-center text-muted-foreground tabular-nums">{r.played ?? "–"}</td>
                 <td className="py-3 px-2 text-center text-muted-foreground tabular-nums">{r.won ?? "–"}</td>
                 <td className="py-3 px-2 text-center text-muted-foreground tabular-nums">{r.drawn ?? "–"}</td>
@@ -630,6 +681,10 @@ type ScheduleView = "today" | "upcoming" | "results" | "team";
 type DataSection = "matches" | "tables" | "scorers";
 
 export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?: PanelVariant }) {
+  const search = useSearch();
+  const { openBracketForTeam } = useHomeTab();
+  const { data: simTeams = [] } = useGetTeams();
+
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [activeGroup, setActiveGroup] = useState("A");
   const [standingsView, setStandingsView] = useState<"grid" | "table">("grid");
@@ -648,6 +703,42 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const fixtures = liveData?.fixtures ?? [];
   const standings = liveData?.standings ?? [];
   const teams = liveData?.teams ?? [];
+
+  const apiToSimulator = useMemo(
+    () => buildApiToSimulatorMap(simTeams, teams),
+    [simTeams, teams],
+  );
+
+  const resolveSimulatorId = useCallback(
+    (apiTeamId: string) => apiToSimulator.get(apiTeamId) ?? null,
+    [apiToSimulator],
+  );
+
+  const handleTeamPathFromTable = useCallback(
+    (apiTeamId: string) => {
+      const simId = apiToSimulator.get(apiTeamId);
+      if (simId) openBracketForTeam(simId);
+    },
+    [apiToSimulator, openBracketForTeam],
+  );
+
+  useEffect(() => {
+    const qs = search.startsWith("?") ? search.slice(1) : search;
+    const sp = new URLSearchParams(qs);
+    const section = sp.get("section");
+    const group = sp.get("group");
+    if (section === "tables") {
+      setDataSection("tables");
+      setStandingsView("table");
+      if (group && /^[A-L]$/i.test(group)) {
+        setActiveGroup(group.toUpperCase());
+      }
+      requestAnimationFrame(() => {
+        document.getElementById("fixtures-standings")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [search]);
+
   const liveFetchedAt = liveData?.fetchedAt ?? null;
   const liveSource = liveData?.source ?? "supabase";
   const liveApiError = liveData?.apiError ?? null;
@@ -855,6 +946,8 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                           rows={standings}
                           teamNameById={teamNameById}
                           teams={teams}
+                          onTeamPathSelect={handleTeamPathFromTable}
+                          resolveSimulatorId={resolveSimulatorId}
                         />
                       ))}
                     </div>
@@ -1132,7 +1225,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                         <p className="text-xs text-muted-foreground max-w-xl">
                           Top{" "}
                           <span className="text-primary font-semibold">{QUALIFYING_SPOTS} teams</span> per group advance
-                          to the round of 32.
+                          to the round of 32. Tap a team to open their path to the final.
                         </p>
                         <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50 border border-border/50 shrink-0">
                           <button
@@ -1171,6 +1264,8 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                               rows={standings}
                               teamNameById={teamNameById}
                               teams={teams}
+                              onTeamPathSelect={handleTeamPathFromTable}
+                              resolveSimulatorId={resolveSimulatorId}
                             />
                           ))}
                         </div>
@@ -1198,6 +1293,8 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                             rows={standings}
                             teamNameById={teamNameById}
                             teams={teams}
+                            onTeamPathSelect={handleTeamPathFromTable}
+                            resolveSimulatorId={resolveSimulatorId}
                           />
                         </>
                       )}
