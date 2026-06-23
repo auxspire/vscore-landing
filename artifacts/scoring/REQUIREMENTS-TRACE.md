@@ -51,7 +51,9 @@ A new user on `https://vscor.in/app/` can:
 | R2 | No demo teams on first launch | Met (Sprint 1) | `DEFAULT_TEAMS` → `[]` | — |
 | UX1 | Bottom nav padding | Met | `pb-24` on screens | — |
 | UX2 | DialogDescription on dialogs | Partial | Audit ongoing | — |
-| ENV1 | Missing env → friendly error | Met (Sprint 0) | `SupabaseConfigError`, `main.tsx` | — |
+| PAY1 | Post-match split turf CTA | Met (Sprint 2) | `MatchEventsScreen`, `matchPaymentPrompt.ts` | `matchPaymentPrompt.test.ts` |
+| PAY2 | Who owes what in profile menu | Met (Sprint 2) | Renamed `MatchPayments` | — |
+| STAT1 | Leaderboard from real matches | Met (Sprint 2) | `App` + `statsAggregation` | `statsAggregation.test.ts` |
 
 ---
 
@@ -73,11 +75,14 @@ A new user on `https://vscor.in/app/` can:
 - [x] Advanced options collapsed in `NewMatch`
 - [x] Delete dead `teamRosters` in `SelectSquad`
 
-### Sprint 2 — Turf golden path (next)
+### Sprint 2 — Turf golden path ✅
 
-- [ ] Post-match “Split turf cost?” CTA
-- [ ] Wire `Leaderboard` / `StatsTab` to `statsAggregation` from `App`
+- [x] Post-match “Split turf cost?” CTA (`MatchEventsScreen` + `matchPaymentPrompt.ts`)
+- [x] Wire `Leaderboard` / `StatsPage` to `statsAggregation` from `App`
+- [x] Rename “Match Payments” → “Who owes what”; My Stats → `statsPage`
 - [ ] Manual QA script (below) on staging
+
+### Sprint 3 — Auth & PWA (next)
 
 ---
 
@@ -94,6 +99,7 @@ pnpm --filter @workspace/scoring run test
 | Layer | File | What it covers |
 |-------|------|----------------|
 | Unit | `src/utils/matchValidation.test.ts` | Team duplicate, same-team block, squad counts, form gates, duplicate player names |
+| Unit | `src/utils/matchPaymentPrompt.test.ts` | Post-match payment CTA visibility rules |
 | Unit | `src/utils/statsAggregation.test.ts` | Leaderboard/stats from completed matches only (no mocks) |
 | Combination | `src/utils/prdFlow.combination.test.ts` | End-to-end **logic** chain: teams → match setup → squads → events → stats |
 

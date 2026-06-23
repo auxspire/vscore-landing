@@ -96,7 +96,7 @@ const MatchPayments = ({
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex-1">
-          <h1 className="text-xl font-semibold">Match Payments</h1>
+          <h1 className="text-xl font-semibold">Who owes what</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Track your payments and collections
           </p>

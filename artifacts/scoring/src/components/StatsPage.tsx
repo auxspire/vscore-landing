@@ -6,7 +6,9 @@ const StatsPage = ({
   onLeaderboard, 
   onPointsTable,
   onPlayerComparison,
-  onTeamComparison 
+  onTeamComparison,
+  topPlayers = [],
+  topTeams = [],
 }) => {
   const statsOptions = [
     {
@@ -81,6 +83,38 @@ const StatsPage = ({
             </div>
           </div>
         ))}
+
+        {(topPlayers.length > 0 || topTeams.length > 0) && (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mt-2 space-y-4">
+            <h2 className="font-medium dark:text-gray-100">From your matches</h2>
+            {topPlayers.length > 0 && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Top scorers</p>
+                <div className="space-y-2">
+                  {topPlayers.map((player, index) => (
+                    <div key={player.id ?? index} className="flex justify-between text-sm">
+                      <span className="dark:text-gray-200">{player.name}</span>
+                      <span className="text-gray-600 dark:text-gray-400">{player.goals}G · {player.assists}A</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {topTeams.length > 0 && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Top teams</p>
+                <div className="space-y-2">
+                  {topTeams.map((team, index) => (
+                    <div key={team.id ?? index} className="flex justify-between text-sm">
+                      <span className="dark:text-gray-200">{team.name}</span>
+                      <span className="text-gray-600 dark:text-gray-400">{team.points} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Info Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mt-6">

@@ -18,13 +18,14 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { formatMatchDateLong } from '../utils/dateHelpers';
+import { shouldShowSplitTurfCostCta, splitTurfCostCtaMessage } from '../utils/matchPaymentPrompt';
 
 /**
  * MatchEventsScreen displays match events in a timeline format
  * This is the audience view - shows match events but no scoring interface
  * Only designated scorers can access the live scoring interface
  */
-const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClick = () => {}, currentUser = null, onEditMatch = () => {}, onCalculatePayment = () => {}, onTransferOwnership = () => {} }) => {
+const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClick = () => {}, currentUser = null, onEditMatch = () => {}, onCalculatePayment = () => {}, onTransferOwnership = () => {}, highlightPaymentPrompt = false, onDismissPaymentPrompt = () => {} }) => {
   const [activeTab, setActiveTab] = useState('timeline');
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [showPlayerPerformance, setShowPlayerPerformance] = useState(false);
@@ -687,6 +688,7 @@ const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClic
     (String(match?.ownedBy) === String(currentUid) || 
      (!match?.ownedBy && (!match?.scoredBy || String(match.scoredBy) === String(currentUid))));
   const isTournamentMatch = match?.tournamentId || (matchData.tournament && matchData.tournament !== 'Friendly Match');
+  const showSplitTurfCta = shouldShowSplitTurfCostCta(match, { isOwner: isMatchOwner });
 
   return (
     <>
@@ -731,7 +733,7 @@ const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClic
                   )}
                   <DropdownMenuItem onClick={handleCalculatePayment}>
                     <Calculator className="w-4 h-4 mr-2" />
-                    Calculate Payment
+                    Split turf cost
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleTransferOwnership}>
                     <UserCog className="w-4 h-4 mr-2" />
@@ -859,6 +861,50 @@ const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClic
           </div>
         </div>
       </div>
+
+      {showSplitTurfCta && (
+        <div
+          className={`rounded-2xl p-5 border-2 ${
+            highlightPaymentPrompt
+              ? 'bg-green-50 border-green-400 dark:bg-green-950/30 dark:border-green-600'
+              : 'bg-white border-purple-200 dark:bg-gray-800 dark:border-purple-700'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center flex-shrink-0">
+              <Calculator className="w-5 h-5 text-purple-600 dark:text-purple-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 dark:text-gray-100">Split turf cost?</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {splitTurfCostCtaMessage(highlightPaymentPrompt)}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Button
+                  onClick={onCalculatePayment}
+                  className="bg-purple-600 hover:bg-purple-700"
+                  size="sm"
+                >
+                  Split turf cost
+                </Button>
+                <Button
+                  onClick={onDismissPaymentPrompt}
+                  variant="outline"
+                  size="sm"
+                >
+                  Not now
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {match?.paymentData && (
+        <div className="rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 px-4 py-3 text-sm text-purple-800 dark:text-purple-200">
+          Turf payment split saved for this match. Open the menu to edit or share owes list.
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // CRITICAL: Suppress AbortErrors INLINE before any imports
 (() => {
@@ -58,6 +58,8 @@ import { AuthCallback } from "./components/AuthCallback";
 import MyMatches from "./components/MyMatches";
 import Notifications from "./components/Notifications";
 import MatchPayments from "./components/MatchPayments";
+import Leaderboard from "./components/Leaderboard";
+import { aggregatePlayerStats, aggregateTeamStats } from "./utils/statsAggregation";
 import { Toaster } from './components/ui/sonner';
 import { silentStartupCheck } from './utils/database/debugHelpers';
 import { 
@@ -129,6 +131,7 @@ type ViewType =
   | "teamsList"
   | "tournamentsList"
   | "statsPage"
+  | "leaderboard"
   | "enterMatchResult"
   | "calculatePayment"
   | "playerMatches"
@@ -266,6 +269,7 @@ export default function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showAppMenu, setShowAppMenu] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false); // Track manual refresh state
+  const [highlightPaymentPrompt, setHighlightPaymentPrompt] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0); // Track unread notifications
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Load dark mode preference from localStorage
@@ -942,6 +946,15 @@ export default function App() {
   const [completedMatches, setCompletedMatches] = useState<
     any[]
   >(initialCompletedMatches);
+
+  const leaderboardPlayers = useMemo(
+    () => aggregatePlayerStats(completedMatches),
+    [completedMatches],
+  );
+  const leaderboardTeams = useMemo(
+    () => aggregateTeamStats(completedMatches),
+    [completedMatches],
+  );
   
   // Initialize Master Teams Table on app load (one-time migration)
   useEffect(() => {
@@ -1447,6 +1460,7 @@ export default function App() {
     setSelectedMatch(finalMatchWithRatings);
     
     // Navigate to match events page
+    setHighlightPaymentPrompt(true);
     setCurrentView("matchEvents");
     console.log("Match ended with ratings - Final data:", finalMatchWithRatings);
   };
@@ -1489,6 +1503,7 @@ export default function App() {
     }
     
     // Navigate to match events page
+    setHighlightPaymentPrompt(true);
     setCurrentView("matchEvents");
     console.log("Match ended without ratings - Final data:", finalMatch);
   };
@@ -1799,14 +1814,13 @@ export default function App() {
                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center gap-3 transition-colors"
                 >
                   <Wallet className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <span>Match Payments</span>
+                  <span>Who owes what</span>
                 </button>
                 
                 <button
                   onClick={() => {
                     setShowProfileMenu(false);
-                    // TODO: Navigate to My Stats
-                    alert('My Stats - Coming soon!');
+                    setCurrentView("statsPage");
                   }}
                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center gap-3 transition-colors"
                 >
@@ -2110,13 +2124,21 @@ export default function App() {
         return (
           <MatchEventsScreen
             match={selectedMatch}
-            onBack={handleBackToMainScreen}
+            onBack={() => {
+              setHighlightPaymentPrompt(false);
+              handleBackToMainScreen();
+            }}
             onPlayerClick={handlePlayerProfileClick}
             onTeamClick={handleTeamProfileClick}
             currentUser={currentUser}
             onEditMatch={() => setCurrentView("editMatchEvents")}
-            onCalculatePayment={() => setCurrentView("calculatePayment")}
+            onCalculatePayment={() => {
+              setHighlightPaymentPrompt(false);
+              setCurrentView("calculatePayment");
+            }}
             onTransferOwnership={() => setCurrentView("transferMatchOwnership")}
+            highlightPaymentPrompt={highlightPaymentPrompt}
+            onDismissPaymentPrompt={() => setHighlightPaymentPrompt(false)}
           />
         );
       case "editMatchEvents":
@@ -2374,10 +2396,32 @@ export default function App() {
         return (
           <StatsPage
             onBack={handleBackToMainScreen}
-            onLeaderboard={() => console.log('Leaderboard clicked')}
+            onLeaderboard={() => setCurrentView("leaderboard")}
             onPointsTable={() => console.log('Points table clicked')}
             onPlayerComparison={() => console.log('Player comparison clicked')}
             onTeamComparison={() => console.log('Team comparison clicked')}
+            topPlayers={leaderboardPlayers.slice(0, 3)}
+            topTeams={leaderboardTeams.slice(0, 3)}
+          />
+        );
+      case "leaderboard":
+        return (
+          <Leaderboard
+            onBack={() => setCurrentView("statsPage")}
+            topPlayers={leaderboardPlayers}
+            topTeams={leaderboardTeams}
+            onPlayerClick={(player) => {
+              const full = playerDatabase.find(
+                (p) => p.id === player.id || p.name === player.name,
+              );
+              if (full) handlePlayerProfileClick(full);
+            }}
+            onTeamClick={(team) => {
+              const full = registeredTeams.find(
+                (t) => t.id === team.id || t.name === team.name,
+              );
+              if (full) handleTeamProfileClick(full);
+            }}
           />
         );
       case "myMatches":
