@@ -6,6 +6,11 @@
       "source": "/worldcup",
       "destination": "/worldcup/",
       "permanent": false
+    },
+    {
+      "source": "/app",
+      "destination": "/app/",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -23,6 +28,17 @@
         }
       ],
       "destination": "/worldcup/index.html"
+    },
+    {
+      "source": "/app/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "accept",
+          "value": ".*text/html.*"
+        }
+      ],
+      "destination": "/app/index.html"
     }
   ]
 }

@@ -7,6 +7,7 @@ const outDir = path.join(root, "dist");
 
 const websiteDist = path.join(root, "artifacts", "website", "dist", "public");
 const worldcupDist = path.join(root, "artifacts", "worldcup", "dist", "public");
+const scoringDist = path.join(root, "artifacts", "scoring", "dist", "public");
 
 async function copyDir(src, dest) {
   await fs.mkdir(dest, { recursive: true });
@@ -25,7 +26,7 @@ async function copyDir(src, dest) {
 }
 
 async function main() {
-  for (const dir of [websiteDist, worldcupDist]) {
+  for (const dir of [websiteDist, worldcupDist, scoringDist]) {
     try {
       await fs.access(dir);
     } catch {
@@ -39,8 +40,9 @@ async function main() {
 
   await copyDir(websiteDist, outDir);
   await copyDir(worldcupDist, path.join(outDir, "worldcup"));
+  await copyDir(scoringDist, path.join(outDir, "app"));
 
-  console.log("[prepare-vercel-output] Wrote dist/ (landing + /worldcup)");
+  console.log("[prepare-vercel-output] Wrote dist/ (landing + /worldcup + /app)");
 }
 
 main().catch((err) => {

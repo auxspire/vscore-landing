@@ -7,13 +7,15 @@
     "preinstall": "node scripts/ensure-pnpm.mjs",
     "dev": "pnpm --filter @workspace/website run dev",
     "dev:worldcup": "pnpm --filter @workspace/worldcup run dev",
+    "dev:scoring": "pnpm --filter @workspace/scoring run dev",
     "dev:api": "pnpm --filter @workspace/api-server run start",
     "setup:worldcup-football": "pnpm --filter @workspace/scripts run setup:worldcup-football",
     "sync:football": "pnpm --filter @workspace/scripts run sync:football",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "vercel-build": "pnpm run build && node scripts/prepare-vercel-output.mjs",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "test:scoring": "pnpm --filter @workspace/scoring run test"
   },
   "private": true,
   "devDependencies": {

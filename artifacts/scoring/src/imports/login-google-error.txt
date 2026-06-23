@@ -1,0 +1,39 @@
+🎯🎯🎯 [LoginScreen] ============ BUTTON CLICKED ============
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 🎯 [LoginScreen] handleGoogleLogin STARTED
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 🎯 [LoginScreen] Current URL: https://8193aeca-e71a-4890-8904-1c749bb3542d-v2-figmaiframepreview.figma.site/
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 🎯 [LoginScreen] Origin: https://8193aeca-e71a-4890-8904-1c749bb3542d-v2-figmaiframepreview.figma.site
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 🎯 [LoginScreen] Calling signInWithGoogle...
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 [INFO] 🔐 [signInWithGoogle] Starting Google OAuth flow...
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 [INFO] 🔐 [signInWithGoogle] Window origin: https://8193aeca-e71a-4890-8904-1c749bb3542d-v2-figmaiframepreview.figma.site
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 [INFO] 🔐 [signInWithGoogle] Calling supabase.auth.signInWithOAuth...
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 [INFO] 🔐 [signInWithGoogle] Letting Supabase auto-detect redirect URL
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 [INFO] ✅ [signInWithGoogle] OAuth redirect initiated
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 [INFO] 📋 [signInWithGoogle] OAuth URL: https://zwavkgmumhlcmlvttosc.supabase.co/auth/v1/authorize?provider=google&access_type=offline&prompt=consent
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 [INFO] 📋 [signInWithGoogle] About to redirect to Google...
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 🎯 [LoginScreen] signInWithGoogle returned: {success: true}
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 🎯 [LoginScreen] Google sign-in initiated successfully - should redirect now
+code_components_preview_iframe-45c712baf9cbf8c8.min.js.br:28 🎯 [LoginScreen] If you see this, redirect is working!
+  GET https://accounts.google.com/v3/signin/accountchooser?access_type=offline&client_id=447293912120-457k9n5968h9l09103vnj30dce59d5dt.apps.googleusercontent.com&prompt=consent&redirect_uri=https%3A%2F%2Fzwavkgmumhlcmlvttosc.supabase.co%2Fauth%2Fv1%2Fcallback&response_type=code&scope=email+profile&state=9cee8280-01dc-4d7d-8d9d-b1b6d47574c0&dsh=S1980701301%3A1772287512499402&o2v=2&service=lso&flowName=GeneralOAuthFlow&opparams=%253F&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAP29JS4EjC7tyPN3NGWN9-qDJP_Nr_zghDduFhIDMKV_Rw7LXX9CplKq35CoHVFCDrrWbwkqcgksbRhpEsleMcQ7ULCQaLxtkB8cFqoTeiWSk1JxvtIBR7phdRIOvz_Z60OL_4qhUv6A5k8lrTyBXMTd3CuqqezyXlQX8VDTWgJA--0ppgmvyzunkTGRtWQS2ZMupr7r6YqcTyrKb3GbKFRatknbYph_mYkQoDrzhIMBm_osaqDVFabFSadHwjr9f-a_BykgZISiJAjO6Mnhe2D5gAwn4oI8bHEE9sE4xGykYXFX5rukgACKKs_aI8IMueo7n5ey8o_YIakgf0SM_7dpNB3lmPTZSHvZgZ1MlnZ5ZfKQAji2ZUh0ERazsuz-d-eT5Y2o9V1138F5ZXhUL8j_hBxCBAP2FcDUK1Ds099WFzq8M_6EJPMNdedfTYzRZnA1S1N1GyFJvo8_a58UnSA7pJoCvNHH8gWlofheISJn7cFu0Y%26flowName%3DGeneralOAuthFlow%26as%3DS1980701301%253A1772287512499402%26client_id%3D447293912120-457k9n5968h9l09103vnj30dce59d5dt.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&app_domain=https%3A%2F%2Fzwavkgmumhlcmlvttosc.supabase.co 403 (Forbidden)
+_handleProviderSignIn @ app-l6cz2dfx72ikctzz…js?v=e1dd99d7:10389
+await in _handleProviderSignIn
+signInWithOAuth @ app-l6cz2dfx72ikctzz….js?v=e1dd99d7:9143
+signInWithGoogle @ app-l6cz2dfx72ikctzz…t=1772287210953:119
+handleGoogleLogin @ app-l6cz2dfx72ikctzz…t=1772287210953:103
+y @ code_components_prev…cbf8c8.min.js.br:77
+i @ code_components_prev…cbf8c8.min.js.br:28
+ik @ code_components_prev…cbf8c8.min.js.br:77
+ij @ code_components_prev…cbf8c8.min.js.br:77
+iz @ code_components_prev…cbf8c8.min.js.br:77
+dP @ code_components_prev…cbf8c8.min.js.br:89
+dM @ code_components_prev…cbf8c8.min.js.br:89
+dG @ code_components_prev…cbf8c8.min.js.br:89
+dk @ code_components_prev…cbf8c8.min.js.br:89
+(anonymous) @ code_components_prev…cbf8c8.min.js.br:89
+SR @ code_components_prev…cbf8c8.min.js.br:89
+iR @ code_components_prev…cbf8c8.min.js.br:77
+d$ @ code_components_prev…cbf8c8.min.js.br:89
+lO @ code_components_prev…cbf8c8.min.js.br:77
+lN @ code_components_prev…cbf8c8.min.js.br:77
+lv @ code_components_prev…cbf8c8.min.js.br:77
+i @ code_components_prev…cbf8c8.min.js.br:28Understand this error
+chext_loader.js:73 
