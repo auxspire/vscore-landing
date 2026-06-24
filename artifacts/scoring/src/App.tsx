@@ -240,6 +240,8 @@ export default function App() {
   // the Supabase onAuthStateChange SIGNED_IN handler does NOT call setIsLoggedIn(true)
   // and unmount LoginScreen while the user is still interacting with the dialog.
   const mergeDialogActiveRef = useRef(false);
+  const passwordRecoveryRef = useRef(false);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
 
   // Helper: gate every debounced push through both guards.
   // Uses a ref-forwarded accessor so the closure inside useEffect always
@@ -788,8 +790,22 @@ export default function App() {
         console.log('🔐 Auth state changed:', event);
         console.log('📋 Session:', session ? 'Present' : 'None');
         
+        if (event === 'PASSWORD_RECOVERY' && session) {
+          console.log('🔑 Password recovery — show reset form');
+          passwordRecoveryRef.current = true;
+          setPasswordRecoveryMode(true);
+          if (session.access_token) setAccessToken(session.access_token);
+          return;
+        }
+
         if (event === 'SIGNED_IN' && session) {
           console.log('✅ User signed in, getting profile...');
+
+          if (passwordRecoveryRef.current) {
+            console.log('⏸️ [onAuthStateChange] Password recovery pending — deferring full login');
+            if (session?.access_token) setAccessToken(session.access_token);
+            return;
+          }
 
           // If LoginScreen is currently showing a merge-profile dialog, don't
           // transition to the main app yet — let the dialog complete first.
@@ -2680,6 +2696,11 @@ export default function App() {
     return (
       <LoginScreen
         onLoginComplete={handleLoginComplete}
+        passwordRecoveryMode={passwordRecoveryMode}
+        onPasswordResetComplete={() => {
+          passwordRecoveryRef.current = false;
+          setPasswordRecoveryMode(false);
+        }}
         onMergeDialogActive={(active: boolean) => {
           mergeDialogActiveRef.current = active;
         }}

@@ -657,6 +657,57 @@ export const verifyOtp = async (phoneNumber: string, otp: string): Promise<{ suc
   }
 };
 
+// Request a password reset email (email accounts only)
+export const requestPasswordReset = async (
+  email: string,
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      return { success: false, error: 'Enter your email address' };
+    }
+
+    const redirectTo = appBaseUrl();
+    crashLog.info('🔐 [requestPasswordReset] Sending reset email, redirect: ' + redirectTo);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo });
+
+    if (error) {
+      crashLog.error('❌ [requestPasswordReset] Error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    crashLog.error('❌ [requestPasswordReset] Exception:', error);
+    return { success: false, error: error?.message || String(error) };
+  }
+};
+
+// Set a new password after following the reset email link
+export const updatePassword = async (
+  newPassword: string,
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (newPassword.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters' };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      crashLog.error('❌ [updatePassword] Error:', error);
+      return { success: false, error: error.message };
+    }
+
+    clearUserCache();
+    return { success: true };
+  } catch (error: any) {
+    crashLog.error('❌ [updatePassword] Exception:', error);
+    return { success: false, error: error?.message || String(error) };
+  }
+};
+
 // Sign out
 export const signOut = async (): Promise<void> => {
   await supabase.auth.signOut();

@@ -9,15 +9,18 @@ import {
   signUpWithPhone,
   signInWithPhonePassword,
   getCurrentUser,
+  requestPasswordReset,
+  updatePassword,
 } from '../utils/auth';
 import { ProfileMergeDialog } from './ProfileMergeDialog';
 
 interface LoginScreenProps {
   onLoginComplete: () => void;
-  /** Called with true when the merge dialog opens, false when it resolves.
-   *  Lets App.tsx guard the onAuthStateChange SIGNED_IN handler from
-   *  prematurely unmounting LoginScreen while the user is mid-dialog. */
+  /** Called with true when the merge dialog opens, false when it resolves. */
   onMergeDialogActive?: (active: boolean) => void;
+  /** User followed a password-reset email link — show set-new-password form. */
+  passwordRecoveryMode?: boolean;
+  onPasswordResetComplete?: () => void;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -30,8 +33,15 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const isValidPhone = (v: string) => v.replace(/\D/g, '').length >= 7;
 // ───────────────────────��────────────────────────────────────────────────────
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialogActive }) => {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+const LoginScreen: React.FC<LoginScreenProps> = ({
+  onLoginComplete,
+  onMergeDialogActive,
+  passwordRecoveryMode = false,
+  onPasswordResetComplete,
+}) => {
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>(
+    passwordRecoveryMode ? 'reset' : 'signin',
+  );
   // 'auto' means we detect from what the user types; 'email' / 'phone' are explicit
   const [identifierType, setIdentifierType] = useState<'auto' | 'email' | 'phone'>('auto');
   const [identifier, setIdentifier] = useState(''); // email or phone
@@ -40,10 +50,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
   const identifierRef = useRef<HTMLInputElement>(null);
   const cursorPositionRef = useRef<number | null>(null);
   const [isIdentifierFocused, setIsIdentifierFocused] = useState(false);
+
+  useEffect(() => {
+    if (passwordRecoveryMode) setMode('reset');
+  }, [passwordRecoveryMode]);
 
   // Keep a stable ref so effects that should run only on mount can still
   // call the latest version of onLoginComplete without it being a dependency
@@ -60,7 +76,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
   // Derive whether we're treating the identifier as phone
   // Only auto-detect when the field is NOT focused, to prevent cursor jumping
   const resolvedType: 'email' | 'phone' =
-    identifierType === 'auto'
+    mode === 'forgot'
+      ? 'email'
+      : identifierType === 'auto'
       ? (isIdentifierFocused 
           ? 'email' // Keep as email while typing to prevent cursor jump
           : looksLikePhone(identifier) ? 'phone' : 'email')
@@ -265,16 +283,62 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!identifier.trim()) {
+      setError('Enter the email address for your account');
+      return;
+    }
+    if (resolvedType === 'phone') {
+      setError('Password reset is available for email accounts. Sign in with phone or use the email linked to your account.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    const result = await requestPasswordReset(identifier);
+    setLoading(false);
+    if (result.success) {
+      setSuccessMessage('Check your email for a password reset link.');
+    } else {
+      setError(result.error || 'Could not send reset email');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const result = await updatePassword(password);
+    setLoading(false);
+    if (result.success) {
+      setSuccessMessage('Password updated. Signing you in…');
+      onPasswordResetComplete?.();
+      setTimeout(() => onLoginCompleteRef.current(), 600);
+    } else {
+      setError(result.error || 'Could not update password');
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !loading) {
       if (mode === 'signin' && identifier && password) handleSignIn();
       else if (mode === 'signup' && identifier && password && displayName) handleSignUp();
+      else if (mode === 'forgot' && identifier) handleForgotPassword();
+      else if (mode === 'reset' && password && confirmPassword) handleResetPassword();
     }
   };
 
   const switchMode = (clearFields: boolean = true) => {
-    setMode(m => (m === 'signin' ? 'signup' : 'signin'));
+    setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
     setError(null);
+    setSuccessMessage(null);
     if (clearFields) {
       setIdentifier('');
       setPassword('');
@@ -319,9 +383,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
   // ── canSubmit ──────────────────────────────────────────────────────────────
   const canSubmit =
     !loading &&
-    identifier.trim().length > 0 &&
-    password.length > 0 &&
-    (mode === 'signin' || displayName.trim().length > 0);
+    (mode === 'forgot'
+      ? identifier.trim().length > 0 && resolvedType === 'email'
+      : mode === 'reset'
+        ? password.length >= 6 && confirmPassword.length >= 6
+        : identifier.trim().length > 0 &&
+          password.length > 0 &&
+          (mode === 'signin' || displayName.trim().length > 0));
 
   // ── render ──────────────────────────────────────────────────────────────────
   return (
@@ -350,6 +418,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
           </div>
 
           {/* Mode tabs */}
+          {(mode === 'signin' || mode === 'signup') && (
           <div className="flex bg-white/10 rounded-2xl p-1 mb-8">
             {(['signin', 'signup'] as const).map((m) => (
               <button
@@ -365,11 +434,41 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
               </button>
             ))}
           </div>
+          )}
+
+          {(mode === 'forgot' || mode === 'reset') && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signin');
+                setError(null);
+                setSuccessMessage(null);
+                setPassword('');
+                setConfirmPassword('');
+              }}
+              className="mb-6 text-sm text-white/70 hover:text-white flex items-center gap-1"
+            >
+              ← Back to sign in
+            </button>
+          )}
+
+          {mode === 'reset' && (
+            <p className="text-white/80 text-sm mb-4">Choose a new password for your account.</p>
+          )}
+          {mode === 'forgot' && (
+            <p className="text-white/80 text-sm mb-4">Enter your email and we&apos;ll send a reset link.</p>
+          )}
 
           {/* Error */}
           {error && (
             <div className="mb-4 bg-red-500/20 border border-red-400/40 rounded-xl px-4 py-3 text-white text-sm">
               {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-4 bg-green-500/20 border border-green-400/40 rounded-xl px-4 py-3 text-white text-sm">
+              {successMessage}
             </div>
           )}
 
@@ -392,9 +491,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
               </FieldRow>
             )}
 
-            {/* Identifier — email or phone */}
+            {/* Identifier — email or phone (not on reset) */}
+            {mode !== 'reset' && (
             <div>
-              {/* Toggle pill */}
+              {/* Toggle pill — sign-in/signup only */}
+              {mode !== 'forgot' && (
               <div className="flex gap-1.5 mb-1.5">
                 {(['email', 'phone'] as const).map((t) => (
                   <button
@@ -422,6 +523,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
                   </span>
                 )}
               </div>
+              )}
 
               <FieldRow
                 icon={resolvedType === 'phone'
@@ -454,9 +556,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
                 />
               </FieldRow>
             </div>
+            )}
 
             {/* Password */}
-            <FieldRow icon={<Lock className="w-4.5 h-4.5" />} label="Password">
+            {mode !== 'forgot' && (
+            <FieldRow icon={<Lock className="w-4.5 h-4.5" />} label={mode === 'reset' ? 'New password' : 'Password'}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -475,10 +579,45 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </FieldRow>
+            )}
+
+            {mode === 'reset' && (
+            <FieldRow icon={<Lock className="w-4.5 h-4.5" />} label="Confirm password">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={e => { setConfirmPassword(e.target.value); setError(null); }}
+                onKeyDown={handleKeyDown}
+                placeholder="Repeat new password"
+                disabled={loading}
+                className="flex-1 bg-transparent text-white placeholder-white/40 outline-none text-sm py-3.5"
+              />
+            </FieldRow>
+            )}
+
+            {mode === 'signin' && resolvedType === 'email' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('forgot');
+                  setError(null);
+                  setSuccessMessage(null);
+                  setPassword('');
+                }}
+                className="text-sm text-white/60 hover:text-white text-right w-full -mt-1"
+              >
+                Forgot password?
+              </button>
+            )}
 
             {/* Submit */}
             <button
-              onClick={mode === 'signin' ? handleSignIn : handleSignUp}
+              onClick={
+                mode === 'signin' ? handleSignIn
+                  : mode === 'signup' ? handleSignUp
+                  : mode === 'forgot' ? handleForgotPassword
+                  : handleResetPassword
+              }
               disabled={!canSubmit}
               className={`w-full py-4 rounded-2xl flex items-center justify-center gap-2 font-semibold text-sm transition-all ${
                 canSubmit
@@ -490,14 +629,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginComplete, onMergeDialo
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  <span>{mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                  <span>
+                    {mode === 'signin' ? 'Sign In'
+                      : mode === 'signup' ? 'Create Account'
+                      : mode === 'forgot' ? 'Send reset link'
+                      : 'Update password'}
+                  </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </div>
 
-          {/* Google divider — only on sign-in */}
+          {/* Google divider — sign-in only */}
           {mode === 'signin' && (
             <>
               <div className="flex items-center gap-3 my-6">

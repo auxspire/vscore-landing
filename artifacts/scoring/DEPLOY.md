@@ -43,6 +43,8 @@ In Supabase Dashboard → Authentication → URL configuration:
 | Site URL | `https://vscor.in/app/` |
 | Redirect URLs | `https://vscor.in/app/`, `http://localhost:24153/app/` |
 
+Password reset emails redirect to the app base URL (`/app/`). Ensure that URL is listed above.
+
 Re-enable **Google** provider if used by the login screen.
 
 Google Cloud OAuth client must allow callback:

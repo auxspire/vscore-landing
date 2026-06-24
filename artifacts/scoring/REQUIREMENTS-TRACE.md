@@ -51,6 +51,8 @@ A new user on `https://vscor.in/app/` can:
 | R2 | No demo teams on first launch | Met (Sprint 1) | `DEFAULT_TEAMS` → `[]` | — |
 | UX1 | Bottom nav padding | Met | `pb-24` on screens | — |
 | UX2 | DialogDescription on dialogs | Partial | Audit ongoing | — |
+| AUTH1 | Forgot password (email) | Met (Sprint 3) | `LoginScreen`, `auth.ts` | — |
+| AUTH2 | PWA installable | Met (Sprint 3) | `manifest.webmanifest`, `sw.js` | — |
 | PAY1 | Post-match split turf CTA | Met (Sprint 2) | `MatchEventsScreen`, `matchPaymentPrompt.ts` | `matchPaymentPrompt.test.ts` |
 | PAY2 | Who owes what in profile menu | Met (Sprint 2) | Renamed `MatchPayments` | — |
 | STAT1 | Leaderboard from real matches | Met (Sprint 2) | `App` + `statsAggregation` | `statsAggregation.test.ts` |
@@ -82,7 +84,16 @@ A new user on `https://vscor.in/app/` can:
 - [x] Rename “Match Payments” → “Who owes what”; My Stats → `statsPage`
 - [ ] Manual QA script (below) on staging
 
-### Sprint 3 — Auth & PWA (next)
+### Sprint 3 — Auth & PWA ✅ (partial)
+
+- [x] Forgot password → email reset link (`requestPasswordReset` + LoginScreen)
+- [x] Set new password after reset link (`PASSWORD_RECOVERY` + `updatePassword`)
+- [x] PWA manifest, icons, theme-color, minimal service worker
+- [x] Google sign-in (already on login screen; enable provider in Supabase)
+- [ ] Phone OTP sign-in polish (OTP UI exists in auth utils; full flow TBD)
+- [ ] Manual QA on staging
+
+### Sprint 4 — Android (deferred)
 
 ---
 
