@@ -11,9 +11,11 @@ const ScoringTab = ({
   onAddTournament, 
   onMatchClick, 
   onEnterMatchResult,
+  onViewAllMatches = () => {},
   onRefresh = () => {},
   isRefreshing = false,
-  currentUser = null
+  currentUser = null,
+  registeredTeamsCount = 0,
 }) => {
   // Helper function to format tournament stage for display
   const formatTournamentStage = (stage) => {
@@ -120,6 +122,29 @@ const ScoringTab = ({
         </Button>
       </div>
 
+      {registeredTeamsCount === 0 && (
+        <div className="bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-2xl p-6 space-y-4">
+          <h2 className="text-lg font-semibold">Get started</h2>
+          <p className="text-sm text-white/90">
+            Add a team and players, then start a quick friendly match for your turf game.
+          </p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={onAddTeam}
+              className="w-full bg-white text-purple-700 font-medium py-3 rounded-xl"
+            >
+              1. Add your first team
+            </button>
+            <button
+              onClick={onNewMatch}
+              className="w-full bg-white/15 border border-white/30 text-white font-medium py-3 rounded-xl"
+            >
+              2. Start a match
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         {quickActions.map((action, index) => (
           <div
@@ -215,7 +240,15 @@ const ScoringTab = ({
       {/* Recent/Completed Matches Section */}
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-medium dark:text-gray-100">Recent Matches</h2>
-        <button className="text-purple-600 dark:text-purple-400">View All</button>
+        {uniqueCompletedMatches.length > 0 && (
+          <button
+            type="button"
+            onClick={onViewAllMatches}
+            className="text-purple-600 dark:text-purple-400 text-sm font-medium"
+          >
+            View all
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">

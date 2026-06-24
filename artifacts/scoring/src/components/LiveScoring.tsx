@@ -16,6 +16,7 @@ import {
 } from './ui/alert-dialog';
 import ImageAvatar from './ImageAvatar';
 import { pushEventToCloud, pullNewEventsSince, deleteEventFromCloud, mergeEvents } from '../utils/eventSync';
+import { toast } from 'sonner';
 
 const LiveScoring = ({ match, onBack, onEndMatch, onUpdateMatch, currentUser, accessToken }) => {
   // Check if current user is authorized to score
@@ -652,7 +653,7 @@ const LiveScoring = ({ match, onBack, onEndMatch, onUpdateMatch, currentUser, ac
   const handleAssistSelect = (assistPlayer = null) => {
     // Validate scorer permissions
     if (!isAuthorizedScorer()) {
-      alert('You are not authorized to record events for this match. Only assigned scorers can record events.');
+      toast.error('You are not authorized to record events for this match. Only assigned scorers can record events.');
       return;
     }
     
@@ -666,13 +667,13 @@ const LiveScoring = ({ match, onBack, onEndMatch, onUpdateMatch, currentUser, ac
     
     // Validate team-based permissions
     if (!canScoreForTeam(goalScorer.team)) {
-      alert(`You are not assigned to score for ${goalScorer.team === 1 ? match.team1 : match.team2}. Please check the scorer assignment.`);
+      toast.error(`You are not assigned to score for ${goalScorer.team === 1 ? match.team1 : match.team2}. Please check the scorer assignment.`);
       return;
     }
     
     // Validate event-based permissions
     if (!canRecordEventType('goal')) {
-      alert('You are not assigned to record goal events. Please check the event type assignment.');
+      toast.error('You are not assigned to record goal events. Please check the event type assignment.');
       return;
     }
     
@@ -714,19 +715,19 @@ const LiveScoring = ({ match, onBack, onEndMatch, onUpdateMatch, currentUser, ac
   const createEvent = (team, player, additionalData = {}) => {
     // Validate scorer permissions
     if (!isAuthorizedScorer()) {
-      alert('You are not authorized to record events for this match. Only assigned scorers can record events.');
+      toast.error('You are not authorized to record events for this match. Only assigned scorers can record events.');
       return;
     }
     
     // Validate team-based permissions (if team division is active)
     if (!canScoreForTeam(team)) {
-      alert(`You are not assigned to score for ${team === 1 ? match.team1 : match.team2}. Please check the scorer assignment.`);
+      toast.error(`You are not assigned to score for ${team === 1 ? match.team1 : match.team2}. Please check the scorer assignment.`);
       return;
     }
     
     // Validate event-based permissions (if event division is active)
     if (!canRecordEventType(selectedEvent.type)) {
-      alert(`You are not assigned to record ${selectedEvent.type} events. Please check the event type assignment.`);
+      toast.error(`You are not assigned to record ${selectedEvent.type} events. Please check the event type assignment.`);
       return;
     }
     
@@ -795,13 +796,13 @@ const LiveScoring = ({ match, onBack, onEndMatch, onUpdateMatch, currentUser, ac
   
   const handleAddNewPlayerForSubstitution = () => {
     if (!newPlayerName.trim()) {
-      alert('Player name is required');
+      toast.error('Player name is required');
       return;
     }
     
     // Validate phone number if provided
     if (newPlayerPhone && !/^\d{10}$/.test(newPlayerPhone)) {
-      alert('Please enter a valid 10-digit phone number');
+      toast.error('Please enter a valid 10-digit phone number');
       return;
     }
     
@@ -888,7 +889,7 @@ const LiveScoring = ({ match, onBack, onEndMatch, onUpdateMatch, currentUser, ac
   const handleUndoLastEvent = () => {
     // Validate scorer permissions
     if (!isAuthorizedScorer()) {
-      alert('You are not authorized to modify events for this match. Only assigned scorers can undo events.');
+      toast.error('You are not authorized to modify events for this match. Only assigned scorers can undo events.');
       setShowUndoDialog(false);
       return;
     }
@@ -900,7 +901,7 @@ const LiveScoring = ({ match, onBack, onEndMatch, onUpdateMatch, currentUser, ac
     // Check if current user can undo this specific event
     // Only the scorer who recorded the event can undo it
     if (lastEvent.recorded_by && lastEvent.recorded_by !== currentUser?.user_id) {
-      alert('You can only undo events that you recorded. This event was recorded by another scorer.');
+      toast.error('You can only undo events that you recorded. This event was recorded by another scorer.');
       setShowUndoDialog(false);
       return;
     }

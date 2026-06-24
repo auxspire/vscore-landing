@@ -56,6 +56,35 @@ A new user on `https://vscor.in/app/` can:
 | PAY1 | Post-match split turf CTA | Met (Sprint 2) | `MatchEventsScreen`, `matchPaymentPrompt.ts` | `matchPaymentPrompt.test.ts` |
 | PAY2 | Who owes what in profile menu | Met (Sprint 2) | Renamed `MatchPayments` | — |
 | STAT1 | Leaderboard from real matches | Met (Sprint 2) | `App` + `statsAggregation` | `statsAggregation.test.ts` |
+| WEB-A1 | Stats stubs hidden (Soon badge) | Met (Web Phase A) | `StatsPage.tsx` | — |
+| WEB-A2 | Dead buttons removed / View all → Live tab | Met (Web Phase A) | `LiveMatchesScreen`, `ScoringTab` | — |
+| WEB-A3 | Edit Profile → prefilled Add Player | Met (Web Phase A) | `App.tsx`, `AddPlayer.tsx` | — |
+| WEB-A4 | Profile menu cleanup | Met (Web Phase A) | My Career; removed Achievements stubs | — |
+| WEB-A5 | Post-login loading overlay | Met (Web Phase A) | `isBootstrapping` in `App.tsx` | — |
+| WEB-B1 | Bottom nav hidden in match flows | Met (Web Phase B) | `IMMERSIVE_VIEWS` in `App.tsx` | — |
+| WEB-B2 | Quick turf match mode | Met (Web Phase B) | `NewMatch.tsx` quick toggle | — |
+| WEB-B3 | Empty squad guidance + CTA | Met (Web Phase B) | `SelectSquad.tsx` | — |
+| WEB-B4 | Player owes banner after split | Met (Web Phase B) | `MatchEventsScreen`, `matchPaymentPrompt.ts` | `matchPaymentPrompt.test.ts` |
+| WEB-B5 | First-run Scoring tab CTA | Met (Web Phase B) | `ScoringTab.tsx` | — |
+| ROAD-1.1 | Public spectator match URL `/app/match/:id` | Met | `main.tsx`, `SpectatorMatchScreen.tsx`, `urlRouting.ts` | `publicMatch.test.ts` |
+| ROAD-1.2 | Public match API + PII redaction | Met | Edge `GET /public/matches/:matchId` | — |
+| ROAD-1.3 | Share live link from match events | Met | `ShareDialog.tsx`, `MatchEventsScreen.tsx` | — |
+| ROAD-1.4 | Unified Matches hub (2-tab nav) | Met | `MatchesHub.tsx`, `App.tsx` | — |
+| ROAD-1.5 | Onboarding wizard (team → players → match) | Met | `OnboardingWizard.tsx` | — |
+| ROAD-1.6 | Toast instead of alert in scoring flows | Met | `LiveScoring`, `EnterMatchResult`, `CalculatePayment` | — |
+| ROAD-2.1 | Tournament standings engine | Met | `tournamentStandings.ts` | `tournamentStandings.test.ts` |
+| ROAD-2.2 | Fixture ↔ match sync + Score from fixture | Met | `fixtureMatchSync.ts`, `TournamentFixturesTab` | — |
+| ROAD-2.3 | Group+knockout format hidden until generator | Met | `AddTournament.tsx` | — |
+| ROAD-2.4 | Tournament stats from real matches | Met | `TournamentProfileScreenUpdated.tsx` | — |
+| ROAD-3.1 | Points Table + Compare screens unlocked | Met | `PointsTableScreen`, `CompareScreen`, `StatsPage` | — |
+| ROAD-3.2 | Phone OTP sign-in tab | Met | `LoginScreen.tsx`, `auth.ts` | — |
+| ROAD-3.3 | UPI in payment reminders + treasurer UPI field | Met | `CalculatePayment.tsx` | — |
+| ROAD-3.4 | Player “I've paid” + treasurer confirm | Met | `CalculatePayment.tsx` | — |
+| ROAD-3.5 | Web push subscribe endpoint + client sync | Met | `pushNotifications.ts`, edge `/push/subscribe` | — |
+| ROAD-4.1 | Cloud sync: fixtures, follows, notifications | Met | `extendedCloudSync.ts`, `loadCloudData` | — |
+| ROAD-4.2 | Sync conflict policy documented | Met | `SYNC-POLICY.md` | — |
+| ROAD-4.3 | Scoring CI (typecheck, test, build) | Met | `.github/workflows/scoring-ci.yml` | — |
+| ROAD-4.4 | Product analysis artifact | Met | `PRODUCT-ANALYSIS.md` | — |
 
 ---
 
@@ -90,10 +119,18 @@ A new user on `https://vscor.in/app/` can:
 - [x] Set new password after reset link (`PASSWORD_RECOVERY` + `updatePassword`)
 - [x] PWA manifest, icons, theme-color, minimal service worker
 - [x] Google sign-in (already on login screen; enable provider in Supabase)
-- [ ] Phone OTP sign-in polish (OTP UI exists in auth utils; full flow TBD)
+- [x] Phone OTP sign-in tab (`LoginScreen` Send OTP / Verify OTP)
+- [ ] Enable Phone provider in Supabase Dashboard (ops)
 - [ ] Manual QA on staging
 
-### Sprint 4 — Android (deferred)
+### Sprint 4 — Web-first UX (Phase A + B) ✅
+
+- [x] Trust: stats Soon badges, dead button fixes, Edit Profile flow, loading overlay
+- [x] Turf loop: immersive nav, quick match, empty squad CTA, player owes banner
+- [x] See `UX-WEB-FIRST-PLAN.md` for Phase C+ roadmap
+- [ ] Manual QA on staging (checklist in `UX-WEB-FIRST-PLAN.md`)
+
+### Sprint 5 — Android (deferred)
 
 ---
 

@@ -9,6 +9,7 @@ import { Label } from './ui/label';
 import AddTeam from './AddTeam';
 import UserAutocompleteInput from './UserAutocompleteInput';
 import { addTeamToMasterTable, findTeamByName, linkTeamToTournament } from '../utils/teamManagement';
+import { toast } from 'sonner';
 
 const TeamAutocomplete = ({ value, onChange, onAddTeam, placeholder, teamsList }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -95,7 +96,7 @@ const TeamAutocomplete = ({ value, onChange, onAddTeam, placeholder, teamsList }
   );
 };
 
-const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAddTeam, playerDatabase = [], onAssignPlayerToTeam, onAddPlayer, currentUser }) => {
+const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAddTeam, playerDatabase = [], onAssignPlayerToTeam, onAddPlayer, currentUser, initialMatchConfig = null }) => {
   const [selectedTournament, setSelectedTournament] = useState('friendly');
   const [tournaments, setTournaments] = useState([]);
   const [tournamentTeams, setTournamentTeams] = useState([]);
@@ -103,11 +104,33 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
   const [team1, setTeam1] = useState('');
   const [team2, setTeam2] = useState('');
   const [matchFormat, setMatchFormat] = useState('');
-  const [duration, setDuration] = useState('');
+  const [duration, setDuration] = useState('60');
   const [venue, setVenue] = useState('');
   const [playersPerTeam, setPlayersPerTeam] = useState('');
   const [scoringLevel, setScoringLevel] = useState('basic');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [quickMatch, setQuickMatch] = useState(true);
+
+  useEffect(() => {
+    if (quickMatch) {
+      setSelectedTournament('friendly');
+      setScoringLevel('basic');
+      setDuration('60');
+      setShowAdvancedOptions(false);
+    }
+  }, [quickMatch]);
+
+  useEffect(() => {
+    if (!initialMatchConfig) return;
+    if (initialMatchConfig.team1) setTeam1(initialMatchConfig.team1);
+    if (initialMatchConfig.team2) setTeam2(initialMatchConfig.team2);
+    if (initialMatchConfig.tournamentId) {
+      setSelectedTournament(String(initialMatchConfig.tournamentId));
+      setQuickMatch(false);
+    }
+    if (initialMatchConfig.playersPerTeam) setPlayersPerTeam(String(initialMatchConfig.playersPerTeam));
+    if (initialMatchConfig.duration) setDuration(String(initialMatchConfig.duration));
+  }, [initialMatchConfig]);
   const [tournamentStage, setTournamentStage] = useState(''); // New state for tournament stage
   const [showAddTeam, setShowAddTeam] = useState(false);
   const [sameTeamError, setSameTeamError] = useState('');
@@ -431,19 +454,18 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
   const handleSubmit = () => {
     // Validate scorer assignment
     if (!primaryScorer) {
-      alert('Please assign a primary scorer before proceeding');
+      toast.error('Please assign a primary scorer before proceeding');
       return;
     }
 
-    // Validate dual-scorer responsibility division
     if (secondaryScorer && scoringLevel === 'advanced') {
       if (!responsibilityType) {
-        alert('Please select how responsibilities will be divided between the two scorers');
+        toast.error('Please select how responsibilities will be divided between the two scorers');
         return;
       }
 
       if (responsibilityType === 'team' && (!teamScorerMapping.team1 || !teamScorerMapping.team2)) {
-        alert('Please assign both teams to scorers');
+        toast.error('Please assign both teams to scorers');
         return;
       }
     }
@@ -482,7 +504,8 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
       secondaryScorer: secondaryScorer || null,
       responsibilityType: responsibilityType || null,
       teamScorerMapping: responsibilityType === 'team' ? teamScorerMapping : null,
-      eventScorerMapping: eventScorerMapping
+      eventScorerMapping: eventScorerMapping,
+      fixtureId: initialMatchConfig?.fixtureId ?? null,
     };
     onSelectSquad(matchDetails);
   };
@@ -504,6 +527,27 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
         <h1 className="text-2xl font-medium">New Match</h1>
       </div>
 
+      <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl px-4 py-3">
+        <div>
+          <p className="font-medium text-purple-900 dark:text-purple-100">Quick turf match</p>
+          <p className="text-xs text-purple-700 dark:text-purple-300">Friendly · 60 min · basic scoring</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setQuickMatch((v) => !v)}
+          className={`relative w-12 h-7 rounded-full transition-colors ${
+            quickMatch ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'
+          }`}
+          aria-pressed={quickMatch}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+              quickMatch ? 'translate-x-5' : ''
+            }`}
+          />
+        </button>
+      </div>
+
       <div className="space-y-6">
         {sameTeamError && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
@@ -512,6 +556,7 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
         )}
 
         {/* Tournament Selection */}
+        {!quickMatch && (
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-900 dark:text-gray-100">Tournament / Match Type</label>
           <Select value={selectedTournament} onValueChange={handleTournamentChange}>
@@ -531,9 +576,10 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
             Select a tournament or choose friendly match
           </p>
         </div>
+        )}
 
         {/* Tournament Stage Selection - Only show if tournament is selected (not friendly) */}
-        {selectedTournament && selectedTournament !== 'friendly' && (
+        {!quickMatch && selectedTournament && selectedTournament !== 'friendly' && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-900 dark:text-gray-100">Tournament Stage</label>
             <Select value={tournamentStage} onValueChange={setTournamentStage}>
@@ -558,7 +604,7 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
         )}
 
         {/* Tournament Teams Management - Only show if tournament is selected */}
-        {selectedTournament && selectedTournament !== 'friendly' && (
+        {!quickMatch && selectedTournament && selectedTournament !== 'friendly' && (
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
             <h3 className="font-medium text-purple-900">Participating Teams</h3>
             
@@ -694,6 +740,28 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
         </div>
 
         <div className="space-y-2">
+          <Input
+            type="number"
+            placeholder="Players per team"
+            value={playersPerTeam}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 11)) {
+                setPlayersPerTeam(value);
+              }
+            }}
+            min="1"
+            max="11"
+            className="py-4 border border-gray-300 rounded-lg"
+          />
+          <p className="text-sm text-gray-600 px-1">
+            Enter the number of players per team (1-11)
+          </p>
+        </div>
+
+        {!quickMatch && (
+        <>
+        <div className="space-y-2">
           <Select value={matchFormat} onValueChange={setMatchFormat}>
             <SelectTrigger className="py-4 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-gray-100">
               <SelectValue placeholder="Match Format" />
@@ -746,26 +814,6 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
         </div>
 
         <div className="space-y-2">
-          <Input
-            type="number"
-            placeholder="Players per team"
-            value={playersPerTeam}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 11)) {
-                setPlayersPerTeam(value);
-              }
-            }}
-            min="1"
-            max="11"
-            className="py-4 border border-gray-300 rounded-lg"
-          />
-          <p className="text-sm text-gray-600 px-1">
-            Enter the number of players per team (1-11)
-          </p>
-        </div>
-
-        <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="block text-sm font-medium text-gray-900 dark:text-gray-100">Scoring Level</label>
             <button
@@ -803,6 +851,8 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
             </>
           )}
         </div>
+        </>
+        )}
 
         {/* Scorer Assignment Section */}
         {scoringLevel && (
@@ -864,7 +914,7 @@ const NewMatch = ({ onBack, onSelectSquad = () => {}, registeredTeams = [], onAd
                   onChange={setSecondaryScorerInput}
                   onSelect={(user) => {
                     if (primaryScorer && user.id === primaryScorer.user_id) {
-                      alert('Cannot select the same user as both primary and secondary scorer');
+                      toast.error('Cannot select the same user as both primary and secondary scorer');
                       return;
                     }
                     setSecondaryScorer({ user_id: user.id, name: user.name });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  findPlayerPaymentShare,
   isMatchCompleted,
+  shouldShowPlayerOwesBanner,
   shouldShowSplitTurfCostCta,
   splitTurfCostCtaMessage,
 } from "./matchPaymentPrompt";
@@ -24,5 +26,30 @@ describe("matchPaymentPrompt", () => {
   it("returns contextual CTA copy", () => {
     expect(splitTurfCostCtaMessage(true)).toContain("Match done");
     expect(splitTurfCostCtaMessage(false)).toContain("Split turf rent");
+  });
+
+  it("finds player share and shows owes banner for non-owner", () => {
+    const match = {
+      completedAt: "2026-06-15",
+      paymentData: {
+        playerShares: [{ playerId: 5, playerName: "Rahul", amount: 200, isPaid: false }],
+      },
+    };
+    expect(findPlayerPaymentShare(match, { playerId: 5, playerName: "Rahul" })).toEqual({
+      amount: 200,
+      isPaid: false,
+    });
+    expect(
+      shouldShowPlayerOwesBanner(match, {
+        isOwner: false,
+        linkedPlayer: { playerId: 5, playerName: "Rahul" },
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowPlayerOwesBanner(match, {
+        isOwner: true,
+        linkedPlayer: { playerId: 5, playerName: "Rahul" },
+      }),
+    ).toBe(false);
   });
 });

@@ -8,6 +8,8 @@ import {
   signUpWithEmail,
   signUpWithPhone,
   signInWithPhonePassword,
+  signInWithPhone,
+  verifyOtp,
   getCurrentUser,
   requestPasswordReset,
   updatePassword,
@@ -53,6 +55,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [signInMethod, setSignInMethod] = useState<'password' | 'otp'>('password');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
   const identifierRef = useRef<HTMLInputElement>(null);
   const cursorPositionRef = useRef<number | null>(null);
   const [isIdentifierFocused, setIsIdentifierFocused] = useState(false);
@@ -76,7 +81,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   // Derive whether we're treating the identifier as phone
   // Only auto-detect when the field is NOT focused, to prevent cursor jumping
   const resolvedType: 'email' | 'phone' =
-    mode === 'forgot'
+    mode === 'signin' && signInMethod === 'otp'
+      ? 'phone'
+      : mode === 'forgot'
       ? 'email'
       : identifierType === 'auto'
       ? (isIdentifierFocused 
@@ -304,6 +311,39 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!identifier.trim() || !isValidPhone(identifier)) {
+      setError('Enter a valid phone number');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const result = await signInWithPhone(identifier.replace(/\D/g, ''));
+    setLoading(false);
+    if (result.success) {
+      setOtpSent(true);
+      setSuccessMessage('OTP sent to your phone');
+    } else {
+      setError(result.error || 'Could not send OTP');
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode.trim()) {
+      setError('Enter the OTP from your SMS');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const result = await verifyOtp(identifier.replace(/\D/g, ''), otpCode.trim());
+    setLoading(false);
+    if (result.success) {
+      onLoginCompleteRef.current();
+    } else {
+      setError(result.error || 'Invalid OTP');
+    }
+  };
+
   const handleResetPassword = async () => {
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
@@ -383,7 +423,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   // ── canSubmit ──────────────────────────────────────────────────────────────
   const canSubmit =
     !loading &&
-    (mode === 'forgot'
+    (mode === 'signin' && signInMethod === 'otp'
+      ? otpSent
+        ? otpCode.trim().length >= 4
+        : identifier.trim().length > 0
+      : mode === 'forgot'
       ? identifier.trim().length > 0 && resolvedType === 'email'
       : mode === 'reset'
         ? password.length >= 6 && confirmPassword.length >= 6
@@ -419,7 +463,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
           {/* Mode tabs */}
           {(mode === 'signin' || mode === 'signup') && (
-          <div className="flex bg-white/10 rounded-2xl p-1 mb-8">
+          <div className="flex bg-white/10 rounded-2xl p-1 mb-4">
             {(['signin', 'signup'] as const).map((m) => (
               <button
                 key={m}
@@ -434,6 +478,25 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
               </button>
             ))}
           </div>
+          )}
+
+          {mode === 'signin' && (
+            <div className="flex bg-white/10 rounded-2xl p-1 mb-8">
+              <button
+                type="button"
+                onClick={() => { setSignInMethod('password'); setOtpSent(false); setOtpCode(''); }}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold ${signInMethod === 'password' ? 'bg-white text-purple-700' : 'text-white/70'}`}
+              >
+                Email / Phone
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSignInMethod('otp'); setPassword(''); setIdentifierType('phone'); setOtpSent(false); setOtpCode(''); }}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold ${signInMethod === 'otp' ? 'bg-white text-purple-700' : 'text-white/70'}`}
+              >
+                Phone OTP
+              </button>
+            </div>
           )}
 
           {(mode === 'forgot' || mode === 'reset') && (
@@ -495,7 +558,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             {mode !== 'reset' && (
             <div>
               {/* Toggle pill — sign-in/signup only */}
-              {mode !== 'forgot' && (
+              {mode !== 'forgot' && !(mode === 'signin' && signInMethod === 'otp') && (
               <div className="flex gap-1.5 mb-1.5">
                 {(['email', 'phone'] as const).map((t) => (
                   <button
@@ -559,7 +622,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             )}
 
             {/* Password */}
-            {mode !== 'forgot' && (
+            {mode !== 'forgot' && !(mode === 'signin' && signInMethod === 'otp') && (
             <FieldRow icon={<Lock className="w-4.5 h-4.5" />} label={mode === 'reset' ? 'New password' : 'Password'}>
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -579,6 +642,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </FieldRow>
+            )}
+
+            {mode === 'signin' && signInMethod === 'otp' && otpSent && (
+              <FieldRow icon={<Lock className="w-4.5 h-4.5" />} label="OTP code">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={otpCode}
+                  onChange={(e) => { setOtpCode(e.target.value); setError(null); }}
+                  placeholder="6-digit code"
+                  disabled={loading}
+                  className="flex-1 bg-transparent text-white placeholder-white/40 outline-none text-sm py-3.5"
+                />
+              </FieldRow>
             )}
 
             {mode === 'reset' && (
@@ -613,7 +690,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             {/* Submit */}
             <button
               onClick={
-                mode === 'signin' ? handleSignIn
+                mode === 'signin' && signInMethod === 'otp'
+                  ? (otpSent ? handleVerifyOtp : handleSendOtp)
+                  : mode === 'signin' ? handleSignIn
                   : mode === 'signup' ? handleSignUp
                   : mode === 'forgot' ? handleForgotPassword
                   : handleResetPassword
@@ -630,7 +709,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
               ) : (
                 <>
                   <span>
-                    {mode === 'signin' ? 'Sign In'
+                    {mode === 'signin' && signInMethod === 'otp'
+                      ? (otpSent ? 'Verify OTP' : 'Send OTP')
+                      : mode === 'signin' ? 'Sign In'
                       : mode === 'signup' ? 'Create Account'
                       : mode === 'forgot' ? 'Send reset link'
                       : 'Update password'}

@@ -18,14 +18,16 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { formatMatchDateLong } from '../utils/dateHelpers';
-import { shouldShowSplitTurfCostCta, splitTurfCostCtaMessage } from '../utils/matchPaymentPrompt';
+import { shouldShowSplitTurfCostCta, splitTurfCostCtaMessage, findPlayerPaymentShare, shouldShowPlayerOwesBanner } from '../utils/matchPaymentPrompt';
+import { buildPublicMatchUrl } from '../utils/urlRouting';
+import { toast } from 'sonner';
 
 /**
  * MatchEventsScreen displays match events in a timeline format
  * This is the audience view - shows match events but no scoring interface
  * Only designated scorers can access the live scoring interface
  */
-const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClick = () => {}, currentUser = null, onEditMatch = () => {}, onCalculatePayment = () => {}, onTransferOwnership = () => {}, highlightPaymentPrompt = false, onDismissPaymentPrompt = () => {} }) => {
+const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClick = () => {}, currentUser = null, onEditMatch = () => {}, onCalculatePayment = () => {}, onTransferOwnership = () => {}, highlightPaymentPrompt = false, onDismissPaymentPrompt = () => {}, playerDatabase = [], onOpenPayments = () => {} }) => {
   const [activeTab, setActiveTab] = useState('timeline');
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [showPlayerPerformance, setShowPlayerPerformance] = useState(false);
@@ -689,6 +691,17 @@ const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClic
      (!match?.ownedBy && (!match?.scoredBy || String(match.scoredBy) === String(currentUid))));
   const isTournamentMatch = match?.tournamentId || (matchData.tournament && matchData.tournament !== 'Friendly Match');
   const showSplitTurfCta = shouldShowSplitTurfCostCta(match, { isOwner: isMatchOwner });
+  const linkedPlayer = playerDatabase.find(
+    (p) => p.owner_user_id === currentUser?.user_id,
+  );
+  const linkedPlayerRef = linkedPlayer
+    ? { playerId: linkedPlayer.id, playerName: linkedPlayer.name }
+    : null;
+  const playerShare = findPlayerPaymentShare(match, linkedPlayerRef);
+  const showPlayerOwes = shouldShowPlayerOwesBanner(match, {
+    isOwner: isMatchOwner,
+    linkedPlayer: linkedPlayerRef,
+  });
 
   return (
     <>
@@ -900,7 +913,36 @@ const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClic
         </div>
       )}
 
-      {match?.paymentData && (
+      {showPlayerOwes && playerShare && (
+        <div className="rounded-2xl p-5 border-2 bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+              <Calculator className="w-5 h-5 text-amber-700 dark:text-amber-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 dark:text-gray-100">
+                {playerShare.isPaid ? 'Turf share marked paid' : 'Your turf share'}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {playerShare.isPaid
+                  ? `You paid ₹${playerShare.amount} for this match.`
+                  : `You owe ₹${playerShare.amount} for turf rent on this match.`}
+              </p>
+              {!playerShare.isPaid && (
+                <Button
+                  onClick={onOpenPayments}
+                  className="mt-3 bg-amber-600 hover:bg-amber-700"
+                  size="sm"
+                >
+                  Who owes what
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {match?.paymentData && isMatchOwner && !showPlayerOwes && (
         <div className="rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 px-4 py-3 text-sm text-purple-800 dark:text-purple-200">
           Turf payment split saved for this match. Open the menu to edit or share owes list.
         </div>
@@ -1654,6 +1696,13 @@ const MatchEventsScreen = ({ match, onBack, onPlayerClick = () => {}, onTeamClic
         onShareSummary={handleShareSummary}
         onShareDetails={handleShareDetails}
         onShareFullHistory={handleShareFullHistory}
+        onCopyLiveLink={() => {
+          if (!match?.id) return;
+          const url = buildPublicMatchUrl(match.id);
+          navigator.clipboard?.writeText(url).then(() => {
+            toast.success('Live link copied');
+          }).catch(() => toast.error('Could not copy link'));
+        }}
         isResultEntry={match.type === 'result-entry' || match.isLiveScored === false}
       />
 

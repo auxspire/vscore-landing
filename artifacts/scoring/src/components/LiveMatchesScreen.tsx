@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState } from 'react';
-import { Search, Filter, User, Calendar, MapPin, CheckCircle, Info, Target, AlertTriangle, RotateCcw, Timer, CircleDot, Footprints, OctagonAlert, ArrowDownUp, FlagTriangleRight, Flag, Users } from 'lucide-react';
+import { Search, User, Calendar, MapPin, CheckCircle, Info, Target, AlertTriangle, RotateCcw, Timer, CircleDot, Footprints, OctagonAlert, ArrowDownUp, FlagTriangleRight, Flag, Users } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -274,13 +274,7 @@ const LiveMatchesScreen = ({
         />
       </div>
 
-      {/* Filter Button */}
-      <Button variant="outline" className="rounded-full px-6">
-        <Filter className="w-4 h-4 mr-2" />
-        Filter Matches
-      </Button>
-
-      {/* Live Matches List */}
+      {/* Search Bar */}
       <div className="space-y-4">
         {paginatedMatches.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 text-center">
@@ -291,29 +285,10 @@ const LiveMatchesScreen = ({
           </div>
         ) : (
         paginatedMatches.map((match) => {
-          // Debug log when rendering match
-          console.log(`🎯 [LiveMatchesScreen] Rendering match ${match.teamA} vs ${match.teamB}:`, {
-            id: match.id,
-            scoreA: match.scoreA,
-            scoreB: match.scoreB,
-            team1Score: match.team1Score,
-            team2Score: match.team2Score,
-            isPenaltyShootout: match.isPenaltyShootout,
-            penaltyShootoutScore: match.penaltyShootoutScore,
-          });
-          
           return (
           <div
             key={match.id}
-            onClick={() => {
-              console.log(`🖱️ [LiveMatchesScreen] Match clicked:`, {
-                id: match.id,
-                teams: `${match.teamA} vs ${match.teamB}`,
-                scoreA: match.scoreA,
-                scoreB: match.scoreB,
-              });
-              onMatchClick(match);
-            }}
+            onClick={() => onMatchClick(match)}
             className="bg-purple-100 dark:bg-purple-900/20 rounded-2xl p-6 cursor-pointer hover:bg-purple-150 dark:hover:bg-purple-900/30 transition-colors border border-purple-200 dark:border-purple-800/50 hover:border-purple-300 dark:hover:border-purple-700"
           >
             {/* Match Status and Tournament */}

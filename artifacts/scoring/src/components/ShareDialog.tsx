@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, Image, FileText, BarChart3, List } from 'lucide-react';
+import { X, Image, FileText, BarChart3, List, Link2 } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface ShareDialogProps {
@@ -10,7 +10,8 @@ interface ShareDialogProps {
   onShareSummary: () => void;
   onShareDetails: () => void;
   onShareFullHistory: () => void;
-  isResultEntry?: boolean; // New prop to determine if it's a result-entry match
+  onCopyLiveLink?: () => void;
+  isResultEntry?: boolean;
 }
 
 const ShareDialog: React.FC<ShareDialogProps> = ({
@@ -20,6 +21,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   onShareSummary,
   onShareDetails,
   onShareFullHistory,
+  onCopyLiveLink,
   isResultEntry = false
 }) => {
   if (!isOpen) return null;
@@ -47,6 +49,25 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
         {/* Share Options */}
         <div className="space-y-2">
+          {onCopyLiveLink && (
+            <Button
+              onClick={() => {
+                onCopyLiveLink();
+                onClose();
+              }}
+              variant="outline"
+              className="w-full justify-start gap-3 h-auto py-4"
+            >
+              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                <Link2 className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-medium">Copy live link</p>
+                <p className="text-xs text-gray-500">Anyone can watch without logging in</p>
+              </div>
+            </Button>
+          )}
+
           {/* Always show Screenshot for both types */}
           <Button
             onClick={() => {

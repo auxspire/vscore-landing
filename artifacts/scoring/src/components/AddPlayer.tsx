@@ -9,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { POSITIONS } from '../constants/positions';
 import ImageAvatar from './ImageAvatar';
 
-const AddPlayer = ({ onBack, onAddPlayer, playerDatabase = [], registeredTeams = [] }) => {
-  const [playerName, setPlayerName] = useState('');
+const AddPlayer = ({ onBack, onAddPlayer, playerDatabase = [], registeredTeams = [], initialValues = null, title = 'Add Player' }) => {
+  const [playerName, setPlayerName] = useState(initialValues?.name || '');
   const [countryCode, setCountryCode] = useState('+91');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialValues?.email || '');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [position, setPosition] = useState('');
   // Changed to array to support multiple teams
@@ -131,7 +131,7 @@ const AddPlayer = ({ onBack, onAddPlayer, playerDatabase = [], registeredTeams =
         <button onClick={onBack} className="p-2">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-2xl font-medium">Add Player</h1>
+        <h1 className="text-2xl font-medium">{title}</h1>
       </div>
 
       <div className="space-y-6">

@@ -47,6 +47,14 @@ Password reset emails redirect to the app base URL (`/app/`). Ensure that URL is
 
 Re-enable **Google** provider if used by the login screen.
 
+### Phone OTP (optional)
+
+In Supabase Dashboard → Authentication → Providers → **Phone**:
+
+1. Enable the Phone provider and configure an SMS gateway (Twilio, MessageBird, etc.).
+2. Set test phone numbers in development if using Supabase local auth.
+3. Users sign in via **OTP** tab on the login screen (Send OTP → Verify OTP).
+
 Google Cloud OAuth client must allow callback:
 
 `https://vscor-supabase.auxspire.com/auth/v1/callback`
@@ -68,3 +76,14 @@ pnpm run dev:scoring
 ```
 
 Copy `.env.example` values into `artifacts/scoring/.env.local` for local Supabase access.
+
+## 6. Public match endpoint
+
+Spectator links use `GET /public/matches/:matchId` on the edge function (anon key + rate limit). No extra deploy step beyond §2; verify:
+
+```bash
+curl -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+  "https://vscor-supabase.auxspire.com/functions/v1/make-server-845a157a/public/matches/1"
+```
+
+Share URLs are path-based: `https://vscor.in/app/match/{id}` (handled by `main.tsx` bootstrap).

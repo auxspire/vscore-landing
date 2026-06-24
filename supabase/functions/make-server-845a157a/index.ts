@@ -645,7 +645,7 @@ app.post("/users/verify", async (c) => {
 // ============================================
 
 // Supported data types
-const SYNC_DATA_TYPES = ['players', 'teams', 'tournaments', 'ongoing_matches', 'completed_matches', 'master_teams', 'tournament_teams'];
+const SYNC_DATA_TYPES = ['players', 'teams', 'tournaments', 'ongoing_matches', 'completed_matches', 'master_teams', 'tournament_teams', 'tournament_fixtures', 'user_follows', 'notifications'];
 
 // GET - Retrieve synced data for a given type
 app.get("/sync/:type", async (c) => {
@@ -747,6 +747,9 @@ app.put("/sync/:type", async (c) => {
     if (!Array.isArray(data)) {
       return c.json({ error: 'Data must be an array' }, 400);
     }
+
+    // Future: per-entity ACL when moving from bulk KV to row-level API.
+    // Bulk sync intentionally accepts full arrays from authenticated clients.
 
     // Final check before saving
     if (c.req.raw.signal?.aborted) {
@@ -862,6 +865,103 @@ app.get("/sync", async (c) => {
       error: 'Server temporarily unavailable. Your app will continue working with local data.',
       retryAfter: 60 
     }, 503);
+  }
+});
+
+app.post("/push/subscribe", async (c) => {
+  try {
+    const userToken = c.req.header('X-User-Token');
+    if (!userToken) return c.json({ error: 'Unauthorized' }, 401);
+    const { data: { user }, error } = await supabase.auth.getUser(userToken);
+    if (error || !user) return c.json({ error: 'Unauthorized' }, 401);
+    const body = await c.req.json();
+    await kv.set(`push_sub:${user.id}`, body.subscription ?? body);
+    return c.json({ success: true });
+  } catch (e) {
+    console.error('[push/subscribe]', e);
+    return c.json({ error: 'Failed to save subscription' }, 500);
+  }
+});
+
+// ============================================
+// PUBLIC SPECTATOR ENDPOINTS (no user JWT)
+// ============================================
+
+const publicRateLimit = new Map<string, { count: number; resetAt: number }>();
+const PUBLIC_RATE_LIMIT = 60;
+const PUBLIC_RATE_WINDOW_MS = 60_000;
+
+function checkPublicRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const row = publicRateLimit.get(ip);
+  if (!row || now > row.resetAt) {
+    publicRateLimit.set(ip, { count: 1, resetAt: now + PUBLIC_RATE_WINDOW_MS });
+    return true;
+  }
+  if (row.count >= PUBLIC_RATE_LIMIT) return false;
+  row.count++;
+  return true;
+}
+
+function redactMatchForPublicResponse(raw: Record<string, unknown>) {
+  const events = Array.isArray(raw.events)
+    ? raw.events.map((ev: Record<string, unknown>) => {
+        const player = ev.player as Record<string, unknown> | undefined;
+        const assist = ev.assist as Record<string, unknown> | undefined;
+        return {
+          id: ev.id,
+          minute: ev.minute,
+          type: ev.type,
+          team: ev.team,
+          teamName: ev.teamName,
+          teamNumber: ev.teamNumber,
+          card: ev.card,
+          player: player?.name ? { name: player.name } : undefined,
+          assist: assist?.name ? { name: assist.name } : undefined,
+        };
+      })
+    : [];
+
+  return {
+    id: raw.id,
+    teamA: raw.teamA ?? raw.team1 ?? "Team A",
+    teamB: raw.teamB ?? raw.team2 ?? "Team B",
+    scoreA: raw.scoreA ?? raw.team1Score ?? 0,
+    scoreB: raw.scoreB ?? raw.team2Score ?? 0,
+    status: raw.status ?? "Live",
+    venue: raw.venue,
+    tournament: raw.tournament,
+    tournamentStage: raw.tournamentStage,
+    events,
+    completedAt: raw.completedAt,
+    updatedAt: raw.updatedAt,
+  };
+}
+
+app.get("/public/matches/:matchId", async (c) => {
+  try {
+    const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    if (!checkPublicRateLimit(ip)) {
+      return c.json({ error: "Rate limit exceeded" }, 429);
+    }
+
+    const matchId = c.req.param("matchId");
+    const [ongoing, completed] = await Promise.all([
+      kv.get("app_data:ongoing_matches") as Promise<any[] | null>,
+      kv.get("app_data:completed_matches") as Promise<any[] | null>,
+    ]);
+
+    const all = [...(ongoing ?? []), ...(completed ?? [])];
+    const found = all.find((m) => String(m?.id) === String(matchId));
+
+    if (!found) {
+      return c.json({ error: "Match not found" }, 404);
+    }
+
+    return c.json({ match: redactMatchForPublicResponse(found) });
+  } catch (error) {
+    console.error("[public/matches] Error:", error);
+    return c.json({ error: "Failed to load match" }, 500);
   }
 });
 

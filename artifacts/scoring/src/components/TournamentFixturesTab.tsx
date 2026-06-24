@@ -8,6 +8,7 @@ interface TournamentFixturesTabProps {
   generatedFixtures: any[];
   fixturesStatus: string;
   onMatchClick: (fixture: any) => void;
+  onScoreFixture?: (fixture: any) => void;
   onGenerateFixturesClick: () => void;
 }
 
@@ -15,6 +16,7 @@ export function TournamentFixturesTab({
   generatedFixtures,
   fixturesStatus,
   onMatchClick,
+  onScoreFixture = () => {},
   onGenerateFixturesClick
 }: TournamentFixturesTabProps) {
   return (
@@ -124,6 +126,19 @@ export function TournamentFixturesTab({
                       <MapPin className="w-3 h-3" />
                       <span>{fixture.venue}</span>
                     </div>
+                  )}
+
+                  {fixture.status !== 'completed' && (
+                    <Button
+                      size="sm"
+                      className="mt-3 bg-purple-600 hover:bg-purple-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onScoreFixture(fixture);
+                      }}
+                    >
+                      Score this match
+                    </Button>
                   )}
                 </div>
               ))}

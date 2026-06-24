@@ -122,16 +122,7 @@ const SelectSquad = ({ match, onBack, onStartMatch, registeredTeams = [], player
           };
         })
     : [];
-    
-  console.log("=== SELECT SQUAD DEBUG ===");
-  console.log("Team 1 Name:", match.team1);
-  console.log("Team 1 Data:", team1Data);
-  console.log("Team 1 ID:", team1Data?.id);
-  console.log("All players in database:", playerDatabase.length);
-  console.log("Players with teamId:", playerDatabase.filter(p => p.teamId).length);
-  console.log("Team 1 assigned players:", team1AssignedPlayers);
-  console.log("========================");
-    
+  
   const team2AssignedPlayers = team2Data?.id 
     ? playerDatabase
         .filter(p => {
@@ -393,6 +384,28 @@ const SelectSquad = ({ match, onBack, onStartMatch, registeredTeams = [], player
         {/* Player Selection */}
         <div className="space-y-2">
           <p className="text-sm text-gray-600 font-medium">Available Players:</p>
+          {!team1Data ? (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Team not found in your roster. Go back and pick a registered team.
+            </p>
+          ) : team1Players.length === 0 ? (
+            <div className="text-center py-6 bg-gray-50 border border-dashed border-gray-300 rounded-xl space-y-3">
+              <p className="text-sm text-gray-600">No players on {match.team1} yet.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-purple-600 text-purple-600"
+                onClick={() => {
+                  setAddingToTeam(1);
+                  setNewPlayerName('');
+                  setNewPlayerJersey('');
+                }}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add player to team
+              </Button>
+            </div>
+          ) : null}
           {team1Players.map((player) => {
             const selected = isPlayerSelected(1, player.id);
             
@@ -571,6 +584,28 @@ const SelectSquad = ({ match, onBack, onStartMatch, registeredTeams = [], player
         {/* Player Selection */}
         <div className="space-y-2">
           <p className="text-sm text-gray-600 font-medium">Available Players:</p>
+          {!team2Data ? (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Team not found in your roster. Go back and pick a registered team.
+            </p>
+          ) : team2Players.length === 0 ? (
+            <div className="text-center py-6 bg-gray-50 border border-dashed border-gray-300 rounded-xl space-y-3">
+              <p className="text-sm text-gray-600">No players on {match.team2} yet.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-purple-600 text-purple-600"
+                onClick={() => {
+                  setAddingToTeam(2);
+                  setNewPlayerName('');
+                  setNewPlayerJersey('');
+                }}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add player to team
+              </Button>
+            </div>
+          ) : null}
           {team2Players.map((player) => {
             const selected = isPlayerSelected(2, player.id);
             

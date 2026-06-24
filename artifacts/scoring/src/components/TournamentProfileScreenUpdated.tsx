@@ -1,5 +1,6 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from 'react';
+import { calculateStandings, filterTournamentMatches } from '../utils/tournamentStandings';
+import { aggregatePlayerStats } from '../utils/statsAggregation';
 import { ArrowLeft, Trophy, Calendar, Users, Target, MapPin, Clock, Star, Plus, Shuffle, Edit, Check, X, Trash2, Upload, Camera, AlertCircle, AlertTriangle, Phone, Mail, UserCheck, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -55,7 +56,7 @@ import {
  * Four tabs: Overview, Table, Fixtures, Stats
  * Includes league standings, upcoming matches, top scorers, and tournament information
  */
-const TournamentProfileScreen = ({ tournament, onBack, onTeamClick = () => {}, onPlayerClick = () => {}, onMatchClick = () => {}, onAddTeam = () => {}, onGenerateFixtures = () => {}, currentUser = null, playerDatabase = [], onTournamentUpdate = null }) => {
+const TournamentProfileScreen = ({ tournament, onBack, onTeamClick = () => {}, onPlayerClick = () => {}, onMatchClick = () => {}, onAddTeam = () => {}, onGenerateFixtures = () => {}, onScoreFixture = () => {}, currentUser = null, playerDatabase = [], completedMatches = [], onTournamentUpdate = null }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showEditFormatDialog, setShowEditFormatDialog] = useState(false);
@@ -1667,10 +1668,12 @@ const TournamentProfileScreen = ({ tournament, onBack, onTeamClick = () => {}, o
     alert('Manual fixture editing: You can modify match details in the Fixtures tab. This will override automatic logic.');
   };
 
-  // Mock data for demo purposes
-  const leagueTable = [];
+  const tournamentMatches = filterTournamentMatches(completedMatches, tournamentData?.id);
+  const leagueTable = calculateStandings(tournamentData, tournamentMatches);
 
-  const topScorers = [];
+  const topScorers = aggregatePlayerStats(tournamentMatches)
+    .sort((a, b) => b.goals - a.goals)
+    .slice(0, 10);
 
   const getQualificationColor = (qualification) => {
     switch (qualification) {
@@ -2704,6 +2707,19 @@ const TournamentProfileScreen = ({ tournament, onBack, onTeamClick = () => {}, o
                         <MapPin className="w-3 h-3" />
                         <span>{fixture.venue}</span>
                       </div>
+
+                      {fixture.status !== 'completed' && (
+                        <Button
+                          size="sm"
+                          className="mt-3 bg-purple-600 hover:bg-purple-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onScoreFixture(fixture);
+                          }}
+                        >
+                          Score this match
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2725,9 +2741,20 @@ const TournamentProfileScreen = ({ tournament, onBack, onTeamClick = () => {}, o
               <CardTitle>Top Scorers</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                No statistics available yet. Stats will appear once matches are scored.
-              </div>
+              {topScorers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No statistics yet. Score tournament matches to see top scorers.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {topScorers.map((p, i) => (
+                    <div key={p.id ?? i} className="flex justify-between text-sm py-2 border-b last:border-0">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-gray-600">{p.goals} goals · {p.assists} assists</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -199,8 +199,7 @@ const AddTournament = ({ onBack, onTournamentCreated, onNavigateToInfoTab, regis
   const formats = [
     { value: 'league_round_robin', label: 'League (Round Robin)' },
     { value: 'knockout', label: 'Knockout' },
-    { value: 'group_stage___knockout', label: 'Group Stage + Knockout' },
-    { value: 'other_manual', label: 'Other Format (Manual Fixture Entry)' }
+    { value: 'other_manual', label: 'Other Format (Manual Fixture Entry)' },
   ];
 
   // Calculate knockout stages and byes

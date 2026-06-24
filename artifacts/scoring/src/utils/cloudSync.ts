@@ -25,7 +25,10 @@ export type SyncDataType =
   | 'ongoing_matches'
   | 'completed_matches'
   | 'master_teams'
-  | 'tournament_teams';
+  | 'tournament_teams'
+  | 'tournament_fixtures'
+  | 'user_follows'
+  | 'notifications';
 
 /**
  * Check if the server is healthy

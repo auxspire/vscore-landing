@@ -1,0 +1,43 @@
+name: Scoring CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/scoring/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/scoring-ci.yml"
+  pull_request:
+    paths:
+      - "artifacts/scoring/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/scoring-ci.yml"
+
+jobs:
+  scoring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck scoring
+        run: pnpm --filter @workspace/scoring run typecheck
+
+      - name: Test scoring
+        run: pnpm --filter @workspace/scoring run test
+
+      - name: Build scoring
+        run: pnpm --filter @workspace/scoring run build

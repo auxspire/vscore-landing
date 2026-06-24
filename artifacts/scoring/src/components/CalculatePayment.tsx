@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import TextShareModal from './TextShareModal';
+import { toast } from 'sonner';
 
 interface PaymentShare {
   playerId: number;
@@ -13,6 +14,7 @@ interface PaymentShare {
   amount: number;
   isEdited: boolean;
   isPaid?: boolean;
+  pendingPaid?: boolean;
 }
 
 interface CalculatePaymentProps {
@@ -37,11 +39,12 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
   const [isChangingTreasurer, setIsChangingTreasurer] = useState(false);
   const [treasurerSearch, setTreasurerSearch] = useState('');
   const [showTreasurerSuggestions, setShowTreasurerSuggestions] = useState(false);
+  const [treasurerUpiId, setTreasurerUpiId] = useState('');
 
   // Load saved payment data when component mounts
   useEffect(() => {
     if (match?.paymentData) {
-      const { venueRent, otherCosts, divisionMethod, playerShares, treasurer } = match.paymentData;
+      const { venueRent, otherCosts, divisionMethod, playerShares, treasurer, treasurerUpiId: savedUpi } = match.paymentData;
       setVenueRent(venueRent || '');
       setOtherCosts(otherCosts || '');
       setDivisionMethod(divisionMethod || 'players');
@@ -51,9 +54,9 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
       if (treasurer) {
         setTreasurer(treasurer);
       } else {
-        // Default to match creator if no treasurer is saved
         setDefaultTreasurer();
       }
+      if (savedUpi) setTreasurerUpiId(savedUpi);
       setIsSaved(true);
       setIsEditMode(false);
     } else {
@@ -309,19 +312,20 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
     return playerShares.reduce((sum, p) => sum + p.amount, 0);
   };
 
+  const buildPaymentPayload = (shares: PaymentShare[]) => ({
+    venueRent,
+    otherCosts,
+    divisionMethod,
+    playerShares: shares,
+    treasurer,
+    treasurerUpiId: treasurerUpiId.trim() || undefined,
+    savedAt: new Date().toISOString(),
+  });
+
   // Save payment data
   const handleSavePayment = () => {
     if (onSavePayment && match?.id) {
-      const paymentData = {
-        venueRent,
-        otherCosts,
-        divisionMethod,
-        playerShares,
-        treasurer,
-        savedAt: new Date().toISOString()
-      };
-      
-      onSavePayment(match.id, paymentData);
+      onSavePayment(match.id, buildPaymentPayload(playerShares));
       setIsSaved(true);
       setIsEditMode(false);
     }
@@ -335,25 +339,39 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
   // Determine if inputs should be disabled
   const isInputDisabled = isSaved && !isEditMode;
 
+  const myLinkedPlayerId = currentUser?.user_id
+    ? playerDatabase.find((p) => p.owner_user_id === currentUser.user_id)?.id
+    : undefined;
+  const isTreasurer =
+    !!myLinkedPlayerId &&
+    !!treasurer &&
+    treasurer.id === myLinkedPlayerId;
+
+  const handleClaimPendingPaid = (playerId: number) => {
+    setPlayerShares((prev) => {
+      const updated = prev.map((p) =>
+        p.playerId === playerId ? { ...p, pendingPaid: true, isPaid: false } : p,
+      );
+      if (onSavePayment && match?.id) {
+        setTimeout(() => onSavePayment(match.id, buildPaymentPayload(updated)), 0);
+      }
+      return updated;
+    });
+    toast.success('Marked as paid — treasurer will confirm');
+  };
+
   // Handle toggle paid status
   const handleTogglePaid = (playerId: number) => {
     setPlayerShares(prevShares => {
       const updatedShares = prevShares.map(player =>
         player.playerId === playerId
-          ? { ...player, isPaid: !player.isPaid }
+          ? { ...player, isPaid: !player.isPaid, pendingPaid: false }
           : player
       );
       
       // Auto-save when payment status changes
       if (onSavePayment && match?.id) {
-        const paymentData = {
-          venueRent,
-          otherCosts,
-          divisionMethod,
-          playerShares: updatedShares,
-          treasurer,
-          savedAt: new Date().toISOString()
-        };
+        const paymentData = buildPaymentPayload(updatedShares);
         
         // Save immediately
         setTimeout(() => {
@@ -424,6 +442,11 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
     if (player.isEdited) {
       text += `(Custom amount)\n`;
     }
+
+    if (treasurerUpiId.trim()) {
+      const upiLink = `upi://pay?pa=${encodeURIComponent(treasurerUpiId.trim())}&am=${player.amount.toFixed(2)}&tn=${encodeURIComponent('VScor turf')}`;
+      text += `\nPay via UPI: ${upiLink}\n`;
+    }
     
     text += `\nPlease make the payment at your earliest convenience.\n\n`;
     text += `Thank you!\n\n`;
@@ -440,7 +463,7 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
       // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(reminderText);
-        alert(`Payment reminder for ${player.playerName} copied to clipboard!`);
+        toast.success(`Reminder for ${player.playerName} copied`);
         return;
       }
     } catch (err) {
@@ -462,14 +485,14 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
       document.body.removeChild(textarea);
       
       if (successful) {
-        alert(`Payment reminder for ${player.playerName} copied to clipboard!`);
+        toast.success(`Reminder for ${player.playerName} copied`);
       } else {
         throw new Error('execCommand failed');
       }
     } catch (err) {
       console.error('Failed to copy reminder:', err);
-      // Show the text in an alert as last resort
-      alert(`Could not copy automatically. Here's the reminder:\n\n${reminderText}`);
+      toast.error('Could not copy — check reminder text in console');
+      console.log(reminderText);
     }
   };
 
@@ -716,6 +739,17 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
                 </Button>
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="treasurerUpi">Treasurer UPI ID (optional)</Label>
+              <Input
+                id="treasurerUpi"
+                value={treasurerUpiId}
+                onChange={(e) => setTreasurerUpiId(e.target.value)}
+                placeholder="name@upi"
+                disabled={isInputDisabled}
+              />
+              <p className="text-xs text-gray-500">Included in payment reminder links</p>
+            </div>
           </div>
 
           {/* Payment Breakdown Section */}
@@ -743,6 +777,9 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
                           <p className="font-medium text-gray-800 dark:text-gray-100 truncate">{player.playerName}</p>
                           {player.isEdited && (
                             <p className="text-xs text-purple-600">Custom</p>
+                          )}
+                          {player.pendingPaid && !player.isPaid && (
+                            <p className="text-xs text-amber-600">Awaiting treasurer</p>
                           )}
                         </div>
                         
@@ -782,27 +819,38 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
                       
                       {/* Action buttons */}
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => handleTogglePaid(player.playerId)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            player.isPaid 
-                              ? 'bg-green-100 text-green-700 border border-green-300' 
-                              : 'bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300'
-                          }`}
-                          title={player.isPaid ? "Mark as unpaid" : "Mark as paid"}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </button>
-                        
+                        {isTreasurer && (
+                          <button
+                            onClick={() => handleTogglePaid(player.playerId)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              player.isPaid
+                                ? 'bg-green-100 text-green-700 border border-green-300'
+                                : player.pendingPaid
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
+                                  : 'bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300'
+                            }`}
+                            title={player.isPaid ? 'Mark as unpaid' : player.pendingPaid ? 'Confirm payment' : 'Mark as paid'}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {myLinkedPlayerId === player.playerId && !player.isPaid && !player.pendingPaid && (
+                          <button
+                            onClick={() => handleClaimPendingPaid(player.playerId)}
+                            className="px-2 py-1.5 text-xs rounded-lg bg-amber-600 text-white hover:bg-amber-700 whitespace-nowrap"
+                          >
+                            I've paid
+                          </button>
+                        )}
                         <button
                           onClick={() => handleSendReminder(player)}
-                          disabled={player.isPaid}
+                          disabled={player.isPaid || player.pendingPaid}
                           className={`p-2 rounded-lg transition-colors ${
-                            player.isPaid
+                            player.isPaid || player.pendingPaid
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
-                          title={player.isPaid ? "Player has paid" : "Copy payment reminder"}
+                          title={player.isPaid ? 'Player has paid' : 'Copy payment reminder'}
                         >
                           <Send className="w-4 h-4" />
                         </button>
@@ -832,6 +880,9 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
                           {player.isEdited && (
                             <p className="text-xs text-purple-600">Custom</p>
                           )}
+                          {player.pendingPaid && !player.isPaid && (
+                            <p className="text-xs text-amber-600">Awaiting treasurer</p>
+                          )}
                         </div>
                         
                         {editingPlayerId === player.playerId ? (
@@ -870,27 +921,38 @@ const CalculatePayment = ({ onBack, match, playerDatabase, onSavePayment, curren
                       
                       {/* Action buttons */}
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => handleTogglePaid(player.playerId)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            player.isPaid 
-                              ? 'bg-green-100 text-green-700 border border-green-300' 
-                              : 'bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300'
-                          }`}
-                          title={player.isPaid ? "Mark as unpaid" : "Mark as paid"}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </button>
-                        
+                        {isTreasurer && (
+                          <button
+                            onClick={() => handleTogglePaid(player.playerId)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              player.isPaid
+                                ? 'bg-green-100 text-green-700 border border-green-300'
+                                : player.pendingPaid
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
+                                  : 'bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300'
+                            }`}
+                            title={player.isPaid ? 'Mark as unpaid' : player.pendingPaid ? 'Confirm payment' : 'Mark as paid'}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {myLinkedPlayerId === player.playerId && !player.isPaid && !player.pendingPaid && (
+                          <button
+                            onClick={() => handleClaimPendingPaid(player.playerId)}
+                            className="px-2 py-1.5 text-xs rounded-lg bg-amber-600 text-white hover:bg-amber-700 whitespace-nowrap"
+                          >
+                            I've paid
+                          </button>
+                        )}
                         <button
                           onClick={() => handleSendReminder(player)}
-                          disabled={player.isPaid}
+                          disabled={player.isPaid || player.pendingPaid}
                           className={`p-2 rounded-lg transition-colors ${
-                            player.isPaid
+                            player.isPaid || player.pendingPaid
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
-                          title={player.isPaid ? "Player has paid" : "Copy payment reminder"}
+                          title={player.isPaid ? 'Player has paid' : 'Copy payment reminder'}
                         >
                           <Send className="w-4 h-4" />
                         </button>

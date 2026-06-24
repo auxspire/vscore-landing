@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Checkbox } from './ui/checkbox';
+import { toast } from 'sonner';
 
 const EnterMatchResult = ({ tournaments = [], teams = [], players = [], onBack, onPublish }) => {
   // Match details
@@ -162,12 +163,12 @@ const EnterMatchResult = ({ tournaments = [], teams = [], players = [], onBack, 
   const handlePublish = () => {
     // Validate required fields
     if (!team1 || !team2) {
-      alert('Please enter both team names');
+      toast.error('Please enter both team names');
       return;
     }
     
     if (team1Players.length === 0 || team2Players.length === 0) {
-      alert('Please select players for both teams');
+      toast.error('Please select players for both teams');
       return;
     }
 
@@ -176,7 +177,7 @@ const EnterMatchResult = ({ tournaments = [], teams = [], players = [], onBack, 
     const team2StartingCount = team2Players.filter(p => !p.isSubstitute).length;
     
     if (team1StartingCount !== team2StartingCount) {
-      alert(`Both teams must have the same number of players in the starting lineup.\n\n${team1}: ${team1StartingCount} starting players\n${team2}: ${team2StartingCount} starting players\n\nPlease adjust the lineups to match.`);
+      toast.error(`Both teams must have the same number of players in the starting lineup.\n\n${team1}: ${team1StartingCount} starting players\n${team2}: ${team2StartingCount} starting players\n\nPlease adjust the lineups to match.`);
       return;
     }
 
