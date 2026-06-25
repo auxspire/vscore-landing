@@ -354,6 +354,84 @@ app.post("/auth/signup", async (c) => {
   }
 });
 
+// Test phone OTP — fixed code while SMS provider is not configured (disable before GA)
+app.post("/auth/test-phone-otp", async (c) => {
+  try {
+    if (Deno.env.get("VSCOR_ENABLE_TEST_OTP") === "false") {
+      return c.json({ error: "Test OTP is disabled" }, 403);
+    }
+
+    const body = await c.req.json();
+    const { phone, otp } = body as { phone?: string; otp?: string };
+    const normalized = (phone || "").replace(/\D/g, "");
+    const expectedOtp = Deno.env.get("VSCOR_TEST_OTP") || "2255";
+
+    if (!normalized || normalized.length < 7) {
+      return c.json({ error: "Enter a valid phone number" }, 400);
+    }
+    if (otp !== expectedOtp) {
+      return c.json({ error: "Invalid OTP" }, 401);
+    }
+
+    const email = `${normalized}@vscor.phone`;
+    const displayName = `User ${normalized.slice(-4)}`;
+
+    const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
+    if (listError) {
+      console.error("❌ [test-phone-otp] listUsers:", listError);
+      return c.json({ error: listError.message }, 500);
+    }
+
+    let authUser = existingUsers?.users?.find((u) => u.email === email);
+
+    if (!authUser) {
+      const { data: created, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        phone: `+91${normalized}`,
+        user_metadata: { display_name: displayName, phone: normalized },
+      });
+
+      if (createError || !created.user) {
+        console.error("❌ [test-phone-otp] createUser:", createError);
+        return c.json({ error: createError?.message || "Failed to create user" }, 400);
+      }
+
+      authUser = created.user;
+
+      const userId = crypto.randomUUID();
+      const vscorUser = {
+        user_id: userId,
+        google_id: authUser.id,
+        email,
+        phone: normalized,
+        mobile_number: normalized,
+        display_name: displayName,
+        profile_photo: null,
+        created_at: new Date().toISOString(),
+        is_verified: true,
+      };
+      await kv.set(`user:${userId}`, vscorUser);
+      console.log(`✅ [test-phone-otp] Created auth + VScor profile for ${normalized}`);
+    }
+
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+
+    if (linkError || !linkData?.properties?.hashed_token) {
+      console.error("❌ [test-phone-otp] generateLink:", linkError);
+      return c.json({ error: linkError?.message || "Failed to create session" }, 500);
+    }
+
+    return c.json({ token_hash: linkData.properties.hashed_token });
+  } catch (error) {
+    console.error("❌ [test-phone-otp] Exception:", error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
 // ── Link (merge) or separate a player profile after signup ───────────────────
 // Called by the client after the user decides whether to claim an existing
 // player profile or create a new separate one.

@@ -15,6 +15,7 @@ import {
   updatePassword,
 } from '../utils/auth';
 import { ProfileMergeDialog } from './ProfileMergeDialog';
+import { isTestOtpEnabled, TEST_OTP_CODE } from '../lib/testOtp';
 
 interface LoginScreenProps {
   onLoginComplete: () => void;
@@ -322,7 +323,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     setLoading(false);
     if (result.success) {
       setOtpSent(true);
-      setSuccessMessage('OTP sent to your phone');
+      setSuccessMessage(
+        result.testMode || isTestOtpEnabled()
+          ? `Testing mode — enter OTP ${TEST_OTP_CODE}`
+          : 'OTP sent to your phone',
+      );
     } else {
       setError(result.error || 'Could not send OTP');
     }
@@ -651,11 +656,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                   inputMode="numeric"
                   value={otpCode}
                   onChange={(e) => { setOtpCode(e.target.value); setError(null); }}
-                  placeholder="6-digit code"
+                  placeholder={isTestOtpEnabled() ? `Test OTP: ${TEST_OTP_CODE}` : '6-digit code'}
                   disabled={loading}
                   className="flex-1 bg-transparent text-white placeholder-white/40 outline-none text-sm py-3.5"
                 />
               </FieldRow>
+            )}
+            {mode === 'signin' && signInMethod === 'otp' && otpSent && isTestOtpEnabled() && (
+              <p className="text-xs text-white/60 px-1">
+                SMS not required during testing. Use OTP <strong className="text-white/90">{TEST_OTP_CODE}</strong> for any valid phone number.
+              </p>
             )}
 
             {mode === 'reset' && (

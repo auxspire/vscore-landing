@@ -2,6 +2,7 @@
 import { supabase } from './database/supabaseClient';
 import { appBaseUrl, publicAnonKey, scoringFunctionsUrl } from './supabase/info';
 import { crashLog } from './crashLogger';
+import { isTestOtpEnabled, TEST_OTP_CODE } from '../lib/testOtp';
 
 // Re-export supabase for backward compatibility
 export { supabase };
@@ -612,10 +613,17 @@ export const signInWithEmail = async (
 };
 
 // Sign in with phone (OTP)
-export const signInWithPhone = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
+export const signInWithPhone = async (phoneNumber: string): Promise<{ success: boolean; error?: string; testMode?: boolean }> => {
   try {
+    const normalized = phoneNumber.replace(/\D/g, '');
+
+    if (isTestOtpEnabled()) {
+      crashLog.info(`🔐 [signInWithPhone] Test OTP mode — skip SMS for ${normalized}`);
+      return { success: true, testMode: true };
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
-      phone: `+91${phoneNumber}`,
+      phone: `+91${normalized}`,
     });
 
     if (error) {
@@ -630,11 +638,56 @@ export const signInWithPhone = async (phoneNumber: string): Promise<{ success: b
   }
 };
 
+async function verifyTestPhoneOtp(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
+  const normalized = phoneNumber.replace(/\D/g, '');
+  try {
+    const response = await fetch(`${scoringFunctionsUrl}/auth/test-phone-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${publicAnonKey}`,
+      },
+      body: JSON.stringify({ phone: normalized, otp: TEST_OTP_CODE }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, error: result.error || 'Test OTP sign-in failed' };
+    }
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: result.token_hash,
+      type: 'magiclink',
+    });
+
+    if (error) {
+      crashLog.error('❌ [verifyTestPhoneOtp] Session error:', error);
+      return { success: false, error: error.message };
+    }
+
+    if (data.session) {
+      await getCurrentUser();
+      return { success: true };
+    }
+
+    return { success: false, error: 'Could not start session' };
+  } catch (error: any) {
+    crashLog.error('❌ [verifyTestPhoneOtp] Exception:', error);
+    return { success: false, error: error?.message || String(error) };
+  }
+}
+
 // Verify OTP
 export const verifyOtp = async (phoneNumber: string, otp: string): Promise<{ success: boolean; error?: string }> => {
   try {
+    const normalized = phoneNumber.replace(/\D/g, '');
+
+    if (isTestOtpEnabled() && otp.trim() === TEST_OTP_CODE) {
+      return verifyTestPhoneOtp(normalized);
+    }
+
     const { data, error } = await supabase.auth.verifyOtp({
-      phone: `+91${phoneNumber}`,
+      phone: `+91${normalized}`,
       token: otp,
       type: 'sms',
     });

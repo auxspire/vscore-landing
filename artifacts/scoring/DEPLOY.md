@@ -55,6 +55,19 @@ In Supabase Dashboard → Authentication → Providers → **Phone**:
 2. Set test phone numbers in development if using Supabase local auth.
 3. Users sign in via **OTP** tab on the login screen (Send OTP → Verify OTP).
 
+**Testing (no SMS):** While the Phone provider is not configured, use fixed test OTP **`2255`** for any valid phone number (10+ digits). The app skips sending SMS and the edge function `POST /auth/test-phone-otp` issues a session. Disable before public launch:
+
+| Env (Vercel scoring SPA) | Value |
+|--------------------------|--------|
+| `VITE_DISABLE_TEST_OTP` | `true` to turn off test OTP in the client |
+
+| Env (edge function) | Value |
+|---------------------|--------|
+| `VSCOR_ENABLE_TEST_OTP` | `false` to reject test OTP on server |
+| `VSCOR_TEST_OTP` | Optional override (default `2255`) |
+
+Redeploy the edge function after changing server env vars.
+
 Google Cloud OAuth client must allow callback:
 
 `https://vscor-supabase.auxspire.com/auth/v1/callback`
