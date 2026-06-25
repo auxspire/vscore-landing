@@ -44,7 +44,7 @@ const CompareScreen = ({
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 lg:p-8 space-y-4 pb-24 lg:pb-8 lg:max-w-4xl lg:mx-auto w-full">
         <div className="grid grid-cols-2 gap-3">
           <Select value={leftId} onValueChange={setLeftId}>
             <SelectTrigger><SelectValue placeholder="Pick left" /></SelectTrigger>

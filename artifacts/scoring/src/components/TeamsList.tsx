@@ -69,13 +69,14 @@ const TeamsList = ({ onBack, teams = [], onTeamClick, onAddTeam }) => {
       </div>
 
       {/* Teams List */}
-      <div className="p-4 space-y-3 pb-24">
+      <div className="p-4 lg:p-8 pb-24 lg:pb-8">
         {filteredTeams.length > 0 ? (
-          filteredTeams.map((team) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filteredTeams.map((team) => (
             <div
               key={team.id}
               onClick={() => onTeamClick(team)}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              className="vscor-card-interactive bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
@@ -107,7 +108,8 @@ const TeamsList = ({ onBack, teams = [], onTeamClick, onAddTeam }) => {
                 </div>
               </div>
             </div>
-          ))
+          ))}
+          </div>
         ) : (
           <div className="text-center py-12">
             <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />

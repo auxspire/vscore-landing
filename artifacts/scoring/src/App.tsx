@@ -61,6 +61,7 @@ import Leaderboard from "./components/Leaderboard";
 import PointsTableScreen from "./components/PointsTableScreen";
 import CompareScreen from "./components/CompareScreen";
 import OnboardingWizard, { isOnboardingComplete, markOnboardingComplete } from "./components/OnboardingWizard";
+import DesktopSideNav from "./components/DesktopSideNav";
 import { aggregatePlayerStats, aggregateTeamStats } from "./utils/statsAggregation";
 import { persistFixtureSyncForMatch, buildInitialMatchFromFixture } from "./utils/fixtureMatchSync";
 import { Toaster } from './components/ui/sonner';
@@ -1727,11 +1728,14 @@ export default function App() {
           )}
         </div>
         
-        {/* Centered App Logo */}
-        <h1 className="text-2xl font-bold tracking-tight absolute left-1/2 transform -translate-x-1/2">
+        {/* Centered App Logo — mobile only; sidebar shows brand on desktop */}
+        <h1 className="text-2xl font-bold tracking-tight absolute left-1/2 transform -translate-x-1/2 lg:hidden">
           <span className="text-purple-600">V</span>
           <span className="text-gray-800 dark:text-gray-100">Scor</span>
         </h1>
+        <p className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 text-sm font-medium text-gray-600 dark:text-gray-400">
+          {activeTab === 'matches' ? 'Matches' : 'Browse & Info'}
+        </p>
         
         {/* Profile Button with Dropdown */}
         <div className="relative">
@@ -2724,18 +2728,42 @@ export default function App() {
           <p className="text-sm text-gray-600 dark:text-gray-300">Loading your matches…</p>
         </div>
       )}
-      <div className="h-screen bg-white dark:bg-gray-900 flex flex-col max-w-md mx-auto border-x border-gray-200 dark:border-gray-800">
-        {currentView === "main" && <Header />}
+      <div className="vscor-app-root">
+        <div
+          className={`vscor-app-shell mx-auto w-full max-w-md lg:max-w-none h-screen flex flex-col lg:flex-row bg-white dark:bg-gray-900 border-x border-gray-200 dark:border-gray-800 lg:border-x-0 ${
+            IMMERSIVE_VIEWS.includes(currentView) ? 'vscor-app-shell--immersive' : ''
+          }`}
+        >
+          {currentView === 'main' && (
+            <DesktopSideNav
+              activeTab={activeTab}
+              onSelectTab={(tab) => {
+                setActiveTab(tab);
+                setCurrentView('main');
+              }}
+              onNewMatch={() => {
+                setInitialMatchConfig(null);
+                setCurrentView('newMatch');
+              }}
+            />
+          )}
 
-        <div className="flex-1 overflow-y-auto">
-          {renderCurrentView()}
-        </div>
+          <div className="flex flex-col flex-1 min-w-0 min-h-0">
+            {currentView === 'main' && <Header />}
 
-        {!IMMERSIVE_VIEWS.includes(currentView) && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-50">
-          <BottomNavigation />
+            <div className="flex-1 overflow-y-auto overscroll-contain pb-0 lg:pb-0">
+              {renderCurrentView()}
+            </div>
+
+            {!IMMERSIVE_VIEWS.includes(currentView) && (
+              <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+                <div className="max-w-md mx-auto pointer-events-auto">
+                  <BottomNavigation />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        )}
       </div>
 
       {showOnboarding && isLoggedIn && currentView === "main" && (

@@ -50,10 +50,10 @@ const InfoTab = ({
   ];
 
   return (
-    <div className="p-6 space-y-6 pb-24">
+    <div className="p-6 pb-24 lg:pb-8 lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-medium mb-2 dark:text-gray-100">Info</h1>
+          <h1 className="text-2xl lg:text-3xl font-medium mb-2 dark:text-gray-100">Info</h1>
           <p className="text-purple-600 dark:text-purple-400 text-lg">Browse & Explore</p>
         </div>
         <Button 
@@ -69,12 +69,12 @@ const InfoTab = ({
       </div>
 
       {/* Info Cards Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {infoCards.map((card, index) => (
           <div
             key={index}
             onClick={card.action}
-            className={`${card.bgColor} rounded-2xl p-6 cursor-pointer hover:opacity-80 transition-opacity border border-transparent dark:border-gray-700/50`}
+            className={`vscor-card-interactive ${card.bgColor} rounded-2xl p-6 lg:p-8 cursor-pointer hover:opacity-90 transition-opacity border border-transparent dark:border-gray-700/50`}
           >
             <div className="flex flex-col items-center text-center space-y-4">
               <div className={`w-16 h-16 ${card.iconBg} rounded-full flex items-center justify-center`}>

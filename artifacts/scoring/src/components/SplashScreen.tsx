@@ -15,9 +15,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   }, [onComplete]);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-purple-600 via-purple-500 to-purple-700 flex flex-col items-center justify-center max-w-md mx-auto border-x border-purple-800">
-      {/* Status Bar */}
-      <div className="fixed top-0 left-0 right-0 max-w-md mx-auto">
+    <div className="vscor-app-root">
+      <div className="vscor-app-shell mx-auto w-full max-w-md lg:max-w-lg h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-600 via-purple-500 to-purple-700 border-x border-purple-800 lg:border lg:border-purple-700/50 overflow-hidden">
+      {/* Status Bar — mobile mock only */}
+      <div className="fixed top-0 left-0 right-0 max-w-md lg:max-w-lg mx-auto lg:hidden">
         <div className="flex justify-between items-center px-6 py-2 text-white text-xs">
           <span>9:41</span>
           <div className="flex items-center gap-1">
@@ -51,6 +52,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

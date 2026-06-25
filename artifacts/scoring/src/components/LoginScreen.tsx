@@ -393,11 +393,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
+  const authFrameClass =
+    'vscor-app-shell mx-auto w-full max-w-md lg:max-w-lg h-screen flex flex-col bg-gradient-to-br from-purple-700 via-purple-600 to-purple-800 border-x border-purple-900 lg:border lg:border-purple-700/50 overflow-hidden';
+
   // ── guard: checking auth ────────────────────────────────────────────────────
   if (checkingAuth) {
     return (
-      <div className="h-screen bg-gradient-to-br from-purple-700 via-purple-600 to-purple-800 flex items-center justify-center max-w-md mx-auto border-x border-purple-900">
-        <Loader2 className="w-12 h-12 text-white animate-spin" />
+      <div className="vscor-app-root">
+        <div className={`${authFrameClass} items-center justify-center`}>
+          <Loader2 className="w-12 h-12 text-white animate-spin" />
+        </div>
       </div>
     );
   }
@@ -406,7 +411,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   if (pendingMergeProfiles && pendingMergeProfiles.length > 0) {
     console.log('🎨 [LoginScreen] Rendering merge dialog with profiles:', pendingMergeProfiles.length);
     return (
-      <div className="h-screen bg-gradient-to-br from-purple-700 via-purple-600 to-purple-800 flex flex-col max-w-md mx-auto border-x border-purple-900 relative">
+      <div className="vscor-app-root">
+        <div className={`${authFrameClass} relative`}>
         <ProfileMergeDialog
           existingProfiles={pendingMergeProfiles}
           displayName={pendingMergeDisplayName}
@@ -421,6 +427,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             onLoginCompleteRef.current();
           }}
         />
+        </div>
       </div>
     );
   }
@@ -442,9 +449,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // ── render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="h-screen bg-gradient-to-br from-purple-700 via-purple-600 to-purple-800 flex flex-col max-w-md mx-auto border-x border-purple-900 overflow-hidden">
-      {/* Status bar mock */}
-      <div className="flex justify-between items-center px-6 pt-3 pb-1 text-white/60 text-xs flex-shrink-0">
+    <div className="vscor-app-root">
+    <div className={authFrameClass}>
+      {/* Status bar mock — mobile only */}
+      <div className="flex justify-between items-center px-6 pt-3 pb-1 text-white/60 text-xs flex-shrink-0 lg:hidden">
         <span>9:41</span>
         <div className="flex items-center gap-1">
           <div className="w-4 h-2.5 border border-white/60 rounded-sm">
@@ -771,6 +779,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
         </div>
       </div>
+    </div>
     </div>
   );
 };

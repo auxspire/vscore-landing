@@ -67,14 +67,15 @@ const StatsPage = ({
         </div>
       </div>
 
-      <div className="p-4 space-y-3 pb-24">
+      <div className="p-4 lg:p-8 space-y-3 pb-24 lg:pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
         {statsOptions.map((option, index) => (
           <div
             key={index}
             onClick={option.available ? option.action : undefined}
-            className={`${option.bgColor} rounded-2xl p-6 border border-transparent dark:border-gray-700/50 ${
+            className={`vscor-card-interactive ${option.bgColor} rounded-2xl p-6 border border-transparent dark:border-gray-700/50 ${
               option.available
-                ? 'cursor-pointer hover:opacity-80 transition-opacity'
+                ? 'cursor-pointer hover:opacity-90 transition-opacity'
                 : 'opacity-60 cursor-not-allowed'
             }`}
           >
@@ -96,6 +97,8 @@ const StatsPage = ({
             </div>
           </div>
         ))}
+
+        </div>
 
         {(topPlayers.length > 0 || topTeams.length > 0) && (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mt-2 space-y-4">

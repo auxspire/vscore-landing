@@ -720,7 +720,7 @@ const SelectSquad = ({ match, onBack, onStartMatch, registeredTeams = [], player
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-20 left-0 right-0 max-w-md mx-auto p-6 bg-white border-t border-gray-200 space-y-3">
+      <div className="fixed bottom-20 left-0 right-0 max-w-md lg:max-w-none mx-auto p-6 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 space-y-3">
         {!isSquadComplete && (team1Squad.length > 0 || team2Squad.length > 0) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
             <p className="text-sm text-red-800">

@@ -1,0 +1,58 @@
+/** Desktop shell — mobile layouts unchanged below lg breakpoint */
+
+.vscor-app-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--muted);
+}
+
+.dark .vscor-app-root {
+  background: #0a0a12;
+}
+
+@media (min-width: 1024px) {
+  .vscor-app-root {
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+  }
+
+  .vscor-app-shell {
+    width: 100%;
+    max-width: 72rem;
+    height: calc(100vh - 2rem);
+    height: calc(100dvh - 2rem);
+    border-radius: 1rem;
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.08),
+      0 20px 40px -12px rgb(88 28 135 / 0.15);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .dark .vscor-app-shell {
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.4),
+      0 20px 40px -12px rgb(0 0 0 / 0.5);
+  }
+
+  .vscor-app-shell--immersive {
+    max-width: 56rem;
+  }
+}
+
+/** Card hover lift on desktop only */
+@media (min-width: 1024px) {
+  .vscor-card-interactive {
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .vscor-card-interactive:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px -8px rgb(88 28 135 / 0.2);
+  }
+}

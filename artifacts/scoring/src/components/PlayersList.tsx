@@ -82,9 +82,10 @@ const PlayersList = ({ onBack, playerDatabase = [], onPlayerClick, onAddPlayer }
       </div>
 
       {/* Players List */}
-      <div className="p-4 space-y-3 pb-24">
+      <div className="p-4 lg:p-8 pb-24 lg:pb-8">
         {filteredPlayers.length > 0 ? (
-          filteredPlayers.map((player) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filteredPlayers.map((player) => {
             const teamNames = getTeamNames(player);
             
             return (
@@ -98,7 +99,8 @@ const PlayersList = ({ onBack, playerDatabase = [], onPlayerClick, onAddPlayer }
                 showJerseyBadge={!!player.jerseyNumber}
               />
             );
-          })
+          })}
+          </div>
         ) : (
           <div className="text-center py-12">
             <User className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
