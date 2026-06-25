@@ -3,6 +3,12 @@ import { supabase } from './database/supabaseClient';
 import { appBaseUrl, publicAnonKey, scoringFunctionsUrl } from './supabase/info';
 import { crashLog } from './crashLogger';
 import { isTestOtpEnabled, TEST_OTP_CODE } from '../lib/testOtp';
+import {
+  isEdgeFunctionUnavailable,
+  phoneSyntheticEmail,
+  signUpWithSupabaseDirect,
+  verifyTestPhoneOtpDirect,
+} from './authFallbacks';
 
 // Re-export supabase for backward compatibility
 export { supabase };
@@ -420,29 +426,47 @@ export const signUpWithEmail = async (email: string, password: string, displayNa
     crashLog.info('🔐 [signUpWithEmail] Starting email signup...');
     crashLog.info('📧 [signUpWithEmail] Email: ' + email);
     crashLog.info('👤 [signUpWithEmail] Display Name: ' + displayName);
+
+    if (!scoringFunctionsUrl) {
+      const direct = await signUpWithSupabaseDirect(email, password, displayName);
+      if (!direct.success) return { success: false, error: direct.error };
+      await getCurrentUser();
+      return { success: true, existing_player_profiles: [] };
+    }
     
     // Call backend to create user with auto-confirmed email (Admin API)
-    const response = await fetch(
-      `${scoringFunctionsUrl}/auth/signup`,
-      {
+    let response: Response;
+    try {
+      response = await fetch(`${scoringFunctionsUrl}/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
+          Authorization: `Bearer ${publicAnonKey}`,
         },
-        body: JSON.stringify({
-          email,
-          password,
-          display_name: displayName,
-        }),
-      }
-    );
+        body: JSON.stringify({ email, password, display_name: displayName }),
+      });
+    } catch {
+      crashLog.warn('⚠️ [signUpWithEmail] Edge fetch failed — direct Supabase signup');
+      const direct = await signUpWithSupabaseDirect(email, password, displayName);
+      if (!direct.success) return { success: false, error: direct.error };
+      await getCurrentUser();
+      return { success: true, existing_player_profiles: [] };
+    }
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      crashLog.error('❌ [signUpWithEmail] Signup failed:', result.error);
-      return { success: false, error: result.error || 'Signup failed' };
+      if (isEdgeFunctionUnavailable(response, result)) {
+        crashLog.warn('⚠️ [signUpWithEmail] Edge unavailable — direct Supabase signup');
+        const direct = await signUpWithSupabaseDirect(email, password, displayName);
+        if (!direct.success) {
+          return { success: false, error: direct.error };
+        }
+        await getCurrentUser();
+        return { success: true, existing_player_profiles: [] };
+      }
+      crashLog.error('❌ [signUpWithEmail] Signup failed:', result.error ?? result.msg);
+      return { success: false, error: result.error || result.msg || 'Signup failed' };
     }
 
     crashLog.info('✅ [signUpWithEmail] User created on backend');
@@ -478,27 +502,66 @@ export const signUpWithPhone = async (phone: string, password: string, displayNa
   try {
     crashLog.info('🔐 [signUpWithPhone] Starting phone signup: ' + phone);
 
-    const response = await fetch(
-      `${scoringFunctionsUrl}/auth/signup`,
-      {
+    if (!scoringFunctionsUrl) {
+      const normalizedPhone = phone.replace(/\D/g, '');
+      const syntheticEmail = phoneSyntheticEmail(normalizedPhone);
+      const direct = await signUpWithSupabaseDirect(syntheticEmail, password, displayName, {
+        phone: normalizedPhone,
+      });
+      if (!direct.success) return { success: false, error: direct.error };
+      const signInResult = await signInWithEmail(syntheticEmail, password, phone);
+      if (!signInResult.success) {
+        return { success: false, error: signInResult.error || 'Sign in after signup failed' };
+      }
+      return { success: true, existing_player_profiles: signInResult.existing_player_profiles ?? [] };
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${scoringFunctionsUrl}/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
+          Authorization: `Bearer ${publicAnonKey}`,
         },
-        body: JSON.stringify({
-          phone,          // raw phone — server normalises and synthesises email
-          password,
-          display_name: displayName,
-        }),
+        body: JSON.stringify({ phone, password, display_name: displayName }),
+      });
+    } catch {
+      crashLog.warn('⚠️ [signUpWithPhone] Edge fetch failed — direct Supabase signup');
+      const normalizedPhone = phone.replace(/\D/g, '');
+      const syntheticEmail = phoneSyntheticEmail(normalizedPhone);
+      const direct = await signUpWithSupabaseDirect(syntheticEmail, password, displayName, {
+        phone: normalizedPhone,
+      });
+      if (!direct.success) return { success: false, error: direct.error };
+      const signInResult = await signInWithEmail(syntheticEmail, password, phone);
+      if (!signInResult.success) {
+        return { success: false, error: signInResult.error || 'Sign in after signup failed' };
       }
-    );
+      return { success: true, existing_player_profiles: signInResult.existing_player_profiles ?? [] };
+    }
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      crashLog.error('❌ [signUpWithPhone] Signup failed:', result.error);
-      return { success: false, error: result.error || 'Signup failed' };
+      if (isEdgeFunctionUnavailable(response, result)) {
+        crashLog.warn('⚠️ [signUpWithPhone] Edge unavailable — direct Supabase signup');
+        const normalizedPhone = phone.replace(/\D/g, '');
+        const syntheticEmail = phoneSyntheticEmail(normalizedPhone);
+        const direct = await signUpWithSupabaseDirect(syntheticEmail, password, displayName, {
+          phone: normalizedPhone,
+        });
+        if (!direct.success) {
+          return { success: false, error: direct.error };
+        }
+        const signInResult = await signInWithEmail(syntheticEmail, password, phone);
+        if (!signInResult.success) {
+          return { success: false, error: signInResult.error || 'Sign in after signup failed' };
+        }
+        return { success: true, existing_player_profiles: signInResult.existing_player_profiles ?? [] };
+      }
+      crashLog.error('❌ [signUpWithPhone] Signup failed:', result.error ?? result.msg);
+      return { success: false, error: result.error || result.msg || 'Signup failed' };
     }
 
     crashLog.info('✅ [signUpWithPhone] User created on backend: ' + result.user.id);
@@ -640,41 +703,48 @@ export const signInWithPhone = async (phoneNumber: string): Promise<{ success: b
 
 async function verifyTestPhoneOtp(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
   const normalized = phoneNumber.replace(/\D/g, '');
-  try {
-    const response = await fetch(`${scoringFunctionsUrl}/auth/test-phone-otp`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${publicAnonKey}`,
-      },
-      body: JSON.stringify({ phone: normalized, otp: TEST_OTP_CODE }),
-    });
 
-    const result = await response.json();
-    if (!response.ok) {
-      return { success: false, error: result.error || 'Test OTP sign-in failed' };
+  if (scoringFunctionsUrl) {
+    try {
+      const response = await fetch(`${scoringFunctionsUrl}/auth/test-phone-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${publicAnonKey}`,
+        },
+        body: JSON.stringify({ phone: normalized, otp: TEST_OTP_CODE }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (response.ok && result.token_hash) {
+        for (const otpType of ['magiclink', 'email'] as const) {
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: result.token_hash,
+            type: otpType,
+          });
+          if (!error && data.session) {
+            await getCurrentUser();
+            return { success: true };
+          }
+        }
+        crashLog.warn('⚠️ [verifyTestPhoneOtp] Edge token verify failed — trying client fallback');
+      } else if (!isEdgeFunctionUnavailable(response, result)) {
+        return { success: false, error: result.error || result.msg || 'Test OTP sign-in failed' };
+      } else {
+        crashLog.warn('⚠️ [verifyTestPhoneOtp] Edge unavailable — client fallback');
+      }
+    } catch (err: any) {
+      crashLog.warn('⚠️ [verifyTestPhoneOtp] Edge error — client fallback:', err?.message);
     }
-
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: result.token_hash,
-      type: 'magiclink',
-    });
-
-    if (error) {
-      crashLog.error('❌ [verifyTestPhoneOtp] Session error:', error);
-      return { success: false, error: error.message };
-    }
-
-    if (data.session) {
-      await getCurrentUser();
-      return { success: true };
-    }
-
-    return { success: false, error: 'Could not start session' };
-  } catch (error: any) {
-    crashLog.error('❌ [verifyTestPhoneOtp] Exception:', error);
-    return { success: false, error: error?.message || String(error) };
   }
+
+  const direct = await verifyTestPhoneOtpDirect(normalized);
+  if (direct.success) {
+    await getCurrentUser();
+    return { success: true };
+  }
+  return direct;
 }
 
 // Verify OTP

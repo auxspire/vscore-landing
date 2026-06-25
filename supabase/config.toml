@@ -1,0 +1,5 @@
+# Scoring edge function — deploy with:
+#   supabase functions deploy make-server-845a157a --project-ref <ref>
+
+[functions.make-server-845a157a]
+verify_jwt = false

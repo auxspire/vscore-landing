@@ -34,6 +34,8 @@ curl -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
   https://vscor-supabase.auxspire.com/functions/v1/make-server-845a157a/health
 ```
 
+Expected: `{"status":"ok"}`. If you see `InvalidWorkerCreation` / `entrypoint`, the function is **not deployed** — run the deploy command above. Until then, **email signup and test OTP `2255` still work** via client-side Supabase auth fallbacks (cloud sync and profile merge need the edge function).
+
 ## 3. Auth redirect URLs
 
 In Supabase Dashboard → Authentication → URL configuration:
