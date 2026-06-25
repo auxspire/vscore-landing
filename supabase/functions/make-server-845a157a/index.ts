@@ -1218,10 +1218,16 @@ app.delete("/match-events/:matchId/:eventId", async (c) => {
   }
 });
 
+// Self-hosted Supabase passes `/make-server-845a157a/...`; hosted/cloud often uses `/...` only.
+const FUNCTION_SLUG = "make-server-845a157a";
+const root = new Hono();
+root.route(`/${FUNCTION_SLUG}`, app);
+root.route("/", app);
+
 // Wrap the app.fetch handler to catch connection closed errors at the Deno level
 const wrappedFetch = async (request: Request) => {
   try {
-    return await app.fetch(request);
+    return await root.fetch(request);
   } catch (error: any) {
     // Suppress connection closed errors - these are normal when clients cancel requests
     if (error?.name === 'Http' || error?.message?.includes('connection closed')) {
