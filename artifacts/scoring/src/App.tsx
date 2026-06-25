@@ -290,14 +290,49 @@ export default function App() {
   const [addPlayerInitialValues, setAddPlayerInitialValues] = useState<{ name?: string; email?: string } | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0); // Track unread notifications
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Load dark mode preference from localStorage
-    const saved = localStorage.getItem('vscor_dark_mode');
-    return saved ? JSON.parse(saved) : false;
+    try {
+      const saved = localStorage.getItem('vscor_dark_mode');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
   });
 
   // Polling interval refs
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const liveMatchPollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load initial data from localStorage or use defaults (must stay before any useEffect)
+  const loadFromStorage = (key: string, defaultValue: any) => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : defaultValue;
+    } catch (error) {
+      console.error(`Error loading ${key} from localStorage:`, error);
+      return defaultValue;
+    }
+  };
+
+  const initialPlayers: Player[] = loadFromStorage(STORAGE_KEYS.PLAYERS, DEFAULT_PLAYERS);
+  const initialTeams: Team[] = loadFromStorage(STORAGE_KEYS.TEAMS, DEFAULT_TEAMS);
+  const initialTournaments: Tournament[] = loadFromStorage(STORAGE_KEYS.TOURNAMENTS, []);
+  const initialOngoingMatches = loadFromStorage(STORAGE_KEYS.ONGOING_MATCHES, []);
+  const initialCompletedMatches = loadFromStorage(STORAGE_KEYS.COMPLETED_MATCHES, []);
+
+  const [registeredTeams, setRegisteredTeams] = useState<any[]>(initialTeams);
+  const [playerDatabase, setPlayerDatabase] = useState<Player[]>(initialPlayers);
+  const [tournaments, setTournaments] = useState<Tournament[]>(initialTournaments);
+  const [ongoingMatches, setOngoingMatches] = useState<any[]>(initialOngoingMatches);
+  const [completedMatches, setCompletedMatches] = useState<any[]>(initialCompletedMatches);
+
+  const leaderboardPlayers = useMemo(
+    () => aggregatePlayerStats(completedMatches),
+    [completedMatches],
+  );
+  const leaderboardTeams = useMemo(
+    () => aggregateTeamStats(completedMatches),
+    [completedMatches],
+  );
 
   // Apply dark mode class to document
   useEffect(() => {
@@ -957,86 +992,6 @@ export default function App() {
     };
   }, []);
 
-  // Load initial data from localStorage or use defaults
-  const loadFromStorage = (key: string, defaultValue: any) => {
-    try {
-      const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : defaultValue;
-    } catch (error) {
-      console.error(
-        `Error loading ${key} from localStorage:`,
-        error,
-      );
-      return defaultValue;
-    }
-  };
-
-  // Initialize player database with unassigned players
-  const initialPlayers: Player[] = loadFromStorage(
-    STORAGE_KEYS.PLAYERS,
-    DEFAULT_PLAYERS,
-  );
-
-  // Initialize team database
-  const initialTeams: Team[] = loadFromStorage(
-    STORAGE_KEYS.TEAMS,
-    DEFAULT_TEAMS,
-  );
-
-  // Initialize tournament database
-  const initialTournaments: Tournament[] = loadFromStorage(
-    STORAGE_KEYS.TOURNAMENTS,
-    [],
-  );
-
-  // Initialize match database
-  const initialMatches: Match[] = loadFromStorage(
-    STORAGE_KEYS.MATCHES,
-    [],
-  );
-
-  // Initialize ongoing matches
-  const initialOngoingMatches = loadFromStorage(
-    STORAGE_KEYS.ONGOING_MATCHES,
-    [],
-  );
-
-  // Initialize completed matches
-  const initialCompletedMatches = loadFromStorage(
-    STORAGE_KEYS.COMPLETED_MATCHES,
-    [],
-  );
-
-  // State for registered teams with their players
-  const [registeredTeams, setRegisteredTeams] =
-    useState<any[]>(initialTeams);
-
-  // State for player database (all players in the app)
-  const [playerDatabase, setPlayerDatabase] =
-    useState<Player[]>(initialPlayers);
-
-  // State for tournaments
-  const [tournaments, setTournaments] = useState<Tournament[]>(initialTournaments);
-
-  // State for ongoing matches (currently being scored)
-  const [ongoingMatches, setOngoingMatches] = useState<any[]>(
-    initialOngoingMatches,
-  );
-
-  // State for completed matches
-  const [completedMatches, setCompletedMatches] = useState<
-    any[]
-  >(initialCompletedMatches);
-
-  const leaderboardPlayers = useMemo(
-    () => aggregatePlayerStats(completedMatches),
-    [completedMatches],
-  );
-  const leaderboardTeams = useMemo(
-    () => aggregateTeamStats(completedMatches),
-    [completedMatches],
-  );
-  
   // Initialize Master Teams Table on app load (one-time migration)
   useEffect(() => {
     // First, run silent data integrity check and auto-fix any issues

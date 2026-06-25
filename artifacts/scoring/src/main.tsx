@@ -42,7 +42,17 @@ if (missing.length > 0) {
   });
 } else {
   registerServiceWorker();
-  void import("./App.tsx").then(({ default: App }) => {
-    root.render(<App />);
-  });
+  void import("./App.tsx")
+    .then(({ default: App }) => {
+      root.render(<App />);
+    })
+    .catch((err) => {
+      console.error("[VScor] Failed to load app:", err);
+      root.render(
+        <div style={{ padding: 24, fontFamily: "system-ui, sans-serif", maxWidth: 480, margin: "0 auto" }}>
+          <h1 style={{ color: "#6d28d9" }}>VScor failed to start</h1>
+          <p>Try a hard refresh. If this persists, clear site data for vscor.in and reopen the app.</p>
+        </div>,
+      );
+    });
 }
