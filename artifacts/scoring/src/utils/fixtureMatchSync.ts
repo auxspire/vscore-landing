@@ -62,12 +62,13 @@ export function syncFixtureFromMatch(
     (match.status ?? "").toLowerCase().includes("full") ||
     (match.status ?? "").toLowerCase() === "completed";
 
-  const fixtures = store.fixtures.map((f) => {
+  const fixtures: FixtureRow[] = store.fixtures.map((f) => {
     if (String(f.id) !== String(match.fixtureId)) return f;
+    const status: NonNullable<FixtureRow["status"]> = done ? "completed" : "live";
     return {
       ...f,
       matchId: match.id,
-      status: done ? "completed" : "live",
+      status,
       score: { home: s1, away: s2, team1: s1, team2: s2 },
     };
   });

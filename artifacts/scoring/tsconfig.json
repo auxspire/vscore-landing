@@ -1,6 +1,6 @@
 {
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "dist", "src/supabase/**", "src/docs/**", "**/*.md"],
+  "exclude": ["node_modules", "build", "dist", "src/supabase/**", "src/docs/**", "**/*.md", "**/*.test.ts"],
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",

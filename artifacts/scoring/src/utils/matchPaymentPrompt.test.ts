@@ -19,7 +19,10 @@ describe("matchPaymentPrompt", () => {
     expect(shouldShowSplitTurfCostCta(match, { isOwner: true })).toBe(true);
     expect(shouldShowSplitTurfCostCta(match, { isOwner: false })).toBe(false);
     expect(
-      shouldShowSplitTurfCostCta({ ...match, paymentData: { total: 1600 } }, { isOwner: true }),
+      shouldShowSplitTurfCostCta(
+        { ...match, paymentData: { playerShares: [{ playerId: 1, amount: 200 }] } },
+        { isOwner: true },
+      ),
     ).toBe(false);
   });
 
