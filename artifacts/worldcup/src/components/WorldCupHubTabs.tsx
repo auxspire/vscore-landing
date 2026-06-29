@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { publicAsset } from "@/lib/assets";
 import { hubTabHref, type HomeTab } from "@/hooks/useHomeTab";
 import { prefetchFootballLiveCache, prefetchFootballLivePanel } from "@/hooks/useFootballData";
-import { Swords, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 export type HubTab = HomeTab;
 
@@ -16,17 +16,10 @@ const TABS: {
   icon: React.ReactNode;
 }[] = [
   {
-    id: "predictor",
-    label: "Match Predictor",
-    shortLabel: "Predictor",
+    id: "bracket",
+    label: "Knockout Bracket",
+    shortLabel: "Bracket",
     href: "/",
-    icon: <Swords className="w-4 h-4 shrink-0" />,
-  },
-  {
-    id: "path",
-    label: "Path to Final",
-    shortLabel: "Path",
-    href: "/?tab=path",
     icon: (
       <img
         src={publicAsset("wc26-sticker-path.png")}
@@ -48,19 +41,18 @@ const TABS: {
 
 interface WorldCupHubTabsProps {
   active: HubTab | null;
-  /** controlled = home hub switches content in-place; route = navigates to hub URLs */
   mode?: "controlled" | "route";
   onTabChange?: (tab: HubTab) => void;
   className?: string;
 }
 
 export function resolveHubTab(pathname: string, search: string): HubTab | null {
-  if (pathname.startsWith("/matchup")) return "predictor";
+  if (pathname.startsWith("/matchup")) return "bracket";
   const qs = search.startsWith("?") ? search.slice(1) : search;
   const raw = new URLSearchParams(qs).get("tab");
-  if (raw === "path" || raw === "fixtures") return raw;
-  if (pathname.startsWith("/bracket") || pathname.startsWith("/rankings")) return "path";
-  return "predictor";
+  if (raw === "fixtures") return "fixtures";
+  if (pathname.startsWith("/bracket") || pathname.startsWith("/rankings")) return "bracket";
+  return "bracket";
 }
 
 export function WorldCupHubTabs({
@@ -80,7 +72,7 @@ export function WorldCupHubTabs({
   return (
     <div
       className={cn(
-        "grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border/50",
+        "grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border/50",
         className,
       )}
       role="tablist"

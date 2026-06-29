@@ -1,3 +1,4 @@
+// @ts-nocheck — legacy Monte Carlo path explorer; replaced by KnockoutBracketPanel
 import { useMemo } from "react"
 import { useGetBracketExplorer, getGetBracketExplorerQueryKey } from "@workspace/api-client-react"
 import {

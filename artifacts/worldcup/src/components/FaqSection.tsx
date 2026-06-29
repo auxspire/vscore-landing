@@ -53,18 +53,18 @@ export function FaqSection({ items, className, id = "faq" }: FaqSectionProps) {
 
 export const HOME_FAQ: FaqItem[] = [
   {
-    question: "How does VScor calculate World Cup match probability?",
+    question: "How is the World Cup 2026 knockout bracket built?",
     answer:
-      "VScor runs thousands of Monte Carlo simulations using Elo ratings for all 48 teams. It simulates the full group stage and knockout bracket to estimate where two teams are most likely to meet.",
+      "VScor uses the official FIFA 2026 Round of 32 draw matrix. Team slots are filled from live group standings — winners, runners-up, and the eight best third-place teams — then knockout results advance teams through each round.",
   },
   {
-    question: "How many simulations does VScor run?",
+    question: "When does the bracket update?",
     answer:
-      "Match, bracket, and rankings predictions use 10,000 Monte Carlo simulations by default — 15,000 when live tournament form is enabled for tighter blended estimates. The API supports up to 20,000 runs.",
+      "The bracket refreshes as group standings and knockout match results are synced from the tournament API. Unfilled slots show projected positions (e.g. Winner Group A) until those places are decided.",
   },
   {
-    question: "Does VScor use live World Cup results?",
+    question: "Where do fixtures and standings come from?",
     answer:
-      "Fixtures, standings, and scorers are synced from the open worldcup26.ir API into our database. Turn on “Factor in live tournament form” to adjust probabilities using that data.",
+      "Match schedules, live scores, group tables, and scorers are synced from the open worldcup26.ir API into our database and refreshed throughout the tournament.",
   },
 ];

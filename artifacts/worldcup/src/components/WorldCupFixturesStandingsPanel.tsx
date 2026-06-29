@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearch } from "wouter";
-import { useGetTeams } from "@workspace/api-client-react";
-import { useHomeTab } from "@/hooks/useHomeTab";
-import { buildApiToSimulatorMap } from "@/lib/team-id-map";
+import { Link, useSearch, useLocation } from "wouter";
 import {
   Calendar,
   Trophy,
@@ -41,9 +38,6 @@ import {
   type FootballTeam,
   type ScorerEntry,
 } from "@/hooks/useFootballData";
-import { useFixturePredictions, type FixturePrediction } from "@/hooks/useFixturePredictions";
-import { Activity } from "lucide-react";
-
 const QUALIFYING_SPOTS = 2;
 
 function teamFlag(teamId: string | null, teams: FootballTeam[], size = 24) {
@@ -59,98 +53,14 @@ function teamFlag(teamId: string | null, teams: FootballTeam[], size = 24) {
   );
 }
 
-function favoredPickLabel(
-  prediction: FixturePrediction,
-  homeTeamId: string | null,
-  awayTeamId: string | null,
-  teams: FootballTeam[],
-): string {
-  const side =
-    prediction.pickSide ??
-    (prediction.homeWin >= prediction.awayWin ? "home" : "away");
-
-  const apiId = side === "home" ? homeTeamId : awayTeamId;
-  const team = apiId ? teams.find((t) => t.api_team_id === apiId) : undefined;
-  if (team?.fifa_code) return team.fifa_code;
-
-  const name = prediction.pickTeamName ?? prediction.favoredTeamName;
-  if (name) {
-    const last = name.split(/\s+/).pop() ?? name;
-    return last.length <= 4 ? last.toUpperCase() : last.slice(0, 3).toUpperCase();
-  }
-  return side === "home" ? "Home" : "Away";
-}
-
-function VscorMatchOdds({
-  prediction,
-  finished,
-  homeTeamId,
-  awayTeamId,
-  teams,
-}: {
-  prediction?: FixturePrediction;
-  finished: boolean;
-  homeTeamId: string | null;
-  awayTeamId: string | null;
-  teams: FootballTeam[];
-}) {
-  if (!prediction?.available) return null;
-
-  const pick = favoredPickLabel(prediction, homeTeamId, awayTeamId, teams);
-  const winProb = prediction.pickWinProbability ?? prediction.favoredWinProbability;
-  const pct = `${(winProb * 100).toFixed(0)}%`;
-  const teamName = prediction.pickTeamName ?? prediction.favoredTeamName ?? pick;
-
-  const colorClass = (() => {
-    if (finished) {
-      const tone =
-        prediction.resultTone ??
-        (prediction.pickCorrect || prediction.predictionCorrect
-          ? "hit"
-          : prediction.actualOutcome === "draw"
-            ? "draw"
-            : "miss");
-      if (tone === "hit") return "text-emerald-400";
-      if (tone === "draw") return "text-amber-400";
-      return "text-red-400";
-    }
-    return "text-primary";
-  })();
-
-  return (
-    <div className="flex flex-col items-center mt-1 gap-0.5 max-w-[5rem]">
-      <span
-        className={cn(
-          "text-[10px] font-mono font-bold uppercase tracking-wide truncate w-full text-center",
-          colorClass,
-        )}
-        title={`${teamName} to win`}
-      >
-        {pick}
-      </span>
-      <span className={cn("text-xs font-mono font-bold tabular-nums", colorClass)}>{pct}</span>
-      {!finished && (
-        <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/70 flex items-center gap-0.5">
-          <Activity className="w-2.5 h-2.5" />
-          VScor
-        </span>
-      )}
-    </div>
-  );
-}
-
 function MatchCard({
   f,
   teams,
   timeZone,
-  prediction,
-  showVscorOdds = false,
 }: {
   f: FootballFixture;
   teams: FootballTeam[];
   timeZone: string;
-  prediction?: FixturePrediction;
-  showVscorOdds?: boolean;
 }) {
   const finished = f.is_finished;
   const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone, { withTimezone: true });
@@ -191,38 +101,17 @@ function MatchCard({
 
         <div className="flex flex-col items-center justify-center min-w-[3.5rem] sm:min-w-[4.5rem] px-1 sm:px-2">
           {finished ? (
-            <>
-              <span className="text-xl md:text-2xl font-mono font-bold tabular-nums">
-                {f.home_goals ?? 0}
-                <span className="text-muted-foreground mx-1.5 font-normal">–</span>
-                {f.away_goals ?? 0}
-              </span>
-              {showVscorOdds && (
-                <VscorMatchOdds
-                  prediction={prediction}
-                  finished
-                  homeTeamId={f.home_team_id}
-                  awayTeamId={f.away_team_id}
-                  teams={teams}
-                />
-              )}
-            </>
+            <span className="text-xl md:text-2xl font-mono font-bold tabular-nums">
+              {f.home_goals ?? 0}
+              <span className="text-muted-foreground mx-1.5 font-normal">–</span>
+              {f.away_goals ?? 0}
+            </span>
           ) : (
             <>
               <span className="text-lg font-mono font-bold text-muted-foreground">{kickoffTimeShort}</span>
-              {showVscorOdds ? (
-                <VscorMatchOdds
-                  prediction={prediction}
-                  finished={false}
-                  homeTeamId={f.home_team_id}
-                  awayTeamId={f.away_team_id}
-                  teams={teams}
-                />
-              ) : (
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                  Kickoff · {getTimezoneLabel(timeZone)}
-                </span>
-              )}
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                Kickoff · {getTimezoneLabel(timeZone)}
+              </span>
             </>
           )}
         </div>
@@ -246,8 +135,6 @@ function RecentResultsBlock({
   limit = 5,
   defaultCollapsed = false,
   collapsible = true,
-  predictions,
-  showVscorOdds = false,
 }: {
   results: FootballFixture[];
   teams: FootballTeam[];
@@ -256,8 +143,6 @@ function RecentResultsBlock({
   limit?: number;
   defaultCollapsed?: boolean;
   collapsible?: boolean;
-  predictions?: Map<string, FixturePrediction>;
-  showVscorOdds?: boolean;
 }) {
   const [open, setOpen] = useState(collapsible ? !defaultCollapsed : true);
   const slice = results.slice(0, limit);
@@ -289,8 +174,6 @@ function RecentResultsBlock({
               f={f}
               teams={teams}
               timeZone={timeZone}
-              prediction={predictions?.get(f.api_fixture_id)}
-              showVscorOdds={showVscorOdds}
             />
           ))}
         </div>
@@ -322,8 +205,6 @@ function RecentResultsBlock({
               f={f}
               teams={teams}
               timeZone={timeZone}
-              prediction={predictions?.get(f.api_fixture_id)}
-              showVscorOdds={showVscorOdds}
             />
           ))}
         </div>
@@ -462,14 +343,12 @@ function GroupStandingsCard({
   teamNameById,
   teams,
   onTeamPathSelect,
-  resolveSimulatorId,
 }: {
   group: string;
   rows: FootballStanding[];
   teamNameById: Record<string, string>;
   teams: FootballTeam[];
   onTeamPathSelect?: (apiTeamId: string) => void;
-  resolveSimulatorId?: (apiTeamId: string) => string | null;
 }) {
   const groupRows = [...rows.filter((r) => r.group_name === group)].sort(
     (a, b) => (a.rank ?? 99) - (b.rank ?? 99),
@@ -490,7 +369,7 @@ function GroupStandingsCard({
           const qualifies = (r.rank ?? 99) <= QUALIFYING_SPOTS;
           const gd = r.goal_difference ?? (r.goals_for ?? 0) - (r.goals_against ?? 0);
           const name = r.team_name ?? teamNameById[r.team_id] ?? r.team_id;
-          const simId = resolveSimulatorId?.(r.team_id) ?? null;
+          const clickable = !!onTeamPathSelect;
 
           const content = (
             <>
@@ -526,13 +405,13 @@ function GroupStandingsCard({
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">GD</p>
               </div>
-              {simId && (
+              {clickable && (
                 <GitBranch className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0 group-hover:text-primary transition-colors" />
               )}
             </>
           );
 
-          if (simId) {
+          if (clickable) {
             return (
               <button
                 key={`${r.group_name}-${r.team_id}`}
@@ -542,7 +421,7 @@ function GroupStandingsCard({
                   "group flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-secondary/50 transition-colors",
                   qualifies && "bg-primary/[0.06] border-l-2 border-primary",
                 )}
-                title={`View ${name}'s path to the final`}
+                title="View knockout bracket"
               >
                 {content}
               </button>
@@ -572,14 +451,12 @@ function StandingsTableView({
   teamNameById,
   teams,
   onTeamPathSelect,
-  resolveSimulatorId,
 }: {
   group: string;
   rows: FootballStanding[];
   teamNameById: Record<string, string>;
   teams: FootballTeam[];
   onTeamPathSelect?: (apiTeamId: string) => void;
-  resolveSimulatorId?: (apiTeamId: string) => string | null;
 }) {
   const groupRows = [...rows.filter((r) => r.group_name === group)].sort(
     (a, b) => (a.rank ?? 99) - (b.rank ?? 99),
@@ -611,7 +488,7 @@ function StandingsTableView({
             const qualifies = (r.rank ?? 99) <= QUALIFYING_SPOTS;
             const gd = r.goal_difference ?? (r.goals_for ?? 0) - (r.goals_against ?? 0);
             const name = r.team_name ?? teamNameById[r.team_id] ?? r.team_id;
-            const simId = resolveSimulatorId?.(r.team_id) ?? null;
+            const clickable = !!onTeamPathSelect;
             const teamCell = (
               <div className="flex items-center gap-2 min-w-0">
                 {teamFlag(r.team_id, teams, 24)}
@@ -621,9 +498,9 @@ function StandingsTableView({
                     Qualifies
                   </span>
                 )}
-                {simId && (
+                {clickable && (
                   <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground/70 shrink-0">
-                    <GitBranch className="w-3 h-3" /> Path
+                    <GitBranch className="w-3 h-3" /> Bracket
                   </span>
                 )}
               </div>
@@ -634,10 +511,10 @@ function StandingsTableView({
                 key={`${r.group_name}-${r.team_id}`}
                 className={cn(
                   qualifies && "bg-primary/[0.04]",
-                  simId && "cursor-pointer hover:bg-secondary/40",
+                  clickable && "cursor-pointer hover:bg-secondary/40",
                 )}
-                onClick={simId && onTeamPathSelect ? () => onTeamPathSelect(r.team_id) : undefined}
-                title={simId ? `View ${name}'s path to the final` : undefined}
+                onClick={clickable ? () => onTeamPathSelect!(r.team_id) : undefined}
+                title={clickable ? "View knockout bracket" : undefined}
               >
                 <td className="py-3 pl-4 pr-2">
                   <span
@@ -682,8 +559,7 @@ type DataSection = "matches" | "tables" | "scorers";
 
 export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?: PanelVariant }) {
   const search = useSearch();
-  const { openBracketForTeam } = useHomeTab();
-  const { data: simTeams = [] } = useGetTeams();
+  const [, setLocation] = useLocation();
 
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [activeGroup, setActiveGroup] = useState("A");
@@ -704,23 +580,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const standings = liveData?.standings ?? [];
   const teams = liveData?.teams ?? [];
 
-  const apiToSimulator = useMemo(
-    () => buildApiToSimulatorMap(simTeams, teams),
-    [simTeams, teams],
-  );
-
-  const resolveSimulatorId = useCallback(
-    (apiTeamId: string) => apiToSimulator.get(apiTeamId) ?? null,
-    [apiToSimulator],
-  );
-
-  const handleTeamPathFromTable = useCallback(
-    (apiTeamId: string) => {
-      const simId = apiToSimulator.get(apiTeamId);
-      if (simId) openBracketForTeam(simId);
-    },
-    [apiToSimulator, openBracketForTeam],
-  );
+  const handleTeamBracketFromTable = useCallback(() => {
+    setLocation("/");
+  }, [setLocation]);
 
   useEffect(() => {
     const qs = search.startsWith("?") ? search.slice(1) : search;
@@ -842,36 +704,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     return recentResults.filter((f) => !shown.has(f.api_fixture_id)).slice(0, 8);
   }, [recentResults, upcomingWindow]);
 
-  const fixturesForVscorToday = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: FootballFixture[] = [];
-    for (const f of [...upcomingWindow, ...todayCollapsedResults]) {
-      if (!seen.has(f.api_fixture_id)) {
-        seen.add(f.api_fixture_id);
-        merged.push(f);
-      }
-    }
-    return merged;
-  }, [upcomingWindow, todayCollapsedResults]);
-
-  const fixturesForVscorResults = useMemo(
-    () => recentResults.slice(0, 30),
-    [recentResults],
-  );
-
-  const showVscorToday = variant === "full" && dataSection === "matches" && scheduleView === "today";
-  const showVscorResults = variant === "full" && dataSection === "matches" && scheduleView === "results";
-
-  const { predictions: todayPredictions } = useFixturePredictions(fixturesForVscorToday, teams, {
-    enabled: showVscorToday && hasLiveContent,
-    useLiveMetrics: true,
-  });
-
-  const { predictions: resultsPredictions } = useFixturePredictions(fixturesForVscorResults, teams, {
-    enabled: showVscorResults && hasLiveContent,
-    useLiveMetrics: true,
-  });
-
   const loading = liveLoading || (!hasLiveContent && liveFetching);
 
   if (variant === "teaser") {
@@ -946,8 +778,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                           rows={standings}
                           teamNameById={teamNameById}
                           teams={teams}
-                          onTeamPathSelect={handleTeamPathFromTable}
-                          resolveSimulatorId={resolveSimulatorId}
+                          onTeamPathSelect={handleTeamBracketFromTable}
                         />
                       ))}
                     </div>
@@ -1090,8 +921,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                               f={f}
                               teams={teams}
                               timeZone={timeZone}
-                              prediction={todayPredictions.get(f.api_fixture_id)}
-                              showVscorOdds
                             />
                           ))
                         )}
@@ -1106,8 +935,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                             title="Recent results"
                             limit={8}
                             collapsible={false}
-                            predictions={todayPredictions}
-                            showVscorOdds
                           />
                         ) : (
                           <div>
@@ -1138,14 +965,9 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
                   {scheduleView === "results" && (
                     <div>
-                      <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center justify-between gap-2">
+                      <div className="px-4 py-2.5 border-b border-border/20 bg-secondary/10 flex items-center gap-2">
                         <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
-                          Model vs result
-                        </span>
-                        <span className="text-[10px] font-mono text-muted-foreground/80">
-                          <span className="text-emerald-400">●</span> pick won
-                          <span className="mx-1.5 text-amber-400">●</span> draw
-                          <span className="mx-1.5 text-red-400">●</span> pick lost
+                          Match results
                         </span>
                       </div>
                       {recentResults.length === 0 ? (
@@ -1157,8 +979,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                             f={f}
                             teams={teams}
                             timeZone={timeZone}
-                            prediction={resultsPredictions.get(f.api_fixture_id)}
-                            showVscorOdds
                           />
                         ))
                       )}
@@ -1264,8 +1084,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                               rows={standings}
                               teamNameById={teamNameById}
                               teams={teams}
-                              onTeamPathSelect={handleTeamPathFromTable}
-                              resolveSimulatorId={resolveSimulatorId}
+                              onTeamPathSelect={handleTeamBracketFromTable}
                             />
                           ))}
                         </div>
@@ -1293,8 +1112,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                             rows={standings}
                             teamNameById={teamNameById}
                             teams={teams}
-                            onTeamPathSelect={handleTeamPathFromTable}
-                            resolveSimulatorId={resolveSimulatorId}
+                            onTeamPathSelect={handleTeamBracketFromTable}
                           />
                         </>
                       )}

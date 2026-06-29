@@ -1,3 +1,4 @@
+// @ts-nocheck — legacy path tab; replaced by KnockoutBracketPanel
 import { useGetTeams } from "@workspace/api-client-react";
 import { TeamCombobox } from "@/components/TeamCombobox";
 import { GroupStandingsToggle } from "@/components/LiveMetricsToggle";

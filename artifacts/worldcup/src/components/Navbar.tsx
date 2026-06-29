@@ -1,22 +1,10 @@
 import { useState } from "react"
-import { Link, useLocation, useSearch } from "wouter"
-import { cn } from "@/lib/utils"
+import { Link } from "wouter"
 import { publicAsset } from "@/lib/assets"
-import { rankingsHrefPreservingTeam } from "@/hooks/useHomeTab"
-import { Menu, X, BarChart3 } from "lucide-react"
+import { Menu, X } from "lucide-react"
 
 export function Navbar() {
-  const [location] = useLocation()
-  const search = useSearch()
   const [mobileOpen, setMobileOpen] = useState(false)
-
-  const qs = search.startsWith("?") ? search.slice(1) : search
-  const params = new URLSearchParams(qs)
-  const isRankings =
-    location.startsWith("/rankings") ||
-    (location === "/" && params.get("tab") === "path" && params.get("section") === "rankings")
-
-  const rankingsHref = rankingsHrefPreservingTeam(search)
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
@@ -32,18 +20,6 @@ export function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-2">
-          <Link
-            href={rankingsHref}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
-              isRankings
-                ? "text-primary bg-primary/10 border border-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-            )}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            Rankings
-          </Link>
           <a
             href="https://vscor.in"
             className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground px-3 py-2"
@@ -64,17 +40,6 @@ export function Navbar() {
 
       {mobileOpen && (
         <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-md px-[5%] py-3 space-y-1">
-          <Link
-            href={rankingsHref}
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider",
-              isRankings ? "text-primary bg-primary/10" : "text-muted-foreground",
-            )}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Rankings
-          </Link>
           <a
             href="https://vscor.in"
             className="block px-3 py-2.5 text-sm font-bold uppercase tracking-wider text-muted-foreground"

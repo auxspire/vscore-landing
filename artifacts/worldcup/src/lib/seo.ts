@@ -4,7 +4,7 @@ export const SITE_ORIGIN = "https://vscor.in"
 export const WORLDCUP_BASE = `${SITE_ORIGIN}/worldcup`
 
 export const DEFAULT_KEYWORDS =
-  "VScor, world cup predictor, world cup 2026 predictor, match probability predictor, FIFA World Cup simulator, bracket predictor, Monte Carlo football, World Cup odds, probability calculator"
+  "VScor, world cup 2026, FIFA World Cup bracket, knockout bracket, World Cup standings, World Cup fixtures, World Cup 2026 schedule"
 
 function upsertMeta(attr: "name" | "property", key: string, content: string) {
   const selector = `meta[${attr}="${key}"]`
@@ -72,21 +72,21 @@ export function usePageSeo(options: PageSeoOptions) {
 
 export const PAGE_SEO = {
   home: {
-    title: "VScor World Cup 2026 Hub | Predictor, Bracket & Fixtures",
+    title: "VScor World Cup 2026 Hub | Knockout Bracket & Fixtures",
     description:
-      "Free VScor World Cup 2026 hub: Monte Carlo match predictions, path-to-final bracket explorer, live fixtures, results, and group standings for all 48 teams.",
+      "Live World Cup 2026 knockout bracket from group standings and results, plus fixtures, group tables, and scorers for all 48 teams.",
     path: "/",
   },
   bracket: {
-    title: "World Cup 2026 Bracket Predictor | Path to Final | VScor",
+    title: "World Cup 2026 Knockout Bracket | VScor",
     description:
-      "Explore every nation's path to the World Cup 2026 final with VScor's bracket predictor. Stage-by-stage probabilities, likely opponents, and Monte Carlo simulation results.",
+      "Full FIFA World Cup 2026 knockout bracket — Round of 32 through the final — updated from live standings and match results.",
     path: "/bracket",
   },
   rankings: {
-    title: "World Cup 2026 Power Rankings & Win Probability | VScor",
+    title: "World Cup 2026 Knockout Bracket | VScor",
     description:
-      "VScor World Cup 2026 power rankings: all 48 teams ranked by championship win probability from 10,000 tournament simulations. Compare round-of-32, quarter-final, and final odds.",
+      "Full FIFA World Cup 2026 knockout bracket updated from live standings and results.",
     path: "/rankings",
   },
   fixtures: {
@@ -97,11 +97,10 @@ export const PAGE_SEO = {
   },
 } as const
 
-export function matchupSeo(teamA: string, teamB: string, probability?: number) {
-  const pct = probability != null ? ` — ${(probability * 100).toFixed(1)}% meeting chance` : ""
+export function matchupSeo(teamA: string, teamB: string) {
   return {
-    title: `${teamA} vs ${teamB} World Cup 2026 Match Probability${pct} | VScor`,
-    description: `VScor predicts the probability of ${teamA} and ${teamB} meeting at each stage of World Cup 2026. Stage-by-stage matchup odds from 10,000 Monte Carlo simulations.`,
+    title: `${teamA} vs ${teamB} | World Cup 2026 | VScor`,
+    description: `World Cup 2026 knockout bracket and fixtures on VScor.`,
     path: `/matchup?teamA=${encodeURIComponent(teamA)}&teamB=${encodeURIComponent(teamB)}`,
   }
 }
