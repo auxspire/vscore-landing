@@ -179,6 +179,13 @@ function applyFixture(
 
   const finished = fixture.is_finished;
   const live = isLiveFixture(fixture);
+
+  // API often sends 0-0 for fixtures not yet kicked off — show blank until live/finished.
+  if (!finished && !live) {
+    home = { ...home, score: null };
+    away = { ...away, score: null };
+  }
+
   let winnerId: string | null = null;
   if (finished && home.score != null && away.score != null) {
     if (home.score > away.score) winnerId = home.participant.apiTeamId;

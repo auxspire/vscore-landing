@@ -61,10 +61,7 @@ describe("buildKnockoutBracketState", () => {
   });
 
   it("advances winner from finished knockout fixture", () => {
-    const teams = [
-      mockTeam("a1", "A", "Team A"),
-      mockTeam("b1", "B", "Team B"),
-    ];
+    const teams = [mockTeam("a1", "A", "Team A"), mockTeam("b1", "B", "Team B")];
     const standings = [
       standing("A", 1, "a1", "Team A", 9),
       standing("B", 2, "b1", "Team B", 6),
@@ -87,12 +84,7 @@ describe("buildKnockoutBracketState", () => {
       is_finished: true,
     };
 
-    const state = buildKnockoutBracketState({
-      standings,
-      teams,
-      fixtures: [r32Fixture],
-    });
-
+    const state = buildKnockoutBracketState({ standings, teams, fixtures: [r32Fixture] });
     const r32 = matchesByStage(state).get("round_of_32") ?? [];
     const matched = r32.find(
       (m) =>
@@ -102,6 +94,41 @@ describe("buildKnockoutBracketState", () => {
     if (matched) {
       expect(matched.winnerId).toBe("a1");
     }
+  });
+
+  it("shows blank scores for upcoming fixtures with API placeholder 0-0", () => {
+    const teams = [mockTeam("a1", "A", "Team A"), mockTeam("b1", "B", "Team B")];
+    const standings = [
+      standing("A", 1, "a1", "Team A", 9),
+      standing("B", 2, "b1", "Team B", 6),
+    ];
+
+    const upcoming: FootballFixture = {
+      api_fixture_id: "r32-up",
+      kickoff_at: "2026-07-10T00:00:00Z",
+      home_team_id: "a1",
+      home_team_name: "Team A",
+      away_team_id: "b1",
+      away_team_name: "Team B",
+      home_goals: 0,
+      away_goals: 0,
+      home_scorers: null,
+      away_scorers: null,
+      group_name: null,
+      match_type: "r32",
+      time_elapsed: "notstarted",
+      is_finished: false,
+    };
+
+    const state = buildKnockoutBracketState({ standings, teams, fixtures: [upcoming] });
+    const r32 = matchesByStage(state).get("round_of_32") ?? [];
+    const matched = r32.find(
+      (m) => m.home.participant.apiTeamId === "a1" && m.away.participant.apiTeamId === "b1",
+    );
+    expect(matched?.home.score).toBeNull();
+    expect(matched?.away.score).toBeNull();
+  });
+
   it("normalizes production match_type codes (r32, qf, sf, third)", () => {
     const teams = [mockTeam("x1", "A", "Winner A"), mockTeam("x2", "B", "Runner B")];
     const standings = [
