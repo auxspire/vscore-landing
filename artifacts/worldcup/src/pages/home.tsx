@@ -37,7 +37,7 @@ export default function Home() {
       wide={tab === "fixtures" || tab === "bracket"}
       showHubTabs
     >
-      <header className="mb-8 text-center md:text-left">
+      <header className="mb-4 md:mb-8 text-center md:text-left">
         <div className="flex items-center justify-center md:justify-start gap-3.5 mb-4">
           <img
             src={publicAsset("wc26-sticker-path.png")}
@@ -76,7 +76,7 @@ export default function Home() {
         </div>
       )}
 
-      <FaqSection items={HOME_FAQ} className="mt-16 mb-4" />
+      <FaqSection items={HOME_FAQ} className="mt-10 md:mt-16 mb-4" />
     </WorldCupLayout>
   );
 }

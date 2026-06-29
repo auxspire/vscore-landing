@@ -42,7 +42,7 @@ export function WorldCupLayout({
       )}
       <div
         className={cn(
-          "flex-1 pt-6 pb-24 px-4 md:px-8 mx-auto w-full relative z-10",
+          "flex-1 pt-4 md:pt-6 pb-20 md:pb-24 px-3 md:px-8 mx-auto w-full relative z-10",
           wide ? "max-w-6xl" : "max-w-5xl",
         )}
       >
