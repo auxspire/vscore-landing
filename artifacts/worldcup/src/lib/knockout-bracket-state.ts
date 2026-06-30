@@ -116,12 +116,43 @@ function isScheduledTeam(id: string | null, name: string | null): boolean {
   return !/^(winner|loser)\s+(match|m)\b/i.test(n);
 }
 
-function formatFeederWinnerLabel(feeder: BracketMatch): string {
-  return `Winner of ${feeder.home.participant.name} vs ${feeder.away.participant.name}`;
+/** Strip nested "Winner/Loser of" prefix; return the readable matchup or team name. */
+function extractSideLabel(p: BracketParticipant): string {
+  if (p.apiTeamId) return p.name;
+  let text = p.name.trim();
+  for (let i = 0; i < 3; i++) {
+    const m = text.match(/^(?:Winner|Loser) of\s+(.+)$/i);
+    if (!m) break;
+    text = m[1].trim();
+    if (text.startsWith("(") && text.endsWith(")")) {
+      text = text.slice(1, -1).trim();
+    }
+  }
+  return text;
 }
 
-function formatFeederLoserLabel(feeder: BracketMatch): string {
-  return `Loser of ${feeder.home.participant.name} vs ${feeder.away.participant.name}`;
+function useCompactFeederLabel(feeder: BracketMatch): boolean {
+  return feeder.stage !== "round_of_32";
+}
+
+function formatFeederWinnerLabel(feeder: BracketMatch, forceCompact?: boolean): string {
+  const home = extractSideLabel(feeder.home.participant);
+  const away = extractSideLabel(feeder.away.participant);
+  const compact = forceCompact ?? useCompactFeederLabel(feeder);
+  if (compact) {
+    return `Winner of (${home} · ${away})`;
+  }
+  return `Winner of ${home} vs ${away}`;
+}
+
+function formatFeederLoserLabel(feeder: BracketMatch, forceCompact?: boolean): string {
+  const home = extractSideLabel(feeder.home.participant);
+  const away = extractSideLabel(feeder.away.participant);
+  const compact = forceCompact ?? useCompactFeederLabel(feeder);
+  if (compact) {
+    return `Loser of (${home} · ${away})`;
+  }
+  return `Loser of ${home} vs ${away}`;
 }
 
 function buildFixtureIdMap(matches: BracketMatch[]): Map<string, BracketMatch> {
@@ -146,15 +177,20 @@ function parseApiMatchPlaceholder(
 function participantFromApiPlaceholder(
   name: string | null,
   fixtureIdToMatch: Map<string, BracketMatch>,
+  displayStage?: KnockoutStage,
 ): BracketParticipant | null {
   const parsed = parseApiMatchPlaceholder(name);
   if (!parsed) return null;
   const feeder = fixtureIdToMatch.get(parsed.fixtureId);
   if (!feeder) return null;
+  const compact =
+    displayStage != null &&
+    displayStage !== "round_of_32" &&
+    displayStage !== "round_of_16";
   const label =
     parsed.kind === "winner"
-      ? formatFeederWinnerLabel(feeder)
-      : formatFeederLoserLabel(feeder);
+      ? formatFeederWinnerLabel(feeder, compact)
+      : formatFeederLoserLabel(feeder, compact);
   return {
     apiTeamId: null,
     name: label,
@@ -182,11 +218,12 @@ function resolveFixtureParticipant(
   teamName: string | null,
   teams: FootballTeam[],
   fixtureIdToMatch: Map<string, BracketMatch>,
+  displayStage?: KnockoutStage,
 ): BracketParticipant {
   if (isScheduledTeam(teamId, teamName) && teamId) {
     return participantFromFixtureTeam(teamId, teamName, teams);
   }
-  const fromApi = participantFromApiPlaceholder(teamName, fixtureIdToMatch);
+  const fromApi = participantFromApiPlaceholder(teamName, fixtureIdToMatch, displayStage);
   if (fromApi) return fromApi;
   return {
     apiTeamId: teamId,
@@ -254,7 +291,11 @@ function mergeMatchWithFixture(
       score: null,
     };
   } else {
-    const fromApi = participantFromApiPlaceholder(fixture.home_team_name, fixtureIdToMatch);
+    const fromApi = participantFromApiPlaceholder(
+      fixture.home_team_name,
+      fixtureIdToMatch,
+      match.stage,
+    );
     if (fromApi) home = { participant: fromApi, score: null };
   }
 
@@ -268,7 +309,11 @@ function mergeMatchWithFixture(
       score: null,
     };
   } else {
-    const fromApi = participantFromApiPlaceholder(fixture.away_team_name, fixtureIdToMatch);
+    const fromApi = participantFromApiPlaceholder(
+      fixture.away_team_name,
+      fixtureIdToMatch,
+      match.stage,
+    );
     if (fromApi) away = { participant: fromApi, score: null };
   }
 
@@ -626,6 +671,7 @@ export function buildKnockoutBracketState(input: {
             thirdPlaceFixture.home_team_name,
             teams,
             fixtureIdToMatchAfterSf,
+            "third_place",
           ),
           score: null,
         },
@@ -635,6 +681,7 @@ export function buildKnockoutBracketState(input: {
             thirdPlaceFixture.away_team_name,
             teams,
             fixtureIdToMatchAfterSf,
+            "third_place",
           ),
           score: null,
         },

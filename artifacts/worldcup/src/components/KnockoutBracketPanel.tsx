@@ -90,17 +90,28 @@ function MatchTimingSubtext({ match }: { match: BracketMatch }) {
 }
 
 function PlaceholderTeamName({ name, compact }: { name: string; compact?: boolean }) {
-  const m = name.match(/^(Winner of|Loser of)\s+(.+)$/i);
-  if (!m) {
+  const m = name.match(/^(Winner of|Loser of)\s+(\(.+\))$/i);
+  if (m) {
     return (
-      <span className={cn("line-clamp-2", compact ? "text-xs" : "text-sm")}>{name}</span>
+      <span className="flex flex-col min-w-0 leading-snug gap-0.5">
+        <span className="text-[10px] text-muted-foreground/80 font-medium">{m[1]}</span>
+        <span className={cn("line-clamp-2 tabular-nums", compact ? "text-xs" : "text-sm")}>
+          {m[2]}
+        </span>
+      </span>
+    );
+  }
+  const plain = name.match(/^(Winner of|Loser of)\s+(.+)$/i);
+  if (plain) {
+    return (
+      <span className="flex flex-col min-w-0 leading-snug gap-0.5">
+        <span className="text-[10px] text-muted-foreground/80 font-medium">{plain[1]}</span>
+        <span className={cn("line-clamp-2", compact ? "text-xs" : "text-sm")}>{plain[2]}</span>
+      </span>
     );
   }
   return (
-    <span className="flex flex-col min-w-0 leading-snug gap-0.5">
-      <span className="text-[10px] text-muted-foreground/80 font-medium">{m[1]}</span>
-      <span className={cn("line-clamp-2", compact ? "text-xs" : "text-sm")}>{m[2]}</span>
-    </span>
+    <span className={cn("line-clamp-2", compact ? "text-xs" : "text-sm")}>{name}</span>
   );
 }
 

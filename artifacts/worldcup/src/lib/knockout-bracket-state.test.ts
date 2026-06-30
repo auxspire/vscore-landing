@@ -292,4 +292,99 @@ describe("buildKnockoutBracketState", () => {
     expect(other.name).toMatch(/^Winner of /);
     expect(other.name).not.toMatch(/^Winner M\d/);
   });
+
+  it("uses compact Winner of (A · B) labels from QF onward", () => {
+    const teams = [
+      mockTeam("py", "D", "Paraguay"),
+      mockTeam("fr", "I", "France"),
+      mockTeam("se", "F", "Sweden"),
+      mockTeam("ca", "B", "Canada"),
+      mockTeam("ma", "C", "Morocco"),
+    ];
+    const standings = [
+      standing("D", 3, "py", "Paraguay", 4),
+      standing("I", 1, "fr", "France", 6),
+      standing("F", 2, "se", "Sweden", 4),
+      standing("B", 2, "ca", "Canada", 6),
+      standing("C", 1, "ma", "Morocco", 6),
+    ];
+
+    const fixtures: FootballFixture[] = [
+      {
+        api_fixture_id: "74",
+        kickoff_at: "2026-06-29T20:30:00.000Z",
+        home_team_id: "py",
+        home_team_name: "Paraguay",
+        away_team_id: "fr",
+        away_team_name: "France",
+        home_goals: 2,
+        away_goals: 1,
+        home_scorers: null,
+        away_scorers: null,
+        group_name: "R32",
+        match_type: "r32",
+        time_elapsed: "finished",
+        is_finished: true,
+      },
+      {
+        api_fixture_id: "77",
+        kickoff_at: "2026-07-01T00:00:00Z",
+        home_team_id: "fr",
+        home_team_name: "France",
+        away_team_id: "se",
+        away_team_name: "Sweden",
+        home_goals: 0,
+        away_goals: 0,
+        home_scorers: null,
+        away_scorers: null,
+        group_name: "R32",
+        match_type: "r32",
+        time_elapsed: "notstarted",
+        is_finished: false,
+      },
+      {
+        api_fixture_id: "89",
+        kickoff_at: "2026-07-04T00:00:00Z",
+        home_team_id: "py",
+        home_team_name: "Paraguay",
+        away_team_id: null,
+        away_team_name: "Winner Match 77",
+        home_goals: 0,
+        away_goals: 0,
+        home_scorers: null,
+        away_scorers: null,
+        group_name: "R16",
+        match_type: "r16",
+        time_elapsed: "notstarted",
+        is_finished: false,
+      },
+      {
+        api_fixture_id: "90",
+        kickoff_at: "2026-07-04T20:00:00Z",
+        home_team_id: "ca",
+        home_team_name: "Canada",
+        away_team_id: "ma",
+        away_team_name: "Morocco",
+        home_goals: 1,
+        away_goals: 0,
+        home_scorers: null,
+        away_scorers: null,
+        group_name: "R16",
+        match_type: "r16",
+        time_elapsed: "finished",
+        is_finished: true,
+      },
+    ];
+
+    const state = buildKnockoutBracketState({ standings, teams, fixtures });
+    const qf = matchesByStage(state).get("quarterfinal") ?? [];
+    const placeholders = qf.flatMap((m) => [m.home.participant, m.away.participant]).filter((p) => !p.apiTeamId);
+    expect(placeholders.length).toBeGreaterThan(0);
+    for (const p of placeholders) {
+      expect(p.name).not.toMatch(/Winner of Winner of/i);
+      if (p.name.includes("(")) {
+        expect(p.name).toMatch(/^Winner of \([^)]+\)$/);
+      }
+    }
+  });
 });
