@@ -96,6 +96,36 @@ describe("buildKnockoutBracketState", () => {
     }
   });
 
+  it("normalizes production match_type codes (r32, qf, sf, third)", () => {
+    const teams = [mockTeam("x1", "A", "Winner A"), mockTeam("x2", "B", "Runner B")];
+    const standings = [
+      standing("A", 1, "x1", "Winner A", 9),
+      standing("B", 2, "x2", "Runner B", 6),
+    ];
+    const fixtures: FootballFixture[] = [
+      {
+        api_fixture_id: "qf-1",
+        kickoff_at: null,
+        home_team_id: "x1",
+        home_team_name: "Winner A",
+        away_team_id: "x2",
+        away_team_name: "Runner B",
+        home_goals: 1,
+        away_goals: 0,
+        home_scorers: null,
+        away_scorers: null,
+        group_name: null,
+        match_type: "qf",
+        time_elapsed: "finished",
+        is_finished: true,
+      },
+    ];
+
+    const state = buildKnockoutBracketState({ standings, teams, fixtures });
+    const qf = matchesByStage(state).get("quarterfinal") ?? [];
+    expect(qf.some((m) => m.isFinished && m.winnerId === "x1")).toBe(true);
+  });
+
   it("shows blank scores for upcoming fixtures with API placeholder 0-0", () => {
     const teams = [mockTeam("a1", "A", "Team A"), mockTeam("b1", "B", "Team B")];
     const standings = [
@@ -129,33 +159,69 @@ describe("buildKnockoutBracketState", () => {
     expect(matched?.away.score).toBeNull();
   });
 
-  it("normalizes production match_type codes (r32, qf, sf, third)", () => {
-    const teams = [mockTeam("x1", "A", "Winner A"), mockTeam("x2", "B", "Runner B")];
-    const standings = [
-      standing("A", 1, "x1", "Winner A", 9),
-      standing("B", 2, "x2", "Runner B", 6),
+  it("uses official R32 fixture over projected third-place slot (Germany vs Paraguay)", () => {
+    const teams = [
+      mockTeam("17", "E", "Germany"),
+      mockTeam("14", "D", "Paraguay"),
+      mockTeam("99", "B", "Bosnia and Herzegovina"),
     ];
-    const fixtures: FootballFixture[] = [
-      {
-        api_fixture_id: "qf-1",
-        kickoff_at: null,
-        home_team_id: "x1",
-        home_team_name: "Winner A",
-        away_team_id: "x2",
-        away_team_name: "Runner B",
-        home_goals: 1,
-        away_goals: 0,
-        home_scorers: null,
-        away_scorers: null,
-        group_name: null,
-        match_type: "qf",
-        time_elapsed: "finished",
-        is_finished: true,
-      },
+    const standings = [
+      standing("E", 1, "17", "Germany", 6),
+      standing("D", 3, "14", "Paraguay", 4),
+      standing("B", 3, "99", "Bosnia and Herzegovina", 4),
     ];
 
-    const state = buildKnockoutBracketState({ standings, teams, fixtures });
-    const qf = matchesByStage(state).get("quarterfinal") ?? [];
-    expect(qf.some((m) => m.isFinished && m.winnerId === "x1")).toBe(true);
+    const r32Fixture: FootballFixture = {
+      api_fixture_id: "74",
+      kickoff_at: "2026-06-29T20:30:00.000Z",
+      home_team_id: "17",
+      home_team_name: "Germany",
+      away_team_id: "14",
+      away_team_name: "Paraguay",
+      home_goals: 1,
+      away_goals: 1,
+      home_scorers: null,
+      away_scorers: null,
+      group_name: "R32",
+      match_type: "r32",
+      time_elapsed: "finished",
+      is_finished: true,
+    };
+
+    const r16Fixture: FootballFixture = {
+      api_fixture_id: "89",
+      kickoff_at: "2026-07-04T00:00:00Z",
+      home_team_id: "14",
+      home_team_name: "Paraguay",
+      away_team_id: null,
+      away_team_name: "Winner Match 77",
+      home_goals: 0,
+      away_goals: 0,
+      home_scorers: null,
+      away_scorers: null,
+      group_name: "R16",
+      match_type: "r16",
+      time_elapsed: "notstarted",
+      is_finished: false,
+    };
+
+    const state = buildKnockoutBracketState({
+      standings,
+      teams,
+      fixtures: [r32Fixture, r16Fixture],
+    });
+
+    const r32 = matchesByStage(state).get("round_of_32") ?? [];
+    const dePy = r32.find(
+      (m) =>
+        m.home.participant.apiTeamId === "17" && m.away.participant.apiTeamId === "14",
+    );
+    expect(dePy).toBeDefined();
+    expect(dePy?.home.score).toBe(1);
+    expect(dePy?.away.score).toBe(1);
+    expect(dePy?.winnerId).toBe("14");
+
+    const r16 = matchesByStage(state).get("round_of_16") ?? [];
+    expect(r16.some((m) => m.home.participant.apiTeamId === "14")).toBe(true);
   });
 });

@@ -1,5 +1,11 @@
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Trophy, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Trophy, RefreshCw } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { TeamFlag } from "@/components/TeamFlag";
 import { FixturesLoadingState } from "@/components/FixturesLoadingState";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
@@ -24,9 +30,10 @@ const DISPLAY_STAGES: KnockoutStage[] = [
   "final",
 ];
 
-type MobileView = KnockoutStage | "champion" | "third_place";
+type MobileView = KnockoutStage | "champion" | "third_place" | "snapshot";
 
-const MOBILE_STAGE_TABS: { id: MobileView; short: string; label: string }[] = [
+const MOBILE_SLIDES: { id: MobileView; short: string; label: string }[] = [
+  { id: "snapshot", short: "Now", label: "Live & recent" },
   { id: "round_of_32", short: "R32", label: "Round of 32" },
   { id: "round_of_16", short: "R16", label: "Round of 16" },
   { id: "quarterfinal", short: "QF", label: "Quarter-finals" },
@@ -35,13 +42,12 @@ const MOBILE_STAGE_TABS: { id: MobileView; short: string; label: string }[] = [
   { id: "champion", short: "🏆", label: "Champion" },
 ];
 
-function pickDefaultMobileStage(
+function pickDefaultMobileSlide(
   byStage: Map<KnockoutStage, BracketMatch[]>,
   hasThirdPlace: boolean,
 ): MobileView {
   for (const stage of DISPLAY_STAGES) {
-    const matches = byStage.get(stage) ?? [];
-    if (matches.some((m) => m.isLive)) return stage;
+    if ((byStage.get(stage) ?? []).some((m) => m.isLive)) return stage;
   }
   for (const stage of DISPLAY_STAGES) {
     const matches = byStage.get(stage) ?? [];
@@ -61,7 +67,80 @@ function pickDefaultMobileStage(
     if ((byStage.get(stage) ?? []).some((m) => m.isFinished)) return stage;
   }
   if (hasThirdPlace) return "third_place";
-  return "round_of_32";
+  return "snapshot";
+}
+
+function stageStats(matches: BracketMatch[]) {
+  return {
+    live: matches.filter((m) => m.isLive).length,
+    finished: matches.filter((m) => m.isFinished).length,
+    total: matches.length,
+  };
+}
+
+function CompactMatchRow({ match }: { match: BracketMatch }) {
+  const winnerId = match.winnerId;
+  const homeWin = !!winnerId && winnerId === match.home.participant.apiTeamId;
+  const awayWin = !!winnerId && winnerId === match.away.participant.apiTeamId;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-xl border px-3 py-2.5 bg-card/70",
+        match.isLive ? "border-primary/50" : "border-border/60",
+      )}
+    >
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <TeamFlag
+            flagCode={match.home.participant.fifaCode ?? ""}
+            flagUrl={match.home.participant.flagUrl}
+            size={18}
+            className={cn(!match.home.participant.apiTeamId && "opacity-30")}
+          />
+          <span
+            className={cn(
+              "flex-1 text-sm truncate",
+              homeWin && "font-bold text-primary",
+              awayWin && winnerId && "opacity-45",
+              !match.home.participant.apiTeamId && "text-muted-foreground text-xs",
+            )}
+          >
+            {match.home.participant.name}
+          </span>
+          <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
+            {match.home.score ?? "–"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <TeamFlag
+            flagCode={match.away.participant.fifaCode ?? ""}
+            flagUrl={match.away.participant.flagUrl}
+            size={18}
+            className={cn(!match.away.participant.apiTeamId && "opacity-30")}
+          />
+          <span
+            className={cn(
+              "flex-1 text-sm truncate",
+              awayWin && "font-bold text-primary",
+              homeWin && winnerId && "opacity-45",
+              !match.away.participant.apiTeamId && "text-muted-foreground text-xs",
+            )}
+          >
+            {match.away.participant.name}
+          </span>
+          <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
+            {match.away.score ?? "–"}
+          </span>
+        </div>
+      </div>
+      {match.isLive && (
+        <span className="shrink-0 text-[9px] font-bold uppercase text-primary tracking-wider">
+          Live
+        </span>
+      )}
+    </div>
+  );
 }
 
 function BracketTeamRow({
@@ -231,14 +310,13 @@ function MobileBracketView({
   bracket: KnockoutBracketState;
 }) {
   const hasThirdPlace = (byStage.get("third_place")?.length ?? 0) > 0;
-  const defaultStage = useMemo(
-    () => pickDefaultMobileStage(byStage, hasThirdPlace),
+  const defaultSlide = useMemo(
+    () => pickDefaultMobileSlide(byStage, hasThirdPlace),
     [byStage, hasThirdPlace],
   );
-  const [active, setActive] = useState<MobileView>(defaultStage);
 
-  const tabs = useMemo(() => {
-    const base = [...MOBILE_STAGE_TABS];
+  const slides = useMemo(() => {
+    const base = [...MOBILE_SLIDES];
     if (hasThirdPlace) {
       base.splice(base.length - 1, 0, {
         id: "third_place",
@@ -249,110 +327,165 @@ function MobileBracketView({
     return base;
   }, [hasThirdPlace]);
 
-  const tabIndex = tabs.findIndex((t) => t.id === active);
+  const snapshotMatches = useMemo(() => {
+    const all = DISPLAY_STAGES.flatMap((stage) => byStage.get(stage) ?? []);
+    const live = all.filter((m) => m.isLive);
+    const recent = all
+      .filter((m) => m.isFinished)
+      .sort((a, b) => (b.kickoffAt ?? "").localeCompare(a.kickoffAt ?? ""));
+    return [...live, ...recent.filter((m) => !live.includes(m))].slice(0, 8);
+  }, [byStage]);
 
-  const goPrev = () => {
-    if (tabIndex > 0) setActive(tabs[tabIndex - 1].id);
-  };
-  const goNext = () => {
-    if (tabIndex < tabs.length - 1) setActive(tabs[tabIndex + 1].id);
-  };
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [activeIndex, setActiveIndex] = useState(() =>
+    Math.max(0, slides.findIndex((s) => s.id === defaultSlide)),
+  );
 
-  const activeMatches =
-    active !== "champion" && active !== "third_place"
-      ? (byStage.get(active) ?? [])
-      : [];
+  useEffect(() => {
+    if (!carouselApi) return;
+    const startIndex = Math.max(0, slides.findIndex((s) => s.id === defaultSlide));
+    if (startIndex > 0) carouselApi.scrollTo(startIndex, true);
+    const onSelect = () => setActiveIndex(carouselApi.selectedScrollSnap());
+    onSelect();
+    carouselApi.on("select", onSelect);
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi, defaultSlide, slides]);
 
-  const liveCount = activeMatches.filter((m) => m.isLive).length;
-  const finishedCount = activeMatches.filter((m) => m.isFinished).length;
+  const scrollTo = useCallback(
+    (index: number) => {
+      carouselApi?.scrollTo(index);
+    },
+    [carouselApi],
+  );
 
   return (
-    <div className="md:hidden space-y-4">
-      {/* Stage pills — horizontal scroll */}
-      <div className="relative -mx-1">
-        <div className="flex gap-1.5 overflow-x-auto pb-1 px-1 snap-x snap-mandatory scrollbar-none">
-          {tabs.map((tab) => {
-            const isActive = active === tab.id;
-            const count =
-              tab.id === "champion"
-                ? bracket.champion
-                  ? 1
-                  : 0
-                : tab.id === "third_place"
-                  ? 1
-                  : (byStage.get(tab.id)?.length ?? 0);
+    <div className="md:hidden space-y-3">
+      {/* Round glance strip — tap to jump, swipe carousel below */}
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none -mx-0.5 px-0.5">
+        {slides.map((slide, index) => {
+          const isActive = activeIndex === index;
+          const matches =
+            slide.id === "snapshot"
+              ? snapshotMatches
+              : slide.id === "champion"
+                ? []
+                : slide.id === "third_place"
+                  ? (byStage.get("third_place") ?? [])
+                  : (byStage.get(slide.id) ?? []);
+          const stats =
+            slide.id === "snapshot"
+              ? {
+                  live: snapshotMatches.filter((m) => m.isLive).length,
+                  finished: snapshotMatches.filter((m) => m.isFinished).length,
+                  total: snapshotMatches.length,
+                }
+              : slide.id === "champion"
+                ? { live: 0, finished: bracket.champion ? 1 : 0, total: 1 }
+                : stageStats(matches);
+
+          return (
+            <button
+              key={slide.id}
+              type="button"
+              onClick={() => scrollTo(index)}
+              className={cn(
+                "shrink-0 flex flex-col items-center min-w-[3.5rem] px-2.5 py-2 rounded-xl border transition-all",
+                isActive
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02]"
+                  : "bg-secondary/40 border-border/50 text-muted-foreground",
+              )}
+            >
+              <span className="text-xs font-bold">{slide.short}</span>
+              {stats.live > 0 ? (
+                <span
+                  className={cn(
+                    "mt-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse",
+                    isActive && "bg-primary-foreground",
+                  )}
+                />
+              ) : stats.total > 0 ? (
+                <span className={cn("text-[9px] font-mono tabular-nums mt-0.5", isActive ? "opacity-90" : "opacity-60")}>
+                  {stats.finished}/{stats.total}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      <Carousel
+        setApi={setCarouselApi}
+        opts={{ align: "start", loop: false, dragFree: false }}
+        className="w-full"
+      >
+        <CarouselContent className="-ml-2">
+          {slides.map((slide) => {
+            const matches =
+              slide.id === "snapshot"
+                ? snapshotMatches
+                : slide.id === "third_place"
+                  ? (byStage.get("third_place") ?? [])
+                  : slide.id !== "champion"
+                    ? (byStage.get(slide.id) ?? [])
+                    : [];
+
             return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActive(tab.id)}
-                className={cn(
-                  "snap-start shrink-0 flex flex-col items-center min-w-[3.25rem] px-3 py-2 rounded-xl border text-center transition-all",
-                  isActive
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-secondary/50 border-border/60 text-muted-foreground",
-                )}
-              >
-                <span className="text-sm font-bold">{tab.short}</span>
-                {tab.id !== "champion" && (
-                  <span className={cn("text-[9px] font-mono tabular-nums", isActive ? "opacity-80" : "opacity-60")}>
-                    {count}
-                  </span>
-                )}
-              </button>
+              <CarouselItem key={slide.id} className="pl-2 basis-full">
+                <div className="space-y-3">
+                  <div className="flex items-baseline justify-between gap-2 px-0.5">
+                    <h3 className="text-base font-bold">{slide.label}</h3>
+                    {slide.id !== "champion" && slide.id !== "snapshot" && matches.length > 0 && (
+                      <p className="text-[10px] font-mono text-muted-foreground">
+                        {stageStats(matches).finished}/{matches.length} played
+                      </p>
+                    )}
+                  </div>
+
+                  {slide.id === "champion" ? (
+                    <ChampionBlock champion={bracket.champion} />
+                  ) : matches.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      {slide.id === "snapshot"
+                        ? "No live or recent knockout matches yet."
+                        : "No matches in this round yet."}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {matches.map((m) => (
+                        <CompactMatchRow key={m.id} match={m} />
+                      ))}
+                    </div>
+                  )}
+
+                  {slide.id === "snapshot" && (
+                    <p className="text-[10px] text-center text-muted-foreground font-mono pt-1">
+                      Swipe → for full round-by-round view
+                    </p>
+                  )}
+                </div>
+              </CarouselItem>
             );
           })}
-        </div>
-      </div>
+        </CarouselContent>
+      </Carousel>
 
-      {/* Stage title + prev/next */}
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={goPrev}
-          disabled={tabIndex <= 0}
-          className="p-2 rounded-lg border border-border/60 disabled:opacity-30"
-          aria-label="Previous round"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex-1 text-center min-w-0">
-          <h3 className="text-sm font-bold truncate">
-            {tabs.find((t) => t.id === active)?.label}
-          </h3>
-          {active !== "champion" && active !== "third_place" && activeMatches.length > 0 && (
-            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-              {finishedCount} played
-              {liveCount > 0 && ` · ${liveCount} live`}
-            </p>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={tabIndex >= tabs.length - 1}
-          className="p-2 rounded-lg border border-border/60 disabled:opacity-30"
-          aria-label="Next round"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+      {/* Dot pager */}
+      <div className="flex justify-center gap-1.5 pt-1">
+        {slides.map((slide, index) => (
+          <button
+            key={slide.id}
+            type="button"
+            onClick={() => scrollTo(index)}
+            aria-label={slide.label}
+            className={cn(
+              "h-1.5 rounded-full transition-all",
+              activeIndex === index ? "w-5 bg-primary" : "w-1.5 bg-border",
+            )}
+          />
+        ))}
       </div>
-
-      {/* Match list */}
-      <div className="space-y-3">
-        {active === "champion" && <ChampionBlock champion={bracket.champion} />}
-        {active === "third_place" && byStage.get("third_place")?.[0] && (
-          <BracketMatchCard match={byStage.get("third_place")![0]} compact />
-        )}
-        {active !== "champion" && active !== "third_place" &&
-          activeMatches.map((m) => (
-            <BracketMatchCard key={m.id} match={m} compact />
-          ))}
-      </div>
-
-      <p className="text-[10px] text-center text-muted-foreground font-mono">
-        Swipe rounds with arrows · wider view on tablet+
-      </p>
     </div>
   );
 }

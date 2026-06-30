@@ -106,6 +106,168 @@ function isLiveFixture(f: FootballFixture): boolean {
   return t !== "" && t !== "notstarted" && t !== "null";
 }
 
+/** True when the API has a real team (not "Winner Match 74" placeholders). */
+function isScheduledTeam(id: string | null, name: string | null): boolean {
+  if (!id) return false;
+  const n = (name ?? "").trim();
+  if (!n) return false;
+  return !/^(winner|loser)\s+(match|m)\b/i.test(n);
+}
+
+function participantFromFixtureTeam(
+  teamId: string,
+  teamName: string | null,
+  teams: FootballTeam[],
+): BracketParticipant {
+  const meta = teams.find((t) => t.api_team_id === teamId);
+  return {
+    apiTeamId: teamId,
+    name: teamName ?? meta?.name_en ?? "TBD",
+    fifaCode: meta?.fifa_code ?? null,
+    flagUrl: meta?.flag_url ?? null,
+    placeholder: null,
+  };
+}
+
+function fixtureMatchScore(
+  match: BracketMatch,
+  fixture: FootballFixture,
+): number {
+  const matchIds = [match.home.participant.apiTeamId, match.away.participant.apiTeamId].filter(
+    Boolean,
+  ) as string[];
+  const fixtureIds = [fixture.home_team_id, fixture.away_team_id].filter(Boolean) as string[];
+  const overlap = matchIds.filter((id) => fixtureIds.includes(id)).length;
+  const bothScheduled =
+    isScheduledTeam(fixture.home_team_id, fixture.home_team_name) &&
+    isScheduledTeam(fixture.away_team_id, fixture.away_team_name);
+  if (overlap === 2) return 4;
+  if (overlap === 1 && bothScheduled) return 3;
+  if (overlap === 1) return 2;
+  if (bothScheduled) return 1;
+  return 0;
+}
+
+function mergeMatchWithFixture(
+  match: BracketMatch,
+  fixture: FootballFixture,
+  teams: FootballTeam[],
+): BracketMatch {
+  let home = match.home;
+  let away = match.away;
+
+  if (isScheduledTeam(fixture.home_team_id, fixture.home_team_name) && fixture.home_team_id) {
+    home = {
+      participant: participantFromFixtureTeam(
+        fixture.home_team_id,
+        fixture.home_team_name,
+        teams,
+      ),
+      score: null,
+    };
+  }
+  if (isScheduledTeam(fixture.away_team_id, fixture.away_team_name) && fixture.away_team_id) {
+    away = {
+      participant: participantFromFixtureTeam(
+        fixture.away_team_id,
+        fixture.away_team_name,
+        teams,
+      ),
+      score: null,
+    };
+  }
+
+  return applyFixture({ ...match, home, away }, fixture);
+}
+
+/** Prefer official KO fixtures over projected standings slots (fixes 3rd-place pairing). */
+function overlayStageFixtures(
+  matches: BracketMatch[],
+  fixtures: FootballFixture[],
+  stage: KnockoutStage,
+  teams: FootballTeam[],
+): BracketMatch[] {
+  const stageFixtures = fixtures
+    .filter((f) => normalizeStage(f.match_type) === stage)
+    .sort((a, b) => Number(a.api_fixture_id) - Number(b.api_fixture_id));
+
+  const used = new Set<string>();
+  const result = matches.map((match) => {
+    let best: FootballFixture | undefined;
+    let bestScore = 0;
+
+    for (const f of stageFixtures) {
+      if (used.has(f.api_fixture_id)) continue;
+      const score = fixtureMatchScore(match, f);
+      if (score > bestScore) {
+        bestScore = score;
+        best = f;
+      }
+    }
+
+    if (best && bestScore >= 1) {
+      used.add(best.api_fixture_id);
+      return mergeMatchWithFixture(match, best, teams);
+    }
+    return match;
+  });
+
+  // Pair remaining full fixtures to bracket slots that still have wrong projections.
+  for (const f of stageFixtures) {
+    if (used.has(f.api_fixture_id)) continue;
+    if (
+      !isScheduledTeam(f.home_team_id, f.home_team_name) ||
+      !isScheduledTeam(f.away_team_id, f.away_team_name)
+    ) {
+      continue;
+    }
+
+    let bestIdx = -1;
+    let bestScore = 0;
+    for (let i = 0; i < result.length; i++) {
+      const score = fixtureMatchScore(result[i], f);
+      if (score > 0 && score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx >= 0) {
+      used.add(f.api_fixture_id);
+      result[bestIdx] = mergeMatchWithFixture(result[bestIdx], f, teams);
+    }
+  }
+
+  return result;
+}
+
+/** When a KO match ends level, infer the winner from who appears in the next round. */
+function inferWinnersFromNextRound(
+  matches: BracketMatch[],
+  fixtures: FootballFixture[],
+  nextStage: KnockoutStage,
+): BracketMatch[] {
+  const nextFixtures = fixtures.filter((f) => normalizeStage(f.match_type) === nextStage);
+
+  return matches.map((match) => {
+    if (match.winnerId || !match.isFinished) return match;
+    const hs = match.home.score;
+    const as = match.away.score;
+    if (hs == null || as == null || hs !== as) return match;
+
+    const teamIds = [match.home.participant.apiTeamId, match.away.participant.apiTeamId].filter(
+      Boolean,
+    ) as string[];
+    if (teamIds.length !== 2) return match;
+
+    const advanced = teamIds.filter((id) =>
+      nextFixtures.some((f) => f.home_team_id === id || f.away_team_id === id),
+    );
+    if (advanced.length !== 1) return match;
+
+    return { ...match, winnerId: advanced[0] };
+  });
+}
+
 function findFixture(
   fixtures: FootballFixture[],
   teamA: string | null,
@@ -286,7 +448,7 @@ export function buildKnockoutBracketState(input: {
   const groupsComplete = Object.keys(groupResults).length === 12;
   const r32Slots = buildR32BracketSlots(groupResults, allThirdCandidates);
 
-  const r32Matches = R32_FIXTURE_SPEC.map((spec, i) =>
+  const r32Projected = R32_FIXTURE_SPEC.map((spec, i) =>
     buildMatch(
       "round_of_32",
       i,
@@ -297,10 +459,51 @@ export function buildKnockoutBracketState(input: {
     ),
   );
 
-  const r16 = advanceRound(r32Matches, "round_of_16", knockoutFixtures);
-  const qf = advanceRound(r16, "quarterfinal", knockoutFixtures);
-  const sf = advanceRound(qf, "semifinal", knockoutFixtures);
-  const finalMatch = advanceRound(sf, "final", knockoutFixtures)[0];
+  const r32Matches = inferWinnersFromNextRound(
+    overlayStageFixtures(r32Projected, knockoutFixtures, "round_of_32", teams),
+    knockoutFixtures,
+    "round_of_16",
+  );
+
+  const r16 = inferWinnersFromNextRound(
+    overlayStageFixtures(
+      advanceRound(r32Matches, "round_of_16", knockoutFixtures),
+      knockoutFixtures,
+      "round_of_16",
+      teams,
+    ),
+    knockoutFixtures,
+    "quarterfinal",
+  );
+
+  const qf = inferWinnersFromNextRound(
+    overlayStageFixtures(
+      advanceRound(r16, "quarterfinal", knockoutFixtures),
+      knockoutFixtures,
+      "quarterfinal",
+      teams,
+    ),
+    knockoutFixtures,
+    "semifinal",
+  );
+
+  const sf = inferWinnersFromNextRound(
+    overlayStageFixtures(
+      advanceRound(qf, "semifinal", knockoutFixtures),
+      knockoutFixtures,
+      "semifinal",
+      teams,
+    ),
+    knockoutFixtures,
+    "final",
+  );
+
+  const finalMatch = overlayStageFixtures(
+    advanceRound(sf, "final", knockoutFixtures),
+    knockoutFixtures,
+    "final",
+    teams,
+  )[0];
 
   const thirdPlaceFixture = knockoutFixtures.find((f) => normalizeStage(f.match_type) === "third_place");
   let thirdPlace: BracketMatch | null = null;
