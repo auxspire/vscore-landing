@@ -39,6 +39,8 @@ export interface BracketMatch {
   isFinished: boolean;
   isLive: boolean;
   winnerId: string | null;
+  /** Official fixture id when merged from API (for Winner/Loser Match N resolution). */
+  apiFixtureId?: string | null;
 }
 
 export interface KnockoutBracketState {
@@ -114,6 +116,91 @@ function isScheduledTeam(id: string | null, name: string | null): boolean {
   return !/^(winner|loser)\s+(match|m)\b/i.test(n);
 }
 
+function formatFeederWinnerLabel(feeder: BracketMatch): string {
+  return `Winner of ${feeder.home.participant.name} vs ${feeder.away.participant.name}`;
+}
+
+function formatFeederLoserLabel(feeder: BracketMatch): string {
+  return `Loser of ${feeder.home.participant.name} vs ${feeder.away.participant.name}`;
+}
+
+function buildFixtureIdMap(matches: BracketMatch[]): Map<string, BracketMatch> {
+  const map = new Map<string, BracketMatch>();
+  for (const m of matches) {
+    if (m.apiFixtureId) map.set(m.apiFixtureId, m);
+  }
+  return map;
+}
+
+function parseApiMatchPlaceholder(
+  name: string | null,
+): { kind: "winner" | "loser"; fixtureId: string } | null {
+  const m = (name ?? "").trim().match(/^(Winner|Loser)\s+Match\s+(\d+)$/i);
+  if (!m) return null;
+  return {
+    kind: m[1].toLowerCase() === "loser" ? "loser" : "winner",
+    fixtureId: m[2],
+  };
+}
+
+function participantFromApiPlaceholder(
+  name: string | null,
+  fixtureIdToMatch: Map<string, BracketMatch>,
+): BracketParticipant | null {
+  const parsed = parseApiMatchPlaceholder(name);
+  if (!parsed) return null;
+  const feeder = fixtureIdToMatch.get(parsed.fixtureId);
+  if (!feeder) return null;
+  const label =
+    parsed.kind === "winner"
+      ? formatFeederWinnerLabel(feeder)
+      : formatFeederLoserLabel(feeder);
+  return {
+    apiTeamId: null,
+    name: label,
+    fifaCode: null,
+    flagUrl: null,
+    placeholder: label,
+  };
+}
+
+function participantFromFeederMatch(feeder: BracketMatch): BracketParticipant {
+  const winner = resolveWinner(feeder);
+  if (winner?.apiTeamId) return winner;
+  const label = formatFeederWinnerLabel(feeder);
+  return {
+    apiTeamId: null,
+    name: label,
+    fifaCode: null,
+    flagUrl: null,
+    placeholder: label,
+  };
+}
+
+function resolveFixtureParticipant(
+  teamId: string | null,
+  teamName: string | null,
+  teams: FootballTeam[],
+  fixtureIdToMatch: Map<string, BracketMatch>,
+): BracketParticipant {
+  if (isScheduledTeam(teamId, teamName) && teamId) {
+    return participantFromFixtureTeam(teamId, teamName, teams);
+  }
+  const fromApi = participantFromApiPlaceholder(teamName, fixtureIdToMatch);
+  if (fromApi) return fromApi;
+  return {
+    apiTeamId: teamId,
+    name: teamName ?? "TBD",
+    fifaCode: teamId
+      ? (teams.find((t) => t.api_team_id === teamId)?.fifa_code ?? null)
+      : null,
+    flagUrl: teamId
+      ? (teams.find((t) => t.api_team_id === teamId)?.flag_url ?? null)
+      : null,
+    placeholder: teamId ? null : (teamName ?? "TBD"),
+  };
+}
+
 function participantFromFixtureTeam(
   teamId: string,
   teamName: string | null,
@@ -152,6 +239,7 @@ function mergeMatchWithFixture(
   match: BracketMatch,
   fixture: FootballFixture,
   teams: FootballTeam[],
+  fixtureIdToMatch: Map<string, BracketMatch>,
 ): BracketMatch {
   let home = match.home;
   let away = match.away;
@@ -165,7 +253,11 @@ function mergeMatchWithFixture(
       ),
       score: null,
     };
+  } else {
+    const fromApi = participantFromApiPlaceholder(fixture.home_team_name, fixtureIdToMatch);
+    if (fromApi) home = { participant: fromApi, score: null };
   }
+
   if (isScheduledTeam(fixture.away_team_id, fixture.away_team_name) && fixture.away_team_id) {
     away = {
       participant: participantFromFixtureTeam(
@@ -175,9 +267,15 @@ function mergeMatchWithFixture(
       ),
       score: null,
     };
+  } else {
+    const fromApi = participantFromApiPlaceholder(fixture.away_team_name, fixtureIdToMatch);
+    if (fromApi) away = { participant: fromApi, score: null };
   }
 
-  return applyFixture({ ...match, home, away }, fixture);
+  return applyFixture(
+    { ...match, home, away, apiFixtureId: fixture.api_fixture_id },
+    fixture,
+  );
 }
 
 /** Prefer official KO fixtures over projected standings slots (fixes 3rd-place pairing). */
@@ -186,6 +284,7 @@ function overlayStageFixtures(
   fixtures: FootballFixture[],
   stage: KnockoutStage,
   teams: FootballTeam[],
+  fixtureIdToMatch: Map<string, BracketMatch>,
 ): BracketMatch[] {
   const stageFixtures = fixtures
     .filter((f) => normalizeStage(f.match_type) === stage)
@@ -207,7 +306,7 @@ function overlayStageFixtures(
 
     if (best && bestScore >= 1) {
       used.add(best.api_fixture_id);
-      return mergeMatchWithFixture(match, best, teams);
+      return mergeMatchWithFixture(match, best, teams, fixtureIdToMatch);
     }
     return match;
   });
@@ -233,7 +332,7 @@ function overlayStageFixtures(
     }
     if (bestIdx >= 0) {
       used.add(f.api_fixture_id);
-      result[bestIdx] = mergeMatchWithFixture(result[bestIdx], f, teams);
+      result[bestIdx] = mergeMatchWithFixture(result[bestIdx], f, teams, fixtureIdToMatch);
     }
   }
 
@@ -391,17 +490,6 @@ function buildMatch(
   );
 }
 
-function participantFromWinner(winner: BracketParticipant | null, label: string): BracketParticipant {
-  if (winner?.apiTeamId) return winner;
-  return {
-    apiTeamId: null,
-    name: label,
-    fifaCode: null,
-    flagUrl: null,
-    placeholder: label,
-  };
-}
-
 function advanceRound(
   prev: BracketMatch[],
   stage: KnockoutStage,
@@ -409,8 +497,6 @@ function advanceRound(
 ): BracketMatch[] {
   const next: BracketMatch[] = [];
   for (let i = 0; i < prev.length; i += 2) {
-    const a = resolveWinner(prev[i]);
-    const b = resolveWinner(prev[i + 1]);
     const matchIndex = i / 2;
     const label =
       stage === "final"
@@ -426,8 +512,8 @@ function advanceRound(
         stage,
         matchIndex,
         label,
-        participantFromWinner(a, `Winner ${prev[i].label}`),
-        participantFromWinner(b, `Winner ${prev[i + 1].label}`),
+        participantFromFeederMatch(prev[i]),
+        participantFromFeederMatch(prev[i + 1]),
         fixtures,
       ),
     );
@@ -460,10 +546,18 @@ export function buildKnockoutBracketState(input: {
   );
 
   const r32Matches = inferWinnersFromNextRound(
-    overlayStageFixtures(r32Projected, knockoutFixtures, "round_of_32", teams),
+    overlayStageFixtures(
+      r32Projected,
+      knockoutFixtures,
+      "round_of_32",
+      teams,
+      new Map(),
+    ),
     knockoutFixtures,
     "round_of_16",
   );
+
+  const fixtureIdToMatchAfterR32 = buildFixtureIdMap(r32Matches);
 
   const r16 = inferWinnersFromNextRound(
     overlayStageFixtures(
@@ -471,10 +565,13 @@ export function buildKnockoutBracketState(input: {
       knockoutFixtures,
       "round_of_16",
       teams,
+      fixtureIdToMatchAfterR32,
     ),
     knockoutFixtures,
     "quarterfinal",
   );
+
+  const fixtureIdToMatchAfterR16 = buildFixtureIdMap([...r32Matches, ...r16]);
 
   const qf = inferWinnersFromNextRound(
     overlayStageFixtures(
@@ -482,10 +579,13 @@ export function buildKnockoutBracketState(input: {
       knockoutFixtures,
       "quarterfinal",
       teams,
+      fixtureIdToMatchAfterR16,
     ),
     knockoutFixtures,
     "semifinal",
   );
+
+  const fixtureIdToMatchAfterQf = buildFixtureIdMap([...r32Matches, ...r16, ...qf]);
 
   const sf = inferWinnersFromNextRound(
     overlayStageFixtures(
@@ -493,16 +593,20 @@ export function buildKnockoutBracketState(input: {
       knockoutFixtures,
       "semifinal",
       teams,
+      fixtureIdToMatchAfterQf,
     ),
     knockoutFixtures,
     "final",
   );
+
+  const fixtureIdToMatchAfterSf = buildFixtureIdMap([...r32Matches, ...r16, ...qf, ...sf]);
 
   const finalMatch = overlayStageFixtures(
     advanceRound(sf, "final", knockoutFixtures),
     knockoutFixtures,
     "final",
     teams,
+    fixtureIdToMatchAfterSf,
   )[0];
 
   const thirdPlaceFixture = knockoutFixtures.find((f) => normalizeStage(f.match_type) === "third_place");
@@ -515,24 +619,23 @@ export function buildKnockoutBracketState(input: {
         matchIndex: 0,
         label: "Third place",
         kickoffAt: null,
+        apiFixtureId: thirdPlaceFixture.api_fixture_id,
         home: {
-          participant: {
-            apiTeamId: thirdPlaceFixture.home_team_id,
-            name: thirdPlaceFixture.home_team_name ?? "TBD",
-            fifaCode: teams.find((t) => t.api_team_id === thirdPlaceFixture.home_team_id)?.fifa_code ?? null,
-            flagUrl: teams.find((t) => t.api_team_id === thirdPlaceFixture.home_team_id)?.flag_url ?? null,
-            placeholder: null,
-          },
+          participant: resolveFixtureParticipant(
+            thirdPlaceFixture.home_team_id,
+            thirdPlaceFixture.home_team_name,
+            teams,
+            fixtureIdToMatchAfterSf,
+          ),
           score: null,
         },
         away: {
-          participant: {
-            apiTeamId: thirdPlaceFixture.away_team_id,
-            name: thirdPlaceFixture.away_team_name ?? "TBD",
-            fifaCode: teams.find((t) => t.api_team_id === thirdPlaceFixture.away_team_id)?.fifa_code ?? null,
-            flagUrl: teams.find((t) => t.api_team_id === thirdPlaceFixture.away_team_id)?.flag_url ?? null,
-            placeholder: null,
-          },
+          participant: resolveFixtureParticipant(
+            thirdPlaceFixture.away_team_id,
+            thirdPlaceFixture.away_team_name,
+            teams,
+            fixtureIdToMatchAfterSf,
+          ),
           score: null,
         },
         isFinished: false,

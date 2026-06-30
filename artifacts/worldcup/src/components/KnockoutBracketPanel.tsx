@@ -19,7 +19,7 @@ import {
   type KnockoutBracketState,
   type KnockoutStage,
 } from "@/lib/knockout-bracket-state";
-import { formatKickoffDateTime } from "@/lib/match-datetime";
+import { formatBracketMatchSubtext } from "@/lib/match-datetime";
 import { cn } from "@/lib/utils";
 
 const DISPLAY_STAGES: KnockoutStage[] = [
@@ -78,6 +78,32 @@ function stageStats(matches: BracketMatch[]) {
   };
 }
 
+function MatchTimingSubtext({ match }: { match: BracketMatch }) {
+  if (match.isLive) return null;
+  const text = formatBracketMatchSubtext(match.kickoffAt);
+  if (!text) return null;
+  return (
+    <p className="text-[10px] text-muted-foreground/90 font-mono tabular-nums truncate leading-none">
+      {text}
+    </p>
+  );
+}
+
+function PlaceholderTeamName({ name, compact }: { name: string; compact?: boolean }) {
+  const m = name.match(/^(Winner of|Loser of)\s+(.+)$/i);
+  if (!m) {
+    return (
+      <span className={cn("line-clamp-2", compact ? "text-xs" : "text-sm")}>{name}</span>
+    );
+  }
+  return (
+    <span className="flex flex-col min-w-0 leading-snug gap-0.5">
+      <span className="text-[10px] text-muted-foreground/80 font-medium">{m[1]}</span>
+      <span className={cn("line-clamp-2", compact ? "text-xs" : "text-sm")}>{m[2]}</span>
+    </span>
+  );
+}
+
 function CompactMatchRow({ match }: { match: BracketMatch }) {
   const winnerId = match.winnerId;
   const homeWin = !!winnerId && winnerId === match.home.participant.apiTeamId;
@@ -86,59 +112,72 @@ function CompactMatchRow({ match }: { match: BracketMatch }) {
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-xl border px-3 py-2.5 bg-card/70",
+        "rounded-xl border px-3 py-2.5 bg-card/70 space-y-1.5",
         match.isLive ? "border-primary/50" : "border-border/60",
       )}
     >
-      <div className="flex-1 min-w-0 space-y-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <TeamFlag
-            flagCode={match.home.participant.fifaCode ?? ""}
-            flagUrl={match.home.participant.flagUrl}
-            size={18}
-            className={cn(!match.home.participant.apiTeamId && "opacity-30")}
-          />
-          <span
-            className={cn(
-              "flex-1 text-sm truncate",
-              homeWin && "font-bold text-primary",
-              awayWin && winnerId && "opacity-45",
-              !match.home.participant.apiTeamId && "text-muted-foreground text-xs",
-            )}
-          >
-            {match.home.participant.name}
-          </span>
-          <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
-            {match.home.score ?? "–"}
-          </span>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <TeamFlag
+              flagCode={match.home.participant.fifaCode ?? ""}
+              flagUrl={match.home.participant.flagUrl}
+              size={18}
+              className={cn(!match.home.participant.apiTeamId && "opacity-30")}
+            />
+            <span
+              className={cn(
+                "flex-1 text-sm min-w-0",
+                homeWin && "font-bold text-primary",
+                awayWin && winnerId && "opacity-45",
+                !match.home.participant.apiTeamId && "text-muted-foreground",
+                match.home.participant.apiTeamId && "truncate",
+              )}
+            >
+              {match.home.participant.apiTeamId ? (
+                match.home.participant.name
+              ) : (
+                <PlaceholderTeamName name={match.home.participant.name} compact />
+              )}
+            </span>
+            <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
+              {match.home.score ?? "–"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <TeamFlag
+              flagCode={match.away.participant.fifaCode ?? ""}
+              flagUrl={match.away.participant.flagUrl}
+              size={18}
+              className={cn(!match.away.participant.apiTeamId && "opacity-30")}
+            />
+            <span
+              className={cn(
+                "flex-1 text-sm min-w-0",
+                awayWin && "font-bold text-primary",
+                homeWin && winnerId && "opacity-45",
+                !match.away.participant.apiTeamId && "text-muted-foreground",
+                match.away.participant.apiTeamId && "truncate",
+              )}
+            >
+              {match.away.participant.apiTeamId ? (
+                match.away.participant.name
+              ) : (
+                <PlaceholderTeamName name={match.away.participant.name} compact />
+              )}
+            </span>
+            <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
+              {match.away.score ?? "–"}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 min-w-0">
-          <TeamFlag
-            flagCode={match.away.participant.fifaCode ?? ""}
-            flagUrl={match.away.participant.flagUrl}
-            size={18}
-            className={cn(!match.away.participant.apiTeamId && "opacity-30")}
-          />
-          <span
-            className={cn(
-              "flex-1 text-sm truncate",
-              awayWin && "font-bold text-primary",
-              homeWin && winnerId && "opacity-45",
-              !match.away.participant.apiTeamId && "text-muted-foreground text-xs",
-            )}
-          >
-            {match.away.participant.name}
+        {match.isLive && (
+          <span className="shrink-0 text-[9px] font-bold uppercase text-primary tracking-wider">
+            Live
           </span>
-          <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
-            {match.away.score ?? "–"}
-          </span>
-        </div>
+        )}
       </div>
-      {match.isLive && (
-        <span className="shrink-0 text-[9px] font-bold uppercase text-primary tracking-wider">
-          Live
-        </span>
-      )}
+      <MatchTimingSubtext match={match} />
     </div>
   );
 }
@@ -179,13 +218,17 @@ function BracketTeamRow({
       <span
         className={cn(
           "flex-1 min-w-0 font-bold tracking-wide",
-          compact ? "text-sm leading-snug" : "text-xs sm:text-sm uppercase truncate",
+          compact ? "text-sm leading-snug" : "text-xs sm:text-sm",
           isPlaceholder
-            ? "text-muted-foreground font-medium normal-case line-clamp-2"
-            : "text-foreground truncate",
+            ? "text-muted-foreground font-medium normal-case"
+            : "text-foreground uppercase truncate",
         )}
       >
-        {participant.name}
+        {isPlaceholder ? (
+          <PlaceholderTeamName name={participant.name} compact={compact} />
+        ) : (
+          participant.name
+        )}
       </span>
       <span
         className={cn(
@@ -210,7 +253,6 @@ function BracketMatchCard({
   compact?: boolean;
 }) {
   const winnerId = match.winnerId;
-  const dateLabel = match.kickoffAt ? formatKickoffDateTime(match.kickoffAt) : null;
 
   return (
     <article
@@ -234,11 +276,6 @@ function BracketMatchCard({
           </span>
         )}
       </div>
-      {dateLabel && (
-        <p className="text-[10px] font-mono text-primary/80 uppercase tracking-wider truncate px-0.5 -mt-1">
-          {dateLabel}
-        </p>
-      )}
       <BracketTeamRow
         participant={match.home.participant}
         score={match.home.score}
@@ -253,6 +290,9 @@ function BracketMatchCard({
         dimmed={!!winnerId && winnerId !== match.away.participant.apiTeamId}
         compact={compact}
       />
+      <div className="px-0.5">
+        <MatchTimingSubtext match={match} />
+      </div>
     </article>
   );
 }

@@ -164,11 +164,15 @@ describe("buildKnockoutBracketState", () => {
       mockTeam("17", "E", "Germany"),
       mockTeam("14", "D", "Paraguay"),
       mockTeam("99", "B", "Bosnia and Herzegovina"),
+      mockTeam("fr1", "I", "France"),
+      mockTeam("sw1", "F", "Sweden"),
     ];
     const standings = [
       standing("E", 1, "17", "Germany", 6),
       standing("D", 3, "14", "Paraguay", 4),
       standing("B", 3, "99", "Bosnia and Herzegovina", 4),
+      standing("I", 1, "fr1", "France", 6),
+      standing("F", 2, "sw1", "Sweden", 4),
     ];
 
     const r32Fixture: FootballFixture = {
@@ -186,6 +190,23 @@ describe("buildKnockoutBracketState", () => {
       match_type: "r32",
       time_elapsed: "finished",
       is_finished: true,
+    };
+
+    const franceSwedenFixture: FootballFixture = {
+      api_fixture_id: "77",
+      kickoff_at: "2026-07-01T00:00:00Z",
+      home_team_id: "fr1",
+      home_team_name: "France",
+      away_team_id: "sw1",
+      away_team_name: "Sweden",
+      home_goals: 0,
+      away_goals: 0,
+      home_scorers: null,
+      away_scorers: null,
+      group_name: "R32",
+      match_type: "r32",
+      time_elapsed: "notstarted",
+      is_finished: false,
     };
 
     const r16Fixture: FootballFixture = {
@@ -208,7 +229,7 @@ describe("buildKnockoutBracketState", () => {
     const state = buildKnockoutBracketState({
       standings,
       teams,
-      fixtures: [r32Fixture, r16Fixture],
+      fixtures: [r32Fixture, franceSwedenFixture, r16Fixture],
     });
 
     const r32 = matchesByStage(state).get("round_of_32") ?? [];
@@ -222,6 +243,53 @@ describe("buildKnockoutBracketState", () => {
     expect(dePy?.winnerId).toBe("14");
 
     const r16 = matchesByStage(state).get("round_of_16") ?? [];
-    expect(r16.some((m) => m.home.participant.apiTeamId === "14")).toBe(true);
+    const paraguayMatch = r16.find(
+      (m) =>
+        m.home.participant.apiTeamId === "14" || m.away.participant.apiTeamId === "14",
+    );
+    expect(paraguayMatch).toBeDefined();
+    const tbdSide =
+      paraguayMatch!.home.participant.apiTeamId === "14"
+        ? paraguayMatch!.away.participant
+        : paraguayMatch!.home.participant;
+    expect(tbdSide.name).toBe("Winner of France vs Sweden");
+  });
+
+  it("labels advanced-round TBD slots from feeder team names", () => {
+    const teams = [mockTeam("a1", "A", "Team A"), mockTeam("b1", "B", "Team B")];
+    const standings = [
+      standing("A", 1, "a1", "Team A", 9),
+      standing("B", 2, "b1", "Team B", 6),
+    ];
+
+    const r32Fixture: FootballFixture = {
+      api_fixture_id: "r32-ab",
+      kickoff_at: "2026-07-01T00:00:00Z",
+      home_team_id: "a1",
+      home_team_name: "Team A",
+      away_team_id: "b1",
+      away_team_name: "Team B",
+      home_goals: 2,
+      away_goals: 1,
+      home_scorers: null,
+      away_scorers: null,
+      group_name: null,
+      match_type: "r32",
+      time_elapsed: "finished",
+      is_finished: true,
+    };
+
+    const state = buildKnockoutBracketState({ standings, teams, fixtures: [r32Fixture] });
+    const r16 = matchesByStage(state).get("round_of_16") ?? [];
+    const withTeamA = r16.find(
+      (m) =>
+        m.home.participant.apiTeamId === "a1" || m.away.participant.apiTeamId === "a1",
+    );
+    expect(withTeamA).toBeDefined();
+    const other = withTeamA!.home.participant.apiTeamId === "a1"
+      ? withTeamA!.away.participant
+      : withTeamA!.home.participant;
+    expect(other.name).toMatch(/^Winner of /);
+    expect(other.name).not.toMatch(/^Winner M\d/);
   });
 });

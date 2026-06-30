@@ -100,6 +100,18 @@ export function formatKickoffTime(
   return time;
 }
 
+/** Bracket card subtext: time only if today, otherwise short date + time. */
+export function formatBracketMatchSubtext(
+  kickoffAt: string | null | undefined,
+  timeZone = getVisitorTimezone(),
+): string | null {
+  if (!kickoffAt) return null;
+  const showDate = !isTodayInTimezone(kickoffAt, timeZone);
+  return showDate
+    ? formatKickoffDateTime(kickoffAt, timeZone)
+    : formatKickoffTime(kickoffAt, timeZone);
+}
+
 export function isTodayInTimezone(
   iso: string | null | undefined,
   timeZone = getVisitorTimezone(),
