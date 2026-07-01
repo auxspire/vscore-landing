@@ -10,6 +10,7 @@ import {
   Clock,
   Search,
   GitBranch,
+  Target,
 } from "lucide-react";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
 import { FixturesLoadingState, FixturesRefreshingBar, ScorersLoadingState } from "@/components/FixturesLoadingState";
@@ -337,6 +338,89 @@ function TopScorersList({ scorers, teams }: { scorers: ScorerEntry[]; teams: Foo
   );
 }
 
+function TopScorersPreview({
+  scorers,
+  teams,
+  onViewAll,
+  isLoading,
+}: {
+  scorers: ScorerEntry[];
+  teams: FootballTeam[];
+  onViewAll: () => void;
+  isLoading?: boolean;
+}) {
+  const teamByName = useMemo(
+    () => Object.fromEntries(teams.map((t) => [t.name_en.toLowerCase(), t])),
+    [teams],
+  );
+  const top = useMemo(
+    () => [...scorers].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, 8),
+    [scorers],
+  );
+
+  if (isLoading) {
+    return (
+      <div className="border-t border-border/30 px-4 py-4">
+        <ScorersLoadingState />
+      </div>
+    );
+  }
+
+  if (top.length === 0) return null;
+
+  return (
+    <div className="border-t border-border/30 px-4 py-4 bg-secondary/10">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-primary shrink-0" />
+          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+            Top scorers
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="text-[10px] font-mono uppercase tracking-wider text-primary hover:underline"
+        >
+          Full board →
+        </button>
+      </div>
+      <div className="rounded-lg border border-border/60 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground bg-secondary/25 border-b border-border/40">
+              <th className="py-1.5 pl-3 pr-1 text-left w-7">#</th>
+              <th className="py-1.5 px-2 text-left">Player</th>
+              <th className="py-1.5 px-2 text-left hidden sm:table-cell">Team</th>
+              <th className="py-1.5 pr-3 pl-2 text-right w-8">G</th>
+            </tr>
+          </thead>
+          <tbody>
+            {top.map((s, i) => {
+              const team = s.teamName ? teamByName[s.teamName.toLowerCase()] : undefined;
+              return (
+                <tr key={s.id} className="border-b border-border/10 last:border-0">
+                  <td className="py-1.5 pl-3 pr-1 font-mono text-xs text-muted-foreground">{i + 1}</td>
+                  <td className="py-1.5 px-2 font-medium truncate max-w-[8rem] sm:max-w-none">{s.name}</td>
+                  <td className="py-1.5 px-2 hidden sm:table-cell">
+                    <span className="inline-flex items-center gap-1.5 min-w-0">
+                      {team?.fifa_code ? (
+                        <TeamFlag flagCode={team.fifa_code} flagUrl={team.flag_url} size={16} />
+                      ) : null}
+                      <span className="truncate text-xs text-muted-foreground">{s.teamName}</span>
+                    </span>
+                  </td>
+                  <td className="py-1.5 pr-3 pl-2 text-right font-mono font-bold text-primary">{s.goals}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function GroupStandingsCard({
   group,
   rows,
@@ -574,7 +658,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
     isError: liveError,
     isFetching: liveFetching,
     isScorersLoading,
-  } = useFootballLive({ needScorers: dataSection === "scorers" });
+  } = useFootballLive({ needScorers: variant === "full" });
 
   const fixtures = liveData?.fixtures ?? [];
   const standings = liveData?.standings ?? [];
@@ -595,6 +679,12 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
       if (group && /^[A-L]$/i.test(group)) {
         setActiveGroup(group.toUpperCase());
       }
+      requestAnimationFrame(() => {
+        document.getElementById("fixtures-standings")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    if (section === "scorers") {
+      setDataSection("scorers");
       requestAnimationFrame(() => {
         document.getElementById("fixtures-standings")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
@@ -672,10 +762,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
       .slice(0, 6);
   }, [fixtures, teamFilter]);
 
-  const topScorers = useMemo(
-    () => (dataSection === "scorers" ? aggregateTopScorers(fixtures, 500) : []),
-    [fixtures, dataSection],
-  );
+  const topScorers = useMemo(() => aggregateTopScorers(fixtures, 500), [fixtures]);
 
   const groups = useMemo(() => {
     const set = new Set(standings.map((s) => s.group_name));
@@ -836,7 +923,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     [
                       { id: "matches" as const, label: "Matches", icon: Calendar },
                       { id: "tables" as const, label: "Tables", icon: Trophy },
-                      { id: "scorers" as const, label: "Scorers", icon: Clock },
+                      { id: "scorers" as const, label: "Scorers", icon: Target },
                     ] as const
                   ).map(({ id, label, icon: Icon }) => (
                     <button
@@ -1031,6 +1118,13 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                       )}
                     </div>
                   )}
+
+                  <TopScorersPreview
+                    scorers={topScorers}
+                    teams={teams}
+                    isLoading={isScorersLoading}
+                    onViewAll={() => setDataSection("scorers")}
+                  />
                 </div>
               )}
 

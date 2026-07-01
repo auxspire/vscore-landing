@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
 import { Trophy, RefreshCw } from "lucide-react";
 import {
   Carousel,
@@ -115,6 +115,59 @@ function PlaceholderTeamName({ name, compact }: { name: string; compact?: boolea
   );
 }
 
+function FeederPlaceholderName({
+  participant,
+  compact,
+}: {
+  participant: BracketParticipant;
+  compact?: boolean;
+}) {
+  const sides = participant.feederTeams;
+  if (!sides || sides.length < 2) {
+    return <PlaceholderTeamName name={participant.name} compact={compact} />;
+  }
+
+  const flagSize = compact ? 16 : 18;
+
+  return (
+    <span className="flex flex-col min-w-0 leading-snug gap-0.5 flex-1">
+      <span className="text-[10px] text-muted-foreground/80 font-medium">Winner of</span>
+      <span className="flex items-center gap-0.5 min-w-0 flex-wrap">
+        {sides.map((t, i) => (
+          <Fragment key={`${t.name}-${i}`}>
+            {i > 0 && (
+              <span className="text-[9px] text-muted-foreground/50 px-0.5 shrink-0">vs</span>
+            )}
+            <span className="inline-flex items-center gap-1 min-w-0 max-w-[46%]">
+              <TeamFlag
+                flagCode={t.fifaCode ?? ""}
+                flagUrl={t.flagUrl}
+                size={flagSize}
+                className={cn("shrink-0", !t.fifaCode && !t.flagUrl && "opacity-30")}
+              />
+              <span className={cn("truncate", compact ? "text-[11px]" : "text-xs")}>{t.name}</span>
+            </span>
+          </Fragment>
+        ))}
+      </span>
+    </span>
+  );
+}
+
+function ParticipantLabel({
+  participant,
+  compact,
+}: {
+  participant: BracketParticipant;
+  compact?: boolean;
+}) {
+  if (participant.apiTeamId) return <>{participant.name}</>;
+  if (participant.feederTeams?.length) {
+    return <FeederPlaceholderName participant={participant} compact={compact} />;
+  }
+  return <PlaceholderTeamName name={participant.name} compact={compact} />;
+}
+
 function CompactMatchRow({ match }: { match: BracketMatch }) {
   const winnerId = match.winnerId;
   const homeWin = !!winnerId && winnerId === match.home.participant.apiTeamId;
@@ -148,7 +201,7 @@ function CompactMatchRow({ match }: { match: BracketMatch }) {
               {match.home.participant.apiTeamId ? (
                 match.home.participant.name
               ) : (
-                <PlaceholderTeamName name={match.home.participant.name} compact />
+                <ParticipantLabel participant={match.home.participant} compact />
               )}
             </span>
             <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
@@ -174,7 +227,7 @@ function CompactMatchRow({ match }: { match: BracketMatch }) {
               {match.away.participant.apiTeamId ? (
                 match.away.participant.name
               ) : (
-                <PlaceholderTeamName name={match.away.participant.name} compact />
+                <ParticipantLabel participant={match.away.participant} compact />
               )}
             </span>
             <span className="font-mono font-bold tabular-nums text-sm w-5 text-right">
@@ -236,7 +289,7 @@ function BracketTeamRow({
         )}
       >
         {isPlaceholder ? (
-          <PlaceholderTeamName name={participant.name} compact={compact} />
+          <ParticipantLabel participant={participant} compact={compact} />
         ) : (
           participant.name
         )}

@@ -214,8 +214,8 @@ describe("buildKnockoutBracketState", () => {
       kickoff_at: "2026-07-04T00:00:00Z",
       home_team_id: "14",
       home_team_name: "Paraguay",
-      away_team_id: null,
-      away_team_name: "Winner Match 77",
+      away_team_id: "fr1",
+      away_team_name: "France",
       home_goals: 0,
       away_goals: 0,
       home_scorers: null,
@@ -252,7 +252,8 @@ describe("buildKnockoutBracketState", () => {
       paraguayMatch!.home.participant.apiTeamId === "14"
         ? paraguayMatch!.away.participant
         : paraguayMatch!.home.participant;
-    expect(tbdSide.name).toBe("Winner of France vs Sweden");
+    expect(tbdSide.apiTeamId).toBe("fr1");
+    expect(tbdSide.name).toBe("France");
   });
 
   it("labels advanced-round TBD slots from feeder team names", () => {

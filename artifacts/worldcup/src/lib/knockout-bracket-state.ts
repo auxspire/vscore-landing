@@ -21,6 +21,13 @@ export interface BracketParticipant {
   fifaCode: string | null;
   flagUrl: string | null;
   placeholder: string | null;
+  /** Feeder match sides for flag-based TBD display (QF+). */
+  feederTeams?: Array<{
+    name: string;
+    fifaCode: string | null;
+    flagUrl: string | null;
+    apiTeamId: string | null;
+  }>;
 }
 
 export interface BracketMatchSide {
@@ -197,19 +204,41 @@ function participantFromApiPlaceholder(
     fifaCode: null,
     flagUrl: null,
     placeholder: label,
+    feederTeams: [sideSnapshot(feeder.home.participant), sideSnapshot(feeder.away.participant)],
+  };
+}
+
+function sideSnapshot(p: BracketParticipant): NonNullable<BracketParticipant["feederTeams"]>[number] {
+  if (p.apiTeamId) {
+    return {
+      name: p.name,
+      fifaCode: p.fifaCode,
+      flagUrl: p.flagUrl,
+      apiTeamId: p.apiTeamId,
+    };
+  }
+  return {
+    name: extractSideLabel(p),
+    fifaCode: p.fifaCode,
+    flagUrl: p.flagUrl,
+    apiTeamId: null,
   };
 }
 
 function participantFromFeederMatch(feeder: BracketMatch): BracketParticipant {
   const winner = resolveWinner(feeder);
   if (winner?.apiTeamId) return winner;
+
+  const feederTeams = [sideSnapshot(feeder.home.participant), sideSnapshot(feeder.away.participant)];
   const label = formatFeederWinnerLabel(feeder);
+
   return {
     apiTeamId: null,
     name: label,
     fifaCode: null,
     flagUrl: null,
     placeholder: label,
+    feederTeams,
   };
 }
 
@@ -323,6 +352,19 @@ function mergeMatchWithFixture(
   );
 }
 
+function bothTeamsScheduled(fixture: FootballFixture): boolean {
+  return (
+    isScheduledTeam(fixture.home_team_id, fixture.home_team_name) &&
+    isScheduledTeam(fixture.away_team_id, fixture.away_team_name)
+  );
+}
+
+function slotHasTeamId(match: BracketMatch, teamId: string): boolean {
+  return (
+    match.home.participant.apiTeamId === teamId || match.away.participant.apiTeamId === teamId
+  );
+}
+
 /** Prefer official KO fixtures over projected standings slots (fixes 3rd-place pairing). */
 function overlayStageFixtures(
   matches: BracketMatch[],
@@ -335,51 +377,64 @@ function overlayStageFixtures(
     .filter((f) => normalizeStage(f.match_type) === stage)
     .sort((a, b) => Number(a.api_fixture_id) - Number(b.api_fixture_id));
 
-  const used = new Set<string>();
-  const result = matches.map((match) => {
-    let best: FootballFixture | undefined;
-    let bestScore = 0;
+  const usedFixtures = new Set<string>();
+  const usedSlots = new Set<number>();
+  const result = [...matches];
 
+  // Pass 1: both teams known — require 2-team overlap (prevents wrong slot assignment).
+  for (let i = 0; i < result.length; i++) {
     for (const f of stageFixtures) {
-      if (used.has(f.api_fixture_id)) continue;
-      const score = fixtureMatchScore(match, f);
-      if (score > bestScore) {
-        bestScore = score;
-        best = f;
-      }
-    }
-
-    if (best && bestScore >= 1) {
-      used.add(best.api_fixture_id);
-      return mergeMatchWithFixture(match, best, teams, fixtureIdToMatch);
-    }
-    return match;
-  });
-
-  // Pair remaining full fixtures to bracket slots that still have wrong projections.
-  for (const f of stageFixtures) {
-    if (used.has(f.api_fixture_id)) continue;
-    if (
-      !isScheduledTeam(f.home_team_id, f.home_team_name) ||
-      !isScheduledTeam(f.away_team_id, f.away_team_name)
-    ) {
-      continue;
-    }
-
-    let bestIdx = -1;
-    let bestScore = 0;
-    for (let i = 0; i < result.length; i++) {
-      const score = fixtureMatchScore(result[i], f);
-      if (score > 0 && score > bestScore) {
-        bestScore = score;
-        bestIdx = i;
-      }
-    }
-    if (bestIdx >= 0) {
-      used.add(f.api_fixture_id);
-      result[bestIdx] = mergeMatchWithFixture(result[bestIdx], f, teams, fixtureIdToMatch);
+      if (usedFixtures.has(f.api_fixture_id)) continue;
+      if (!bothTeamsScheduled(f)) continue;
+      if (fixtureMatchScore(result[i], f) < 4) continue;
+      result[i] = mergeMatchWithFixture(result[i], f, teams, fixtureIdToMatch);
+      usedFixtures.add(f.api_fixture_id);
+      usedSlots.add(i);
+      break;
     }
   }
+
+  // Pass 2: one known team (e.g. Paraguay vs Winner Match 77).
+  for (const f of stageFixtures) {
+    if (usedFixtures.has(f.api_fixture_id)) continue;
+    const homeKnown = isScheduledTeam(f.home_team_id, f.home_team_name);
+    const awayKnown = isScheduledTeam(f.away_team_id, f.away_team_name);
+    if (homeKnown && awayKnown) continue;
+    if (!homeKnown && !awayKnown) continue;
+
+    const knownId = homeKnown ? f.home_team_id! : f.away_team_id!;
+    let slot = -1;
+    for (let i = 0; i < result.length; i++) {
+      if (usedSlots.has(i)) continue;
+      if (slotHasTeamId(result[i], knownId)) {
+        slot = i;
+        break;
+      }
+    }
+    if (slot < 0) {
+      for (let i = 0; i < result.length; i++) {
+        if (!usedSlots.has(i)) {
+          slot = i;
+          break;
+        }
+      }
+    }
+    if (slot >= 0) {
+      result[slot] = mergeMatchWithFixture(result[slot], f, teams, fixtureIdToMatch);
+      usedFixtures.add(f.api_fixture_id);
+      usedSlots.add(slot);
+    }
+  }
+
+  // Pass 3: placeholder-only fixtures — fill remaining slots in API order.
+  const remainingFixtures = stageFixtures.filter((f) => !usedFixtures.has(f.api_fixture_id));
+  const remainingSlots = result.map((_, i) => i).filter((i) => !usedSlots.has(i));
+  remainingFixtures.forEach((f, idx) => {
+    const slot = remainingSlots[idx];
+    if (slot == null) return;
+    result[slot] = mergeMatchWithFixture(result[slot], f, teams, fixtureIdToMatch);
+    usedFixtures.add(f.api_fixture_id);
+  });
 
   return result;
 }
