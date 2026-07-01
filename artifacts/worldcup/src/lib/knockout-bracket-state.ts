@@ -777,3 +777,61 @@ export function matchesByStage(state: KnockoutBracketState): Map<KnockoutStage, 
   }
   return map;
 }
+
+export type BracketFocusView = KnockoutStage | "champion";
+
+export interface TeamBracketFocus {
+  match: BracketMatch;
+  view: BracketFocusView;
+}
+
+function matchInvolvesTeam(match: BracketMatch, teamId: string): boolean {
+  return (
+    match.home.participant.apiTeamId === teamId ||
+    match.away.participant.apiTeamId === teamId
+  );
+}
+
+/** Pick the best bracket match to show for a team (live → next → latest finished). */
+export function findTeamBracketFocus(
+  state: KnockoutBracketState,
+  teamId: string,
+): TeamBracketFocus | null {
+  if (state.champion?.apiTeamId === teamId) {
+    const finalMatch = state.matches.find((m) => m.stage === "final");
+    if (finalMatch) return { match: finalMatch, view: "champion" };
+  }
+
+  const stages: KnockoutStage[] = [
+    "round_of_32",
+    "round_of_16",
+    "quarterfinal",
+    "semifinal",
+    "final",
+    "third_place",
+  ];
+  const teamMatches = state.matches.filter((m) => matchInvolvesTeam(m, teamId));
+  if (teamMatches.length === 0) return null;
+
+  const live = teamMatches.find((m) => m.isLive);
+  if (live) {
+    return { match: live, view: live.stage === "third_place" ? "third_place" : live.stage };
+  }
+
+  const upcoming = teamMatches
+    .filter((m) => !m.isFinished)
+    .sort((a, b) => (a.kickoffAt ?? "").localeCompare(b.kickoffAt ?? ""));
+  if (upcoming.length > 0) {
+    const m = upcoming[0]!;
+    return { match: m, view: m.stage === "third_place" ? "third_place" : m.stage };
+  }
+
+  const finished = teamMatches
+    .filter((m) => m.isFinished)
+    .sort((a, b) => (b.kickoffAt ?? "").localeCompare(a.kickoffAt ?? ""));
+  const latest = finished[0] ?? teamMatches[0]!;
+  return {
+    match: latest,
+    view: latest.stage === "third_place" ? "third_place" : latest.stage,
+  };
+}

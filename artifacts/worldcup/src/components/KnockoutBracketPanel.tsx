@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
+import { useSearch } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { Trophy, RefreshCw } from "lucide-react";
 import {
   Carousel,
@@ -8,12 +10,15 @@ import {
 } from "@/components/ui/carousel";
 import { TeamFlag } from "@/components/TeamFlag";
 import { FixturesLoadingState } from "@/components/FixturesLoadingState";
+import { QueryErrorState } from "@/components/QueryErrorState";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
 import { useFootballSyncJobs } from "@/hooks/useFootballData";
 import { useKnockoutBracket } from "@/hooks/useKnockoutBracket";
 import {
   matchesByStage,
   stageDisplayLabel,
+  findTeamBracketFocus,
+  type BracketFocusView,
   type BracketMatch,
   type BracketParticipant,
   type KnockoutBracketState,
@@ -30,9 +35,10 @@ const DISPLAY_STAGES: KnockoutStage[] = [
   "final",
 ];
 
-type MobileView = KnockoutStage | "champion" | "third_place" | "snapshot";
+type MobileView = KnockoutStage | "champion" | "third_place" | "snapshot" | "overview";
 
 const MOBILE_SLIDES: { id: MobileView; short: string; label: string }[] = [
+  { id: "overview", short: "All", label: "Tournament overview" },
   { id: "snapshot", short: "Now", label: "Live & recent" },
   { id: "round_of_32", short: "R32", label: "Round of 32" },
   { id: "round_of_16", short: "R16", label: "Round of 16" },
@@ -168,16 +174,27 @@ function ParticipantLabel({
   return <PlaceholderTeamName name={participant.name} compact={compact} />;
 }
 
-function CompactMatchRow({ match }: { match: BracketMatch }) {
+function CompactMatchRow({
+  match,
+  highlightMatchId,
+  highlightTeamId,
+}: {
+  match: BracketMatch;
+  highlightMatchId?: string | null;
+  highlightTeamId?: string | null;
+}) {
   const winnerId = match.winnerId;
   const homeWin = !!winnerId && winnerId === match.home.participant.apiTeamId;
   const awayWin = !!winnerId && winnerId === match.away.participant.apiTeamId;
+  const highlighted = highlightMatchId === match.id;
 
   return (
     <div
+      data-bracket-match={match.id}
       className={cn(
-        "rounded-xl border px-3 py-2.5 bg-card/70 space-y-1.5",
+        "rounded-xl border px-3 py-2.5 bg-card/70 space-y-1.5 transition-shadow",
         match.isLive ? "border-primary/50" : "border-border/60",
+        highlighted && "ring-2 ring-primary/70 shadow-[0_0_16px_-4px_hsl(var(--primary))]",
       )}
     >
       <div className="flex items-center gap-2">
@@ -196,6 +213,8 @@ function CompactMatchRow({ match }: { match: BracketMatch }) {
                 awayWin && winnerId && "opacity-45",
                 !match.home.participant.apiTeamId && "text-muted-foreground",
                 match.home.participant.apiTeamId && "truncate",
+                highlightTeamId === match.home.participant.apiTeamId &&
+                  "text-primary font-bold",
               )}
             >
               {match.home.participant.apiTeamId ? (
@@ -222,6 +241,8 @@ function CompactMatchRow({ match }: { match: BracketMatch }) {
                 homeWin && winnerId && "opacity-45",
                 !match.away.participant.apiTeamId && "text-muted-foreground",
                 match.away.participant.apiTeamId && "truncate",
+                highlightTeamId === match.away.participant.apiTeamId &&
+                  "text-primary font-bold",
               )}
             >
               {match.away.participant.apiTeamId ? (
@@ -252,12 +273,14 @@ function BracketTeamRow({
   isWinner,
   dimmed,
   compact,
+  highlighted,
 }: {
   participant: BracketParticipant;
   score: number | null;
   isWinner?: boolean;
   dimmed?: boolean;
   compact?: boolean;
+  highlighted?: boolean;
 }) {
   const isPlaceholder = !participant.apiTeamId;
 
@@ -271,6 +294,7 @@ function BracketTeamRow({
           : "bg-gradient-to-r from-primary/25 via-primary/40 to-primary/55 border border-primary/20",
         dimmed && "opacity-45",
         isWinner && !isPlaceholder && "ring-2 ring-primary/60 shadow-[0_0_12px_-2px_hsl(var(--primary))]",
+        highlighted && !isWinner && "ring-2 ring-primary/50",
       )}
     >
       <TeamFlag
@@ -312,20 +336,27 @@ function BracketTeamRow({
 function BracketMatchCard({
   match,
   compact,
+  highlightMatchId,
+  highlightTeamId,
 }: {
   match: BracketMatch;
   compact?: boolean;
+  highlightMatchId?: string | null;
+  highlightTeamId?: string | null;
 }) {
   const winnerId = match.winnerId;
+  const highlighted = highlightMatchId === match.id;
 
   return (
     <article
+      data-bracket-match={match.id}
       className={cn(
-        "rounded-xl border bg-card/60 backdrop-blur-sm space-y-2",
+        "rounded-xl border bg-card/60 backdrop-blur-sm space-y-2 transition-shadow",
         compact ? "w-full p-3.5" : "p-2.5 space-y-1.5 min-w-[11.5rem] sm:min-w-[13rem]",
         match.isLive
           ? "border-primary/50 shadow-[0_0_20px_-8px_hsl(var(--primary))]"
           : "border-border/70",
+        highlighted && "ring-2 ring-primary/70 shadow-[0_0_16px_-4px_hsl(var(--primary))]",
       )}
     >
       <div className="flex items-center justify-between gap-2 px-0.5">
@@ -346,6 +377,7 @@ function BracketMatchCard({
         isWinner={!!winnerId && winnerId === match.home.participant.apiTeamId}
         dimmed={!!winnerId && winnerId !== match.home.participant.apiTeamId}
         compact={compact}
+        highlighted={highlightTeamId === match.home.participant.apiTeamId}
       />
       <BracketTeamRow
         participant={match.away.participant}
@@ -353,6 +385,7 @@ function BracketMatchCard({
         isWinner={!!winnerId && winnerId === match.away.participant.apiTeamId}
         dimmed={!!winnerId && winnerId !== match.away.participant.apiTeamId}
         compact={compact}
+        highlighted={highlightTeamId === match.away.participant.apiTeamId}
       />
       <div className="px-0.5">
         <MatchTimingSubtext match={match} />
@@ -364,9 +397,13 @@ function BracketMatchCard({
 function BracketRoundColumn({
   stage,
   matches,
+  highlightMatchId,
+  highlightTeamId,
 }: {
   stage: KnockoutStage;
   matches: BracketMatch[];
+  highlightMatchId?: string | null;
+  highlightTeamId?: string | null;
 }) {
   if (matches.length === 0) return null;
 
@@ -380,7 +417,12 @@ function BracketRoundColumn({
         style={{ minHeight: matches.length > 4 ? `${matches.length * 4.5}rem` : undefined }}
       >
         {matches.map((m) => (
-          <BracketMatchCard key={m.id} match={m} />
+          <BracketMatchCard
+            key={m.id}
+            match={m}
+            highlightMatchId={highlightMatchId}
+            highlightTeamId={highlightTeamId}
+          />
         ))}
       </div>
     </div>
@@ -406,17 +448,103 @@ function ChampionBlock({ champion }: { champion: BracketParticipant | null }) {
   );
 }
 
-function MobileBracketView({
+function BracketOverviewSlide({
   byStage,
   bracket,
+  hasThirdPlace,
+  onJumpToStage,
 }: {
   byStage: Map<KnockoutStage, BracketMatch[]>;
   bracket: KnockoutBracketState;
+  hasThirdPlace: boolean;
+  onJumpToStage: (view: MobileView) => void;
+}) {
+  const rows: { id: MobileView; label: string }[] = [
+    ...DISPLAY_STAGES.map((s) => ({ id: s as MobileView, label: stageDisplayLabel(s) })),
+    ...(hasThirdPlace ? [{ id: "third_place" as MobileView, label: "Third place" }] : []),
+    { id: "champion", label: "Champion" },
+  ];
+
+  return (
+    <div className="space-y-1.5">
+      {rows.map(({ id, label }) => {
+        const matches = id === "champion" ? [] : (byStage.get(id as KnockoutStage) ?? []);
+        const stats =
+          id === "champion"
+            ? { live: 0, finished: bracket.champion ? 1 : 0, total: 1 }
+            : stageStats(matches);
+        const preview =
+          id === "champion"
+            ? null
+            : [
+                ...matches.filter((m) => m.isLive),
+                ...matches.filter((m) => !m.isFinished && !m.isLive),
+                ...matches.filter((m) => m.isFinished),
+              ].slice(0, 2);
+
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onJumpToStage(id)}
+            className="w-full text-left rounded-xl border border-border/60 bg-card/50 px-3 py-2.5 hover:bg-secondary/40 transition-colors"
+          >
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
+              <span className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground shrink-0">
+                {stats.live > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" aria-hidden />
+                )}
+                {id === "champion"
+                  ? bracket.champion
+                    ? bracket.champion.name
+                    : "TBD"
+                  : `${stats.finished}/${stats.total}`}
+              </span>
+            </div>
+            {preview && preview.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {preview.map((m) => (
+                  <span key={m.id} className="text-[11px] text-muted-foreground truncate">
+                    {m.home.participant.apiTeamId ? m.home.participant.name : "TBD"} vs{" "}
+                    {m.away.participant.apiTeamId ? m.away.participant.name : "TBD"}
+                    {m.isLive && <span className="text-primary font-bold ml-1">· Live</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </button>
+        );
+      })}
+      <p className="text-[10px] text-center text-muted-foreground font-mono pt-2">
+        Tap a round for details · swipe for live snapshot
+      </p>
+    </div>
+  );
+}
+
+function MobileBracketView({
+  byStage,
+  bracket,
+  highlightMatchId,
+  highlightTeamId,
+  focusSlide,
+}: {
+  byStage: Map<KnockoutStage, BracketMatch[]>;
+  bracket: KnockoutBracketState;
+  highlightMatchId?: string | null;
+  highlightTeamId?: string | null;
+  focusSlide?: BracketFocusView | "snapshot" | "overview";
 }) {
   const hasThirdPlace = (byStage.get("third_place")?.length ?? 0) > 0;
   const defaultSlide = useMemo(
-    () => pickDefaultMobileSlide(byStage, hasThirdPlace),
-    [byStage, hasThirdPlace],
+    () => focusSlide ?? pickDefaultMobileSlide(byStage, hasThirdPlace),
+    [byStage, hasThirdPlace, focusSlide],
+  );
+
+  const allKnockoutMatches = useMemo(
+    () => DISPLAY_STAGES.flatMap((stage) => byStage.get(stage) ?? []),
+    [byStage],
   );
 
   const slides = useMemo(() => {
@@ -464,6 +592,14 @@ function MobileBracketView({
     [carouselApi],
   );
 
+  const jumpToStage = useCallback(
+    (view: MobileView) => {
+      const idx = slides.findIndex((s) => s.id === view);
+      if (idx >= 0) scrollTo(idx);
+    },
+    [slides, scrollTo],
+  );
+
   return (
     <div className="md:hidden space-y-3">
       {/* Round glance strip — tap to jump, swipe carousel below */}
@@ -471,7 +607,9 @@ function MobileBracketView({
         {slides.map((slide, index) => {
           const isActive = activeIndex === index;
           const matches =
-            slide.id === "snapshot"
+            slide.id === "overview"
+              ? allKnockoutMatches
+              : slide.id === "snapshot"
               ? snapshotMatches
               : slide.id === "champion"
                 ? []
@@ -479,7 +617,9 @@ function MobileBracketView({
                   ? (byStage.get("third_place") ?? [])
                   : (byStage.get(slide.id) ?? []);
           const stats =
-            slide.id === "snapshot"
+            slide.id === "overview"
+              ? stageStats(allKnockoutMatches)
+              : slide.id === "snapshot"
               ? {
                   live: snapshotMatches.filter((m) => m.isLive).length,
                   finished: snapshotMatches.filter((m) => m.isFinished).length,
@@ -527,7 +667,9 @@ function MobileBracketView({
         <CarouselContent className="-ml-2">
           {slides.map((slide) => {
             const matches =
-              slide.id === "snapshot"
+              slide.id === "overview"
+                ? allKnockoutMatches
+                : slide.id === "snapshot"
                 ? snapshotMatches
                 : slide.id === "third_place"
                   ? (byStage.get("third_place") ?? [])
@@ -540,14 +682,31 @@ function MobileBracketView({
                 <div className="space-y-3">
                   <div className="flex items-baseline justify-between gap-2 px-0.5">
                     <h3 className="text-base font-bold">{slide.label}</h3>
-                    {slide.id !== "champion" && slide.id !== "snapshot" && matches.length > 0 && (
+                    {slide.id !== "champion" &&
+                      slide.id !== "snapshot" &&
+                      slide.id !== "overview" &&
+                      matches.length > 0 && (
                       <p className="text-[10px] font-mono text-muted-foreground">
                         {stageStats(matches).finished}/{matches.length} played
                       </p>
                     )}
+                    {slide.id === "overview" && (
+                      <p className="text-[10px] font-mono text-muted-foreground">
+                        {stageStats(allKnockoutMatches).live > 0
+                          ? `${stageStats(allKnockoutMatches).live} live`
+                          : `${stageStats(allKnockoutMatches).finished}/${allKnockoutMatches.length} played`}
+                      </p>
+                    )}
                   </div>
 
-                  {slide.id === "champion" ? (
+                  {slide.id === "overview" ? (
+                    <BracketOverviewSlide
+                      byStage={byStage}
+                      bracket={bracket}
+                      hasThirdPlace={hasThirdPlace}
+                      onJumpToStage={jumpToStage}
+                    />
+                  ) : slide.id === "champion" ? (
                     <ChampionBlock champion={bracket.champion} />
                   ) : matches.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
@@ -558,7 +717,12 @@ function MobileBracketView({
                   ) : (
                     <div className="space-y-2">
                       {matches.map((m) => (
-                        <CompactMatchRow key={m.id} match={m} />
+                        <CompactMatchRow
+                          key={m.id}
+                          match={m}
+                          highlightMatchId={highlightMatchId}
+                          highlightTeamId={highlightTeamId}
+                        />
                       ))}
                     </div>
                   )}
@@ -597,9 +761,13 @@ function MobileBracketView({
 function DesktopBracketView({
   byStage,
   bracket,
+  highlightMatchId,
+  highlightTeamId,
 }: {
   byStage: Map<KnockoutStage, BracketMatch[]>;
   bracket: KnockoutBracketState;
+  highlightMatchId?: string | null;
+  highlightTeamId?: string | null;
 }) {
   return (
     <div className="hidden md:block relative rounded-2xl border border-border/80 bg-card/30 overflow-hidden">
@@ -608,7 +776,12 @@ function DesktopBracketView({
         <div className="flex gap-4 sm:gap-6 lg:gap-8 min-w-max items-stretch">
           {DISPLAY_STAGES.map((stage, i) => (
             <div key={stage} className="flex items-stretch gap-4 sm:gap-6 lg:gap-8">
-              <BracketRoundColumn stage={stage} matches={byStage.get(stage) ?? []} />
+              <BracketRoundColumn
+                stage={stage}
+                matches={byStage.get(stage) ?? []}
+                highlightMatchId={highlightMatchId}
+                highlightTeamId={highlightTeamId}
+              />
               {i < DISPLAY_STAGES.length - 1 && (
                 <div className="flex flex-col justify-center w-4 shrink-0" aria-hidden>
                   <div className="h-px w-full bg-primary/30" />
@@ -626,16 +799,55 @@ function DesktopBracketView({
 }
 
 export function KnockoutBracketPanel() {
-  const { bracket, isLoading, isFetching } = useKnockoutBracket();
+  const search = useSearch();
+  const queryClient = useQueryClient();
+  const { bracket, isLoading, isFetching, isError } = useKnockoutBracket();
   const { data: syncJobs = [] } = useFootballSyncJobs();
+
+  const highlightTeamId = useMemo(() => {
+    const qs = search.startsWith("?") ? search.slice(1) : search;
+    return new URLSearchParams(qs).get("team");
+  }, [search]);
 
   const byStage = useMemo(
     () => (bracket ? matchesByStage(bracket) : null),
     [bracket],
   );
 
+  const teamFocus = useMemo(() => {
+    if (!bracket || !highlightTeamId) return null;
+    return findTeamBracketFocus(bracket, highlightTeamId);
+  }, [bracket, highlightTeamId]);
+
+  const highlightMatchId = teamFocus?.match.id ?? null;
+  const focusSlide = teamFocus?.view ?? undefined;
+
+  useEffect(() => {
+    if (!highlightMatchId) return;
+    const id = window.setTimeout(() => {
+      document
+        .querySelector(`[data-bracket-match="${highlightMatchId}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [highlightMatchId, byStage]);
+
+  const retryLive = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["football-live"] });
+  }, [queryClient]);
+
   if (isLoading) {
-    return <FixturesLoadingState compact={false} delayed={false} />;
+    return <FixturesLoadingState compact={false} delayed={false} label="Loading bracket" />;
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Could not load bracket"
+        message="Live tournament data is unavailable right now. Check your connection and try again."
+        onRetry={retryLive}
+      />
+    );
   }
 
   if (!bracket || !byStage) {
@@ -658,6 +870,14 @@ export function KnockoutBracketPanel() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl">
             Live standings and results.
             {!bracket.groupsComplete && " Some slots are projected until groups finish."}
+            {teamFocus && (
+              <span className="block text-primary/90 mt-1">
+                Showing bracket position for{" "}
+                {teamFocus.match.home.participant.apiTeamId === highlightTeamId
+                  ? teamFocus.match.home.participant.name
+                  : teamFocus.match.away.participant.name}
+              </span>
+            )}
           </p>
         </div>
         {isFetching && (
@@ -668,15 +888,30 @@ export function KnockoutBracketPanel() {
         )}
       </div>
 
-      <MobileBracketView byStage={byStage} bracket={bracket} />
-      <DesktopBracketView byStage={byStage} bracket={bracket} />
+      <MobileBracketView
+        byStage={byStage}
+        bracket={bracket}
+        highlightMatchId={highlightMatchId}
+        highlightTeamId={highlightTeamId}
+        focusSlide={focusSlide}
+      />
+      <DesktopBracketView
+        byStage={byStage}
+        bracket={bracket}
+        highlightMatchId={highlightMatchId}
+        highlightTeamId={highlightTeamId}
+      />
 
       {(byStage.get("third_place")?.length ?? 0) > 0 && (
         <div className="hidden md:block max-w-sm">
           <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground mb-2">
             Third place
           </h3>
-          <BracketMatchCard match={byStage.get("third_place")![0]} />
+          <BracketMatchCard
+            match={byStage.get("third_place")![0]}
+            highlightMatchId={highlightMatchId}
+            highlightTeamId={highlightTeamId}
+          />
         </div>
       )}
 

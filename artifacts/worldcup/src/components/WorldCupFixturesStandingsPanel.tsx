@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearch, useLocation } from "wouter";
+import { Link, useSearch } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   Trophy,
@@ -13,7 +14,13 @@ import {
   Target,
 } from "lucide-react";
 import { SyncStatusFooter } from "@/components/SyncStatusFooter";
+import { QueryErrorState } from "@/components/QueryErrorState";
 import { FixturesLoadingState, FixturesRefreshingBar, ScorersLoadingState } from "@/components/FixturesLoadingState";
+import { useHomeTab, fixturesSectionFromSearch, scheduleViewFromSearch } from "@/hooks/useHomeTab";
+import {
+  isFixtureLive,
+  formatLiveMinute,
+} from "@/lib/fixture-status";
 import { FootballTeamSelect } from "@/components/FootballTeamSelect";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +71,8 @@ function MatchCard({
   timeZone: string;
 }) {
   const finished = f.is_finished;
+  const live = isFixtureLive(f);
+  const liveMinute = live ? formatLiveMinute(f.time_elapsed) : null;
   const kickoffTime = formatKickoffTime(f.kickoff_at, timeZone, { withTimezone: true });
   const kickoffTimeShort = formatKickoffTime(f.kickoff_at, timeZone);
   const showDate =
@@ -73,7 +82,12 @@ function MatchCard({
     : kickoffTime;
 
   return (
-    <article className="px-4 py-4 hover:bg-secondary/30 transition-colors border-b border-border/20 last:border-0">
+    <article
+      className={cn(
+        "px-4 py-4 hover:bg-secondary/30 transition-colors border-b border-border/20 last:border-0",
+        live && "bg-primary/[0.04] border-l-2 border-l-primary/60",
+      )}
+    >
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {f.group_name && (
@@ -85,7 +99,12 @@ function MatchCard({
             <span className="uppercase tracking-wider">{f.match_type.replace(/_/g, " ")}</span>
           )}
         </div>
-        {finished ? (
+        {live ? (
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" aria-hidden />
+            Live{liveMinute ? ` · ${liveMinute}` : ""}
+          </span>
+        ) : finished ? (
           <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">FT</span>
         ) : (
           <span className="text-xs text-muted-foreground">{kickoffLabel}</span>
@@ -101,7 +120,7 @@ function MatchCard({
         </div>
 
         <div className="flex flex-col items-center justify-center min-w-[3.5rem] sm:min-w-[4.5rem] px-1 sm:px-2">
-          {finished ? (
+          {finished || live ? (
             <span className="text-xl md:text-2xl font-mono font-bold tabular-nums">
               {f.home_goals ?? 0}
               <span className="text-muted-foreground mx-1.5 font-normal">–</span>
@@ -505,7 +524,7 @@ function GroupStandingsCard({
                   "group flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-secondary/50 transition-colors",
                   qualifies && "bg-primary/[0.06] border-l-2 border-primary",
                 )}
-                title="View knockout bracket"
+                title="View in bracket"
               >
                 {content}
               </button>
@@ -598,7 +617,7 @@ function StandingsTableView({
                   clickable && "cursor-pointer hover:bg-secondary/40",
                 )}
                 onClick={clickable ? () => onTeamPathSelect!(r.team_id) : undefined}
-                title={clickable ? "View knockout bracket" : undefined}
+                title={clickable ? "View in bracket" : undefined}
               >
                 <td className="py-3 pl-4 pr-2">
                   <span
@@ -643,13 +662,18 @@ type DataSection = "matches" | "tables" | "scorers";
 
 export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?: PanelVariant }) {
   const search = useSearch();
-  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const { openTeamInBracket, syncFixturesUrl } = useHomeTab();
 
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [activeGroup, setActiveGroup] = useState("A");
   const [standingsView, setStandingsView] = useState<"grid" | "table">("grid");
-  const [dataSection, setDataSection] = useState<DataSection>("matches");
-  const [scheduleView, setScheduleView] = useState<ScheduleView>("today");
+  const [dataSection, setDataSection] = useState<DataSection>(() =>
+    fixturesSectionFromSearch(search),
+  );
+  const [scheduleView, setScheduleView] = useState<ScheduleView>(() =>
+    scheduleViewFromSearch(search),
+  );
 
   const configured = isSupabaseConfigured();
   const {
@@ -664,17 +688,56 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
   const standings = liveData?.standings ?? [];
   const teams = liveData?.teams ?? [];
 
-  const handleTeamBracketFromTable = useCallback(() => {
-    setLocation("/");
-  }, [setLocation]);
+  const handleTeamBracketFromTable = useCallback(
+    (teamId: string) => {
+      openTeamInBracket(teamId);
+    },
+    [openTeamInBracket],
+  );
+
+  const retryLive = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["football-live"] });
+  }, [queryClient]);
+
+  const selectDataSection = useCallback(
+    (section: DataSection) => {
+      setDataSection(section);
+      syncFixturesUrl({
+        section,
+        view: section === "matches" ? scheduleView : undefined,
+        group: section === "tables" ? activeGroup : null,
+      });
+    },
+    [activeGroup, scheduleView, syncFixturesUrl],
+  );
+
+  const selectScheduleView = useCallback(
+    (view: ScheduleView) => {
+      setScheduleView(view);
+      syncFixturesUrl({ section: "matches", view });
+    },
+    [syncFixturesUrl],
+  );
+
+  const selectActiveGroup = useCallback(
+    (group: string) => {
+      setActiveGroup(group);
+      syncFixturesUrl({ section: "tables", group });
+    },
+    [syncFixturesUrl],
+  );
 
   useEffect(() => {
     const qs = search.startsWith("?") ? search.slice(1) : search;
     const sp = new URLSearchParams(qs);
-    const section = sp.get("section");
+    const section = fixturesSectionFromSearch(search);
+    const view = scheduleViewFromSearch(search);
     const group = sp.get("group");
+
+    setDataSection(section);
+    setScheduleView(view);
+
     if (section === "tables") {
-      setDataSection("tables");
       setStandingsView("table");
       if (group && /^[A-L]$/i.test(group)) {
         setActiveGroup(group.toUpperCase());
@@ -684,7 +747,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
       });
     }
     if (section === "scorers") {
-      setDataSection("scorers");
       requestAnimationFrame(() => {
         document.getElementById("fixtures-standings")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
@@ -764,6 +826,11 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
 
   const topScorers = useMemo(() => aggregateTopScorers(fixtures, 500), [fixtures]);
 
+  const liveMatchCount = useMemo(
+    () => fixtures.filter((f) => isFixtureLive(f)).length,
+    [fixtures],
+  );
+
   const groups = useMemo(() => {
     const set = new Set(standings.map((s) => s.group_name));
     return [...set].sort();
@@ -824,9 +891,13 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
         <Card className="bg-card border-border shadow-lg overflow-hidden">
           <CardContent className="p-0">
             {!canShowSchedule && (
-              <p className="text-sm text-muted-foreground p-6 text-center">
-                Live data unavailable — could not reach worldcup26 API.
-              </p>
+              <div className="p-4">
+                <QueryErrorState
+                  title="Schedule unavailable"
+                  message="Could not reach the World Cup data API. Check your connection and try again."
+                  onRetry={retryLive}
+                />
+              </div>
             )}
 
             {canShowSchedule && loading && <FixturesLoadingState compact />}
@@ -886,6 +957,14 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               Kickoff times in <span className="font-mono text-foreground/90">{tzLabel}</span>
+              <span className="sm:hidden block text-[11px] font-mono text-muted-foreground/80 mt-0.5">
+                {liveSource === "api"
+                  ? "Live from worldcup26.ir"
+                  : liveApiError
+                    ? "Cached (API unavailable)"
+                    : "Cached copy"}
+                {liveFetching && !liveLoading ? " · updating…" : ""}
+              </span>
               <span className="hidden sm:inline text-muted-foreground/80">
                 {liveSource === "api"
                   ? " · live from worldcup26.ir"
@@ -901,17 +980,25 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
         <CardContent className="p-0">
           <FixturesRefreshingBar active={liveFetching && !liveLoading && hasLiveContent} />
           {!canShowSchedule && (
-            <p className="text-sm text-muted-foreground p-6 text-center">
-              Live data unavailable — could not reach worldcup26 API.
-            </p>
+            <div className="p-4">
+              <QueryErrorState
+                title="Schedule unavailable"
+                message="Could not reach the World Cup data API. Check your connection and try again."
+                onRetry={retryLive}
+              />
+            </div>
           )}
 
           {canShowSchedule && loading && <FixturesLoadingState />}
 
           {canShowSchedule && !loading && liveError && !hasLiveContent && (
-            <p className="text-sm text-muted-foreground p-6 text-center">
-              Could not load live data. Try again shortly.
-            </p>
+            <div className="p-4">
+              <QueryErrorState
+                title="Could not load schedule"
+                message="Live fixtures and standings are unavailable right now."
+                onRetry={retryLive}
+              />
+            </div>
           )}
 
           {canShowSchedule && !loading && hasLiveContent && (
@@ -929,16 +1016,24 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     <button
                       key={id}
                       type="button"
-                      onClick={() => setDataSection(id)}
+                      onClick={() => selectDataSection(id)}
                       className={cn(
-                        "flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors",
+                        "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-2 px-1.5 sm:px-2 rounded-md text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors min-h-[44px]",
                         dataSection === id
                           ? "bg-background text-primary shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">{label}</span>
+                      <span className="relative inline-flex">
+                        <Icon className="w-3.5 h-3.5" />
+                        {id === "matches" && liveMatchCount > 0 && (
+                          <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-primary animate-pulse" aria-hidden />
+                        )}
+                      </span>
+                      <span>{label}</span>
+                      {id === "matches" && liveMatchCount > 0 && (
+                        <span className="sr-only">{liveMatchCount} live</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -960,7 +1055,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                         <button
                           key={id}
                           type="button"
-                          onClick={() => setScheduleView(id)}
+                          onClick={() => selectScheduleView(id)}
                           className={cn(
                             "px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors",
                             scheduleView === id
@@ -984,9 +1079,6 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                               Today &amp; tomorrow
                             </span>
                           </div>
-                          <span className="text-[10px] font-mono text-primary/70 shrink-0 hidden sm:inline">
-                            Team to win
-                          </span>
                         </div>
                         {upcomingWindow.length === 0 ? (
                           <p className="text-sm text-muted-foreground p-8 text-center">
@@ -995,7 +1087,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                               <button
                                 type="button"
                                 className="block mx-auto mt-3 text-primary font-semibold hover:underline"
-                                onClick={() => setScheduleView("upcoming")}
+                                onClick={() => selectScheduleView("upcoming")}
                               >
                                 View upcoming fixtures →
                               </button>
@@ -1123,7 +1215,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                     scorers={topScorers}
                     teams={teams}
                     isLoading={isScorersLoading}
-                    onViewAll={() => setDataSection("scorers")}
+                    onViewAll={() => selectDataSection("scorers")}
                   />
                 </div>
               )}
@@ -1139,7 +1231,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                         <p className="text-xs text-muted-foreground max-w-xl">
                           Top{" "}
                           <span className="text-primary font-semibold">{QUALIFYING_SPOTS} teams</span> per group advance
-                          to the round of 32. Tap a team to open their path to the final.
+                          to the round of 32. Tap a team to view them in the knockout bracket.
                         </p>
                         <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50 border border-border/50 shrink-0">
                           <button
@@ -1189,7 +1281,7 @@ export function WorldCupFixturesStandingsPanel({ variant = "full" }: { variant?:
                               <button
                                 key={g}
                                 type="button"
-                                onClick={() => setActiveGroup(g)}
+                                onClick={() => selectActiveGroup(g)}
                                 className={cn(
                                   "min-w-[2.25rem] px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors",
                                   activeGroup === g

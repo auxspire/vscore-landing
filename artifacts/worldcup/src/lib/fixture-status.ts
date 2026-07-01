@@ -34,6 +34,27 @@ export function resolveFixtureFinished(f: FixtureLike, nowMs = Date.now()): bool
   return false;
 }
 
+/** True when a fixture is in play (not finished, kickoff started). */
+export function isFixtureLive(f: FixtureLike, nowMs = Date.now()): boolean {
+  if (resolveFixtureFinished(f, nowMs)) return false;
+  const t = (f.time_elapsed ?? "").trim().toLowerCase();
+  if (!t || t === "null" || t === "notstarted") return false;
+  if (isElapsedFinished(f.time_elapsed)) return false;
+  return true;
+}
+
+/** Display label for live minute / half (e.g. 45', HT). */
+export function formatLiveMinute(timeElapsed: string | null | undefined): string | null {
+  const t = (timeElapsed ?? "").trim();
+  if (!t) return null;
+  const lower = t.toLowerCase();
+  if (lower === "notstarted" || lower === "null") return null;
+  if (lower === "halftime" || lower === "ht") return "HT";
+  if (/^\d+$/.test(t)) return `${t}'`;
+  if (lower === "finished" || lower === "ft") return null;
+  return t;
+}
+
 export function normalizeFixtureRow<T extends FixtureLike>(f: T, nowMs = Date.now()): T {
   const finished = resolveFixtureFinished(f, nowMs);
   if (finished === f.is_finished) return f;

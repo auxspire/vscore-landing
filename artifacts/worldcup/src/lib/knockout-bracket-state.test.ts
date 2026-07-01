@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { R32_FIXTURE_SPEC } from "@/lib/bracket-builder";
-import { buildKnockoutBracketState, matchesByStage } from "@/lib/knockout-bracket-state";
+import { buildKnockoutBracketState, findTeamBracketFocus, matchesByStage } from "@/lib/knockout-bracket-state";
 import type { FootballFixture, FootballStanding, FootballTeam } from "@/hooks/useFootballData";
 
 function mockTeam(id: string, group: string, name: string): FootballTeam {
@@ -387,5 +387,39 @@ describe("buildKnockoutBracketState", () => {
         expect(p.name).toMatch(/^Winner of \([^)]+\)$/);
       }
     }
+  });
+});
+
+describe("findTeamBracketFocus", () => {
+  it("prefers live match, then upcoming, then latest finished", () => {
+    const teams = [mockTeam("de", "E", "Germany"), mockTeam("py", "E", "Paraguay")];
+    const standings: FootballStanding[] = [
+      standing("E", 1, "de", "Germany", 9),
+      standing("E", 2, "py", "Paraguay", 6),
+    ];
+    const fixtures: FootballFixture[] = [
+      {
+        api_fixture_id: "1",
+        kickoff_at: "2026-07-01T16:00:00Z",
+        home_team_id: "de",
+        home_team_name: "Germany",
+        away_team_id: "py",
+        away_team_name: "Paraguay",
+        home_goals: 1,
+        away_goals: 1,
+        home_scorers: null,
+        away_scorers: null,
+        group_name: "R16",
+        match_type: "r16",
+        time_elapsed: "90",
+        is_finished: false,
+      },
+    ];
+
+    const state = buildKnockoutBracketState({ standings, teams, fixtures });
+    const focus = findTeamBracketFocus(state, "de");
+    expect(focus).not.toBeNull();
+    expect(focus!.match.home.participant.apiTeamId).toBe("de");
+    expect(focus!.view).toBe("round_of_16");
   });
 });

@@ -44,6 +44,7 @@ interface WorldCupHubTabsProps {
   mode?: "controlled" | "route";
   onTabChange?: (tab: HubTab) => void;
   className?: string;
+  compact?: boolean;
 }
 
 export function resolveHubTab(pathname: string, search: string): HubTab | null {
@@ -60,6 +61,7 @@ export function WorldCupHubTabs({
   mode = "route",
   onTabChange,
   className,
+  compact = false,
 }: WorldCupHubTabsProps) {
   const queryClient = useQueryClient();
   const search = useSearch();
@@ -82,7 +84,8 @@ export function WorldCupHubTabs({
         const isActive = active === tab.id;
         const pillClass = cn(
           "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2",
-          "py-2.5 px-2 sm:px-3 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all",
+          compact ? "py-2 px-2 sm:px-3" : "py-2.5 px-2 sm:px-3",
+          "rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all",
           isActive
             ? "bg-background text-primary shadow-sm border border-primary/25"
             : "text-muted-foreground hover:text-foreground hover:bg-background/60",
