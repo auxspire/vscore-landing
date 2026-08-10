@@ -22,7 +22,7 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Failed to fetch live football data";
 }
 
-/** Fixtures, standings, and teams — Supabase sync cache (worldcup26 refreshed by cron). */
+/** Fixtures, standings, and teams — Supabase sync cache (worldcup26; scheduled sync retired). */
 router.get("/football/live", async (_req, res) => {
   liveCacheHeaders(res);
   try {

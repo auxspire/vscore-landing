@@ -5,24 +5,4 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-  <url>
-    <loc>https://vscor.in/worldcup/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://vscor.in/worldcup/bracket</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://vscor.in/worldcup/rankings</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://vscor.in/worldcup/fixtures</loc>
-    <changefreq>hourly</changefreq>
-    <priority>0.85</priority>
-  </url>
 </urlset>
